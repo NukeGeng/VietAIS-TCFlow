@@ -461,3 +461,15 @@ $RECYCLE.BIN/
 
 # Local bootstrap sources used to import pinned upstream baselines
 .bootstrap/
+
+# Workspace-local toolchains
+.tools/
+
+# Frontend outputs
+dist/
+coverage/
+
+# Local configuration
+.env
+.env.*
+!.env.example

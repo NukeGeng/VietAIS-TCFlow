@@ -1,0 +1,19 @@
+# Workspace-local toolchains
+.tools/
+
+# Frontend dependencies and outputs
+node_modules/
+dist/
+coverage/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

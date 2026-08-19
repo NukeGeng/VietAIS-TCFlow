@@ -11,7 +11,7 @@ var jwtKey = builder.AddParameter("jwt-key", secret: true);
 var hangfirePassword = builder.AddParameter("hangfire-password", secret: true);
 var bootstrapAdminPassword = builder.AddParameter("bootstrap-admin-password", secret: true);
 
-builder.AddProject<Projects.Server>("webapi")
+var webApi = builder.AddProject<Projects.Server>("webapi")
     .WithReference(database)
     .WithReference(redis)
     .WithEnvironment("JwtOptions__Key", jwtKey)
@@ -19,6 +19,12 @@ builder.AddProject<Projects.Server>("webapi")
     .WithEnvironment("BootstrapAdminOptions__Password", bootstrapAdminPassword)
     .WaitFor(database)
     .WaitFor(redis);
+
+builder.AddNpmApp("frontend", "../../apps/vue", "dev")
+    .WithHttpEndpoint(port: 5173, env: "PORT")
+    .WithExternalHttpEndpoints()
+    .WithReference(webApi)
+    .WaitFor(webApi);
 
 using var app = builder.Build();
 

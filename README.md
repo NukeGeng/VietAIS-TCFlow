@@ -15,6 +15,7 @@ FullStackHero `2.0.4-rc`, Marten + PostgreSQL, and .NET Aspire.
 - [`WORKFLOW.md`](WORKFLOW.md) — mandatory implementation lifecycle
 - [`GIT_RULES.md`](GIT_RULES.md) — branch, pull request, and merge workflow
 
-Implementation has not started yet. The first delivery milestone is the
-FullStackHero/.NET Aspire/PostgreSQL/Marten backend foundation defined in
-`PROJECT_PLAN.md`.
+The foundation now includes the FullStackHero backend, PostgreSQL, Redis,
+Marten document persistence, a Vue product shell, and one .NET Aspire AppHost
+for local orchestration. Later product milestones remain governed by the
+dependency order and evidence gates in `PROJECT_PLAN.md`.

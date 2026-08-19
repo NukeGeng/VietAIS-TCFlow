@@ -1,0 +1,9 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.WebApi.Catalog.Domain</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.WebApi.Catalog.Domain</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\framework\Core\Core.csproj" />
+  </ItemGroup>
+</Project>

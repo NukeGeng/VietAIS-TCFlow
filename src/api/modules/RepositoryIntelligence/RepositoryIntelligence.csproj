@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.WebApi.RepositoryIntelligence</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.WebApi.RepositoryIntelligence</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Marten" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\framework\Core\Core.csproj" />
+    <ProjectReference Include="..\..\framework\Infrastructure\Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

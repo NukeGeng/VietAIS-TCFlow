@@ -16,6 +16,9 @@ project phases P5-P8.
   operations, pagination, persistence commits, and missing-save diagnostics.
 - `contracts/` pairs frontend expectations with backend contracts and emits
   explainable, evidence-linked mismatch records.
+- `knowledge/` assembles analyzer outputs into a repository graph, performs
+  bounded neighborhood retrieval, preserves record/evidence provenance, and
+  persists repository-scoped graph records with Marten.
 - `tests/` verifies deterministic output and evidence boundaries against the
   fixtures in `samples/vue-full-application/`,
   `samples/aspnet-full-application/`, and
@@ -49,6 +52,19 @@ confirmed when both inputs are confirmed. A unique suffix-compatible route is
 inferred with capped confidence; equally plausible candidates remain inferred
 and do not emit mismatch noise. Generic Vue error-state evidence is not treated
 as a specific HTTP status contract.
+
+The knowledge graph adds a deterministic API-call-to-endpoint edge from an
+unambiguous contract pair and reuses analyzer dependencies to reach handlers,
+DTOs, validators, and Marten documents. Incremental replacement is scoped by
+analyzer producer, removes dangling derived records, and recomputes contract
+edges. Retrieval walks dependencies in both directions to a bounded depth and
+returns only the selected artifacts and their capabilities, contracts,
+changes, impacts, mismatches, and evidence provenance.
+
+Marten storage uses repository-indexed documents for every record category and
+an optimistic-concurrency manifest. Writes use `IDocumentSession` and one
+explicit `SaveChangesAsync`; reads use `IQuerySession`. P9 introduces no event
+sourcing and no standalone graph database.
 
 ## Evidence policy
 
@@ -84,3 +100,7 @@ dotnet restore src/analyzers/VietAIS.TCFlow.Analyzers.sln
 dotnet build src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-restore
 dotnet test src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-build --no-restore
 ```
+
+Knowledge persistence tests require Docker because they start a disposable
+PostgreSQL 16 container and verify a real Marten write/read/reconciliation
+round trip.

@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Vu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Vue.Tests", "tests/VietAIS.TCFlow.Analyzers.Vue.Tests.csproj", "{E769EEB3-A6F7-4682-A1E3-BFDDBD46DEB1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.AspNet", "aspnet/VietAIS.TCFlow.Analyzers.AspNet.csproj", "{87D087D0-A3EA-4551-A153-F97248565A4A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.AspNet.Tests", "tests/aspnet/VietAIS.TCFlow.Analyzers.AspNet.Tests.csproj", "{4C9A9029-E5BC-4216-827F-A3CF86061BC4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,5 +30,13 @@ Global
 		{E769EEB3-A6F7-4682-A1E3-BFDDBD46DEB1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E769EEB3-A6F7-4682-A1E3-BFDDBD46DEB1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E769EEB3-A6F7-4682-A1E3-BFDDBD46DEB1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87D087D0-A3EA-4551-A153-F97248565A4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87D087D0-A3EA-4551-A153-F97248565A4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87D087D0-A3EA-4551-A153-F97248565A4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87D087D0-A3EA-4551-A153-F97248565A4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C9A9029-E5BC-4216-827F-A3CF86061BC4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C9A9029-E5BC-4216-827F-A3CF86061BC4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C9A9029-E5BC-4216-827F-A3CF86061BC4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C9A9029-E5BC-4216-827F-A3CF86061BC4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

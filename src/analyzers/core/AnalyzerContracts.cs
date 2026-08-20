@@ -22,6 +22,14 @@ public enum ArtifactKind
     PermissionCheck,
     Filter,
     Pagination,
+    AspNetEndpoint,
+    RequestDto,
+    ResponseDto,
+    Validator,
+    Handler,
+    Service,
+    Interface,
+    OpenApiOperation,
     Unknown
 }
 
@@ -33,7 +41,13 @@ public enum DependencyKind
     Uses,
     NavigatesTo,
     Reads,
-    Writes
+    Writes,
+    Accepts,
+    Returns,
+    Validates,
+    Authorizes,
+    DelegatesTo,
+    Produces
 }
 
 public enum ContractDirection
@@ -103,7 +117,10 @@ public sealed record ContractField(
     string Type,
     bool Required,
     EvidenceLevel EvidenceLevel,
-    SourceLocation Location);
+    SourceLocation Location)
+{
+    public IReadOnlyList<string> Validations { get; init; } = [];
+}
 
 public sealed record Contract(
     string Id,

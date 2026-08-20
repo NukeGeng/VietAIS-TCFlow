@@ -9,13 +9,24 @@ the deterministic Vue analyzer introduced by project phase P5.
   Change, Impact, discovery, technology detection, stable identities, JSON
   serialization, and meaningful-change filtering.
 - `vue/` extracts Vue and TypeScript facts without an LLM.
+- `aspnet/` extracts ASP.NET Core Minimal API/Carter contracts, OpenAPI
+  metadata, validation, authorization, handlers, and injected dependencies.
 - `tests/` verifies deterministic output and evidence boundaries against the
-  fixture in `samples/vue-full-application/`.
+  fixtures in `samples/vue-full-application/` and
+  `samples/aspnet-full-application/`.
 
 The Vue analyzer recognizes single-file components, `<script setup>`, props,
 emits, form bindings and validation attributes, reactive/loading/error state,
 API calls and payloads, response-field usage, TypeScript interfaces, Pinia
 stores, Vue Router declarations, permission checks, filters, and pagination.
+
+The ASP.NET analyzer follows the repository's FullStackHero and TCFlow
+conventions. It composes the versioned Carter root, module and nested group
+prefixes, and endpoint-local routes; extracts request/response DTO fields,
+FluentValidation rules, permission requirements, authenticated groups,
+MediatR handlers and constructor dependencies; and records operation name,
+summary, description, response/error status, and API version as OpenAPI
+evidence.
 
 ## Evidence policy
 
@@ -23,6 +34,8 @@ stores, Vue Router declarations, permission checks, filters, and pagination.
   routes are `Confirmed`.
 - Interpolated routes and business capabilities derived from source are
   `Inferred`.
+- ASP.NET endpoints whose Carter/group prefix cannot be resolved remain
+  `Inferred` and emit `ASPNET001`; they are never promoted to confirmed.
 - The analyzer does not emit a confirmed API contract from form intent alone.
 - `Proposed` is reserved for later planning stages and is never presented as
   repository truth.

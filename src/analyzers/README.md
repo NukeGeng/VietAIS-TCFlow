@@ -1,7 +1,7 @@
 # TCFlow analyzers
 
 This directory contains the technology-neutral source-analysis contracts and
-the deterministic Vue analyzer introduced by project phase P5.
+the deterministic source analyzers introduced by project phases P5-P7.
 
 ## Structure
 
@@ -11,9 +11,12 @@ the deterministic Vue analyzer introduced by project phase P5.
 - `vue/` extracts Vue and TypeScript facts without an LLM.
 - `aspnet/` extracts ASP.NET Core Minimal API/Carter contracts, OpenAPI
   metadata, validation, authorization, handlers, and injected dependencies.
+- `marten/` extracts document schemas, query/write sessions, document
+  operations, pagination, persistence commits, and missing-save diagnostics.
 - `tests/` verifies deterministic output and evidence boundaries against the
-  fixtures in `samples/vue-full-application/` and
-  `samples/aspnet-full-application/`.
+  fixtures in `samples/vue-full-application/`,
+  `samples/aspnet-full-application/`, and
+  `samples/marten-full-application/`.
 
 The Vue analyzer recognizes single-file components, `<script setup>`, props,
 emits, form bindings and validation attributes, reactive/loading/error state,
@@ -27,6 +30,13 @@ FluentValidation rules, permission requirements, authenticated groups,
 MediatR handlers and constructor dependencies; and records operation name,
 summary, description, response/error status, and API version as OpenAPI
 evidence.
+
+The Marten analyzer recognizes `IQuerySession` and `IDocumentSession`, schema
+configuration, `Query`, `LoadAsync`, `Store`, `Delete`, and
+`SaveChangesAsync`. It connects endpoint/handler activity to document
+artifacts, records `Skip`/`Take` pagination, and emits `MARTEN001` when a write
+scope has no persistence commit. It analyzes document storage only and does
+not introduce Marten event sourcing.
 
 ## Evidence policy
 

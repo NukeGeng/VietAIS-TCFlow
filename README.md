@@ -15,6 +15,17 @@ FullStackHero `2.0.4-rc`, Marten + PostgreSQL, and .NET Aspire.
 - [`WORKFLOW.md`](WORKFLOW.md) — mandatory implementation lifecycle
 - [`GIT_RULES.md`](GIT_RULES.md) — branch, pull request, and merge workflow
 
-Implementation has not started yet. The first delivery milestone is the
-FullStackHero/.NET Aspire/PostgreSQL/Marten backend foundation defined in
-`PROJECT_PLAN.md`.
+Implementation is delivered incrementally through the integration branches
+defined in `GIT_RULES.md`. The technology-neutral analyzer contracts and the
+first deterministic Vue analyzer are documented in
+[`src/analyzers/README.md`](src/analyzers/README.md).
+
+## Analyzer verification
+
+With the repository's .NET 9 SDK available:
+
+```bash
+dotnet restore src/analyzers/VietAIS.TCFlow.Analyzers.sln
+dotnet build src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-restore
+dotnet test src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-build --no-restore
+```

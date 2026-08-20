@@ -1,0 +1,132 @@
+{
+  "artifacts": [
+    {
+      "kind": "vueComponent",
+      "name": "CreateProductView",
+      "path": "src/views/CreateProductView.vue",
+      "evidenceLevel": "confirmed",
+      "metadata": {
+        "scriptSetup": "true",
+        "props": "initialCategoryId,projectId",
+        "emits": "saved",
+        "hasLoadingState": "true",
+        "hasErrorState": "true",
+        "hasValidation": "true"
+      }
+    },
+    {
+      "kind": "typeScriptInterface",
+      "name": "CreateProductRequest",
+      "path": "src/views/CreateProductView.vue",
+      "evidenceLevel": "confirmed",
+      "metadata": {
+        "fields": "name,price,categoryId",
+        "fieldCount": "3"
+      }
+    },
+    {
+      "kind": "formField",
+      "name": "categoryId",
+      "path": "src/views/CreateProductView.vue",
+      "evidenceLevel": "confirmed",
+      "metadata": {
+        "element": "select",
+        "validations": "required"
+      }
+    },
+    {
+      "kind": "formField",
+      "name": "name",
+      "path": "src/views/CreateProductView.vue",
+      "evidenceLevel": "confirmed",
+      "metadata": {
+        "element": "input",
+        "type": "text",
+        "validations": "maxlength,required"
+      }
+    },
+    {
+      "kind": "formField",
+      "name": "price",
+      "path": "src/views/CreateProductView.vue",
+      "evidenceLevel": "confirmed",
+      "metadata": {
+        "element": "input",
+        "type": "number",
+        "validations": "min,required"
+      }
+    },
+    {
+      "kind": "piniaStore",
+      "name": "products",
+      "path": "src/stores/products.ts",
+      "evidenceLevel": "confirmed"
+    },
+    {
+      "kind": "filter",
+      "name": "search",
+      "path": "src/stores/products.ts",
+      "evidenceLevel": "confirmed"
+    },
+    {
+      "kind": "pagination",
+      "name": "page",
+      "path": "src/stores/products.ts",
+      "evidenceLevel": "confirmed"
+    },
+    {
+      "kind": "pagination",
+      "name": "pageSize",
+      "path": "src/stores/products.ts",
+      "evidenceLevel": "confirmed"
+    },
+    {
+      "kind": "vueRoute",
+      "name": "products-create",
+      "path": "src/router/index.ts",
+      "evidenceLevel": "confirmed"
+    },
+    {
+      "kind": "permissionCheck",
+      "name": "product.create",
+      "path": "src/views/CreateProductView.vue",
+      "evidenceLevel": "confirmed"
+    }
+  ],
+  "apiArtifacts": [
+    {
+      "method": "GET",
+      "route": "/api/products?page=${page.value}&pageSize=${pageSize.value}",
+      "evidenceLevel": "inferred",
+      "responseUsage": ["items"]
+    },
+    {
+      "method": "POST",
+      "route": "/api/products",
+      "evidenceLevel": "confirmed",
+      "responseUsage": ["id"]
+    }
+  ],
+  "contracts": [
+    {
+      "method": "POST",
+      "route": "/api/products",
+      "evidenceLevel": "confirmed",
+      "requestFields": ["name", "price", "categoryId"],
+      "responseFields": ["categoryId", "id", "name", "price"],
+      "hasPagination": false,
+      "permissions": ["product.create"],
+      "errorStates": ["error"]
+    },
+    {
+      "method": "GET",
+      "route": "/api/products?page=${page.value}&pageSize=${pageSize.value}",
+      "evidenceLevel": "inferred",
+      "requestFields": [],
+      "responseFields": ["items", "page", "pageSize", "total"],
+      "hasPagination": true,
+      "permissions": [],
+      "errorStates": []
+    }
+  ]
+}

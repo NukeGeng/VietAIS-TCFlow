@@ -1,0 +1,19 @@
+# Workspace-local toolchains
+.tools/
+
+# Build and package outputs
+[Bb]in/
+[Oo]bj/
+node_modules/
+dist/
+coverage/
+TestResults/
+.eslintcache
+
+# Local configuration and editors
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/

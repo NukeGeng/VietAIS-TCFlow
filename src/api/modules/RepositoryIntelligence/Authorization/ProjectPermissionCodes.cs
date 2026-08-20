@@ -1,0 +1,56 @@
+namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
+
+public static class ProjectPermissionCodes
+{
+    public const string ProjectView = "project.view";
+    public const string ProjectUpdate = "project.update";
+    public const string ProjectDelete = "project.delete";
+    public const string ProjectOwnershipTransfer = "project.ownership.transfer";
+    public const string MemberView = "member.view";
+    public const string MemberInvite = "member.invite";
+    public const string MemberRemove = "member.remove";
+    public const string MemberRoleAssign = "member.role.assign";
+    public const string RoleView = "role.view";
+    public const string RoleCreate = "role.create";
+    public const string RoleUpdate = "role.update";
+    public const string RoleDelete = "role.delete";
+    public const string RepositoryView = "repository.view";
+    public const string RepositoryCreate = "repository.create";
+    public const string RepositoryUpdate = "repository.update";
+    public const string RepositoryDelete = "repository.delete";
+    public const string SourceView = "source.view";
+    public const string SourceAnalyze = "source.analyze";
+    public const string AnalysisView = "analysis.view";
+    public const string AnalysisRun = "analysis.run";
+    public const string TaskView = "task.view";
+    public const string TaskCreate = "task.create";
+    public const string TaskUpdate = "task.update";
+    public const string TaskDelete = "task.delete";
+    public const string TaskAssign = "task.assign";
+    public const string TaskApprove = "task.approve";
+    public const string TaskReject = "task.reject";
+    public const string TaskComment = "task.comment";
+    public const string TaskReview = "task.review";
+    public const string ConventionView = "convention.view";
+    public const string ConventionUpdate = "convention.update";
+    public const string AuthorityView = "authority.view";
+    public const string AuthorityUpdate = "authority.update";
+    public const string AiPolicyUpdate = "ai.policy.update";
+    public const string AiAnalysisRun = "ai.analysis.run";
+    public const string AiTaskSuggest = "ai.task.suggest";
+    public const string AiTaskCreate = "ai.task.create";
+    public const string AiTaskUpdate = "ai.task.update";
+    public const string AiTaskClose = "ai.task.close";
+    public const string AiCodeGenerate = "ai.code.generate";
+    public const string AiPullRequestCreate = "ai.pull_request.create";
+    public const string AuditView = "audit.view";
+}
+
+public static class SystemPermissionCodes
+{
+    public const string UserManage = "user.manage";
+    public const string ProjectInspect = "project.inspect";
+    public const string ProjectSuspend = "project.suspend";
+    public const string PermissionDefinitionManage = "permission-definition.manage";
+    public const string SystemAuditView = "system-audit.view";
+}

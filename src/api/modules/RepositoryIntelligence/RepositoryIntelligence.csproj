@@ -4,7 +4,10 @@
     <AssemblyName>VietAIS.TCFlow.WebApi.RepositoryIntelligence</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Http" />
+    <PackageReference Include="Carter" />
     <PackageReference Include="Marten" />
+    <PackageReference Include="MediatR" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\framework\Core\Core.csproj" />

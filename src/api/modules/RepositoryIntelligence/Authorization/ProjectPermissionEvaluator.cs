@@ -1,0 +1,90 @@
+using FSH.Framework.Core.Exceptions;
+using Marten;
+
+namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
+
+public sealed class ProjectPermissionEvaluator(IQuerySession session) : IProjectPermissionEvaluator
+{
+    public async Task<EffectivePermissionResult> GetEffectivePermissionsAsync(
+        Guid userId,
+        AuthorizationResourceContext resource,
+        CancellationToken cancellationToken)
+    {
+        var membership = await session.Query<ProjectMembership>()
+            .SingleOrDefaultAsync(
+                item => item.ProjectId == resource.ProjectId && item.UserId == userId && item.IsActive,
+                cancellationToken);
+
+        if (membership is null)
+        {
+            return new EffectivePermissionResult(resource.ProjectId, userId, []);
+        }
+
+        var grants = new List<PermissionGrantTrace>();
+        foreach (var assignment in membership.Roles)
+        {
+            var role = await session.LoadAsync<ProjectRole>(assignment.RoleId, cancellationToken);
+            if (role is null || role.ProjectId != resource.ProjectId)
+            {
+                continue;
+            }
+
+            grants.AddRange(role.Permissions
+                .Where(grant => AppliesTo(grant, userId, resource))
+                .Select(grant => new PermissionGrantTrace(
+                    grant.PermissionCode,
+                    role.Id,
+                    role.Name,
+                    grant.ResourceScope,
+                    grant.ResourceId,
+                    grant.ComponentScopes)));
+        }
+
+        return new EffectivePermissionResult(
+            resource.ProjectId,
+            userId,
+            grants
+                .OrderBy(grant => grant.PermissionCode, StringComparer.Ordinal)
+                .ThenBy(grant => grant.RoleName, StringComparer.Ordinal)
+                .ToArray());
+    }
+
+    public async Task EnsureAuthorizedAsync(
+        Guid userId,
+        string permissionCode,
+        AuthorizationResourceContext resource,
+        CancellationToken cancellationToken)
+    {
+        var effective = await GetEffectivePermissionsAsync(userId, resource, cancellationToken);
+        if (!effective.HasPermission(permissionCode))
+        {
+            throw new ForbiddenException(
+                $"Permission '{permissionCode}' is not granted for the requested project scope.");
+        }
+    }
+
+    internal static bool AppliesTo(
+        RolePermissionGrant grant,
+        Guid userId,
+        AuthorizationResourceContext resource)
+    {
+        if (grant.ComponentScopes.Length > 0 &&
+            (resource.Component is null || !grant.ComponentScopes.Contains(resource.Component.Value)))
+        {
+            return false;
+        }
+
+        return grant.ResourceScope switch
+        {
+            ResourceScopeKind.Workspace => true,
+            ResourceScopeKind.Project => true,
+            ResourceScopeKind.All => true,
+            ResourceScopeKind.Repository =>
+                resource.RepositoryId is not null && grant.ResourceId == resource.RepositoryId,
+            ResourceScopeKind.Component => resource.Component is not null,
+            ResourceScopeKind.Own => resource.OwnerUserId == userId,
+            ResourceScopeKind.Assigned => resource.AssignedUserIds?.Contains(userId) is true,
+            _ => false
+        };
+    }
+}

@@ -80,3 +80,33 @@ dotnet list VietAIS.TCFlow.sln package --vulnerable --include-transitive
 The Marten integration test starts an isolated PostgreSQL container and verifies
 an explicit `IDocumentSession.SaveChangesAsync` write followed by an
 `IQuerySession` read.
+
+## Project authorization API
+
+Project authorization is enforced independently from FullStackHero platform
+authorization. System administrators do not implicitly receive project-owner
+permissions: access to a project API requires an active project membership and
+a matching project role grant.
+
+The version 1 endpoints are:
+
+| Method | Route | Required project permission |
+| --- | --- | --- |
+| `GET` | `/api/v1/projects/{projectId}/permission-definitions` | `role.view` |
+| `POST` | `/api/v1/projects/{projectId}/roles` | `role.create` |
+| `PUT` | `/api/v1/projects/{projectId}/roles/{roleId}/permissions` | `role.update` |
+| `PUT` | `/api/v1/projects/{projectId}/members/{memberId}/roles` | `member.role.assign` |
+| `GET` | `/api/v1/projects/{projectId}/members/{memberId}/effective-permissions` | `role.view` |
+| `PUT` | `/api/v1/projects/{projectId}/ai-policy` | `ai.policy.update` |
+| `POST` | `/api/v1/projects/{projectId}/ownership-transfers` | `project.ownership.transfer` |
+| `GET` | `/api/v1/projects/{projectId}/audit` | `audit.view` |
+
+Permission codes and their system/project classification are system-defined.
+Project roles may only select project permission definitions. Grants combine a
+resource scope (`project`, `repository`, `component`, `own`, `assigned`, and so
+on) with optional component scopes (`frontend`, `backend`, `database`, or
+`tests`). Effective-permission responses include the granting role and scopes.
+
+Role, permission, member-role, AI-policy, and ownership mutations store their
+audit record in the same Marten `IDocumentSession` transaction. AI actor
+permissions are additionally capped by the configured progressive trust level.

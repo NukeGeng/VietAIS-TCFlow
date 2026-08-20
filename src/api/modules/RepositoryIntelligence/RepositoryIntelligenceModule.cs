@@ -1,5 +1,7 @@
 ﻿using Marten;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 
 namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence;
 
@@ -24,8 +26,22 @@ public static class RepositoryIntelligenceModule
             {
                 options.Connection(connectionString);
                 options.DatabaseSchemaName = SchemaName;
+
+                options.Schema.For<Project>()
+                    .UseOptimisticConcurrency(true);
+                options.Schema.For<ProjectMembership>()
+                    .UseOptimisticConcurrency(true)
+                    .UniqueIndex(membership => membership.ProjectId, membership => membership.UserId);
+                options.Schema.For<ProjectRole>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(role => role.ProjectId);
+                options.Schema.For<AuditRecord>()
+                    .Index(record => record.ProjectId);
             })
             .UseLightweightSessions();
+
+        builder.Services.AddScoped<IProjectPermissionEvaluator, ProjectPermissionEvaluator>();
+        builder.Services.AddSingleton(TimeProvider.System);
 
         return builder;
     }

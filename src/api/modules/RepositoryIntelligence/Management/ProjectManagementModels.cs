@@ -19,12 +19,12 @@ public enum AuthorityKnowledgeKind
 
 public enum AuthoritySourceKind
 {
-    Backend,
-    Frontend,
-    Database,
-    OpenApi,
-    Tests,
-    Documentation
+    Backend = 0,
+    Frontend = 1,
+    OpenApi = 2,
+    Database = 3,
+    Tests = 4,
+    Documentation = 5
 }
 
 public enum ConventionProfileStatus

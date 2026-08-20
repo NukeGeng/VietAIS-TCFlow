@@ -44,6 +44,7 @@ public static class Extensions
         {
             config.WithModule<CatalogModule.Endpoints>();
             config.WithModule<ProjectAuthorizationEndpoints>();
+            config.WithModule<ProjectGovernanceEndpoints>();
             config.WithModule<ProjectManagementEndpoints>();
             config.WithModule<TodoModule.Endpoints>();
         });

@@ -98,6 +98,10 @@ The version 1 endpoints are:
 | `PUT` | `/api/v1/projects/{projectId}/members/{memberId}/roles` | `member.role.assign` |
 | `GET` | `/api/v1/projects/{projectId}/members/{memberId}/effective-permissions` | `role.view` |
 | `PUT` | `/api/v1/projects/{projectId}/ai-policy` | `ai.policy.update` |
+| `GET` | `/api/v1/projects/{projectId}/authority-policy` | `authority.view` |
+| `PUT` | `/api/v1/projects/{projectId}/authority-policy` | `authority.update` |
+| `GET` | `/api/v1/projects/{projectId}/convention-profile` | `convention.view` |
+| `PUT` | `/api/v1/projects/{projectId}/convention-profile` | `convention.update` |
 | `POST` | `/api/v1/projects/{projectId}/ownership-transfers` | `project.ownership.transfer` |
 | `GET` | `/api/v1/projects/{projectId}/audit` | `audit.view` |
 
@@ -107,9 +111,11 @@ resource scope (`project`, `repository`, `component`, `own`, `assigned`, and so
 on) with optional component scopes (`frontend`, `backend`, `database`, or
 `tests`). Effective-permission responses include the granting role and scopes.
 
-Role, permission, member-role, AI-policy, and ownership mutations store their
-audit record in the same Marten `IDocumentSession` transaction. AI actor
-permissions are additionally capped by the configured progressive trust level.
+Role, permission, member-role, AI-policy, authority-policy, convention-profile,
+and ownership mutations store their audit record in the same Marten
+`IDocumentSession` transaction. Authority selects the source of truth for each
+knowledge kind and never grants actor permissions. AI actor permissions are
+additionally capped by the configured progressive trust level.
 
 ## Project management API
 

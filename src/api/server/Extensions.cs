@@ -6,6 +6,7 @@ using VietAIS.TCFlow.WebApi.Catalog.Application;
 using VietAIS.TCFlow.WebApi.Catalog.Infrastructure;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
+using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
 using VietAIS.TCFlow.WebApi.Todo;
 
 namespace VietAIS.TCFlow.WebApi.Host;
@@ -43,6 +44,7 @@ public static class Extensions
         {
             config.WithModule<CatalogModule.Endpoints>();
             config.WithModule<ProjectAuthorizationEndpoints>();
+            config.WithModule<ProjectManagementEndpoints>();
             config.WithModule<TodoModule.Endpoints>();
         });
 

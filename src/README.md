@@ -110,3 +110,36 @@ on) with optional component scopes (`frontend`, `backend`, `database`, or
 Role, permission, member-role, AI-policy, and ownership mutations store their
 audit record in the same Marten `IDocumentSession` transaction. AI actor
 permissions are additionally capped by the configured progressive trust level.
+
+## Project management API
+
+Creating `POST /api/v1/projects` requires authentication but no pre-existing
+project permission. One Marten transaction creates the project, active state,
+primary Owner membership and system-defined Owner role, default authority and
+convention records, default AI policy, and audit record.
+
+Project-scoped version 1 routes include:
+
+| Method | Route | Required project permission |
+| --- | --- | --- |
+| `GET` | `/api/v1/projects` | Filters the caller's memberships by `project.view` |
+| `GET` | `/api/v1/projects/{projectId}` | `project.view` |
+| `POST` | `/api/v1/projects/{projectId}/repositories` | `repository.create` |
+| `GET` | `/api/v1/projects/{projectId}/repositories` | `repository.view` with resource/component scope |
+| `POST` | `/api/v1/projects/{projectId}/components` | `component.create` |
+| `POST` | `/api/v1/projects/{projectId}/features` | `feature.create` |
+| `POST` | `/api/v1/projects/{projectId}/tasks` | `task.create` |
+| `GET` | `/api/v1/projects/{projectId}/tasks` | `task.view` with project/repository/component/own/assigned scope |
+| `GET` | `/api/v1/projects/{projectId}/tasks/{taskId}` | `task.view` with task scope |
+| `PUT` | `/api/v1/projects/{projectId}/tasks/{taskId}/status` | `task.status.update`, `task.approve`, or `task.reject` according to target state |
+| `PUT` | `/api/v1/projects/{projectId}/tasks/{taskId}/assignment` | `task.assign` |
+| `POST` | `/api/v1/projects/{projectId}/tasks/{taskId}/reviews` | `task.review` |
+| `POST` | `/api/v1/projects/{projectId}/tasks/{taskId}/evidence` | `task.update` |
+| `GET` | `/api/v1/projects/{projectId}/tasks/{taskId}/history` | `task.view` with task scope |
+
+The lifecycle is `Upcoming → In Progress → Ready For Review → Completed`, with
+`Blocked`, `Rejected`, and `Cancelled` branches. Invalid transitions are
+rejected. Completion requires explicit human approval; AI verification is a
+separate state and never implies human approval. Every task mutation stores a
+typed version snapshot and audit record atomically. Source-generated tasks can
+trace back to change, artifact, evidence, and impact documents.

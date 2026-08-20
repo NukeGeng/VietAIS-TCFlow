@@ -18,6 +18,14 @@ public static class ProjectPermissionCodes
     public const string RepositoryCreate = "repository.create";
     public const string RepositoryUpdate = "repository.update";
     public const string RepositoryDelete = "repository.delete";
+    public const string ComponentView = "component.view";
+    public const string ComponentCreate = "component.create";
+    public const string ComponentUpdate = "component.update";
+    public const string ComponentDelete = "component.delete";
+    public const string FeatureView = "feature.view";
+    public const string FeatureCreate = "feature.create";
+    public const string FeatureUpdate = "feature.update";
+    public const string FeatureDelete = "feature.delete";
     public const string SourceView = "source.view";
     public const string SourceAnalyze = "source.analyze";
     public const string AnalysisView = "analysis.view";
@@ -25,6 +33,7 @@ public static class ProjectPermissionCodes
     public const string TaskView = "task.view";
     public const string TaskCreate = "task.create";
     public const string TaskUpdate = "task.update";
+    public const string TaskStatusUpdate = "task.status.update";
     public const string TaskDelete = "task.delete";
     public const string TaskAssign = "task.assign";
     public const string TaskApprove = "task.approve";

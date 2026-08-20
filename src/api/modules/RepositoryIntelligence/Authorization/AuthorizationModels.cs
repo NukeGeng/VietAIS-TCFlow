@@ -22,7 +22,11 @@ public enum ComponentScopeKind
     Frontend,
     Backend,
     Database,
-    Tests
+    Tests,
+    Documentation,
+    Infrastructure,
+    SharedLibrary,
+    Service
 }
 
 public enum AiTrustLevel

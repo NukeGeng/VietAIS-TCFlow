@@ -6,7 +6,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <DefaultItemExcludes>$(DefaultItemExcludes);aspnet/**/*.cs;marten/**/*.cs;contracts/**/*.cs;knowledge/**/*.cs</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);aspnet/**/*.cs;marten/**/*.cs;contracts/**/*.cs;knowledge/**/*.cs;governance/**/*.cs</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

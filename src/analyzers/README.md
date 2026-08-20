@@ -1,8 +1,9 @@
 # TCFlow analyzers
 
 This directory contains the technology-neutral source-analysis contracts and
-the deterministic source analyzers, contract comparison, knowledge graph, and
-repository-governance engine introduced by project phases P5-P10.
+the deterministic source analyzers, contract comparison, knowledge graph,
+repository-governance engine, and bounded AI reasoning/reconciliation engine
+introduced by project phases P5-P11.
 
 ## Structure
 
@@ -22,11 +23,16 @@ repository-governance engine introduced by project phases P5-P10.
 - `governance/` detects evidence-backed repository conventions, evaluates
   project authority policy, builds convention-aware impact plans, and persists
   convention profiles with Marten.
+- `reasoning/` supplies the vendor-neutral AI provider boundary, targeted
+  reasoning context, structured impact/task output, progressive AI trust,
+  source-aware task reconciliation, task version history, and AI audit
+  persistence.
 - `tests/` verifies deterministic output and evidence boundaries against the
   fixtures in `samples/vue-full-application/`,
   `samples/aspnet-full-application/`, and
   `samples/marten-full-application/`; contract comparison ground truth lives
-  in `samples/contract-comparison/`.
+  in `samples/contract-comparison/`, and canonical reconciliation outcomes
+  live in `samples/reasoning/`.
 
 The Vue analyzer recognizes single-file components, `<script setup>`, props,
 emits, form bindings and validation attributes, reactive/loading/error state,
@@ -80,6 +86,26 @@ in the graph and carry both convention and source-evidence identities.
 Convention profiles use optimistic revision checks. Writes use
 `IDocumentSession` followed by explicit `SaveChangesAsync`, while reads use
 `IQuerySession`.
+
+The reasoning stage receives a bounded `RetrievalContext` produced by the
+knowledge graph instead of the complete repository. Model-produced artifact
+and evidence identities are rejected unless they already exist in that
+context. Deterministic facts cannot be promoted by the model: confirmed model
+claims are capped at inferred, and confidence below `0.7` remains proposed.
+
+`IAiReasoningProvider` keeps the reasoning engine vendor-neutral. The Codex
+adapter uses the official [Codex App Server protocol](https://developers.openai.com/codex/app-server/)
+over JSONL stdio. Authentication state is read from the Codex-managed account;
+the adapter does not accept, extract, or persist cookies, API keys, or OAuth
+tokens. Turns run in an isolated working directory with a restricted read-only
+sandbox and a strict JSON output schema.
+
+Task generation and reconciliation are separate. Reconciliation first finds
+tasks by project, repository, and source-backed correlation key, then chooses
+Create, Update, Merge, Close, Reopen, or Ignore. Marten writes the current task,
+an immutable version snapshot, and an AI audit record in one explicit commit.
+Every mutation is checked against both the configured AI permission and the
+project's progressive trust ceiling.
 
 ## Evidence policy
 

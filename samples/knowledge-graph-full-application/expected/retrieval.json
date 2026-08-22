@@ -1,0 +1,31 @@
+{
+  "requiredArtifacts": [
+    "CreateProductView",
+    "POST /api/v1/catalog/products",
+    "CreateProductEndpoint",
+    "CreateProductHandler",
+    "CreateProductCommand",
+    "CreateProductResponse",
+    "CreateProductCommandValidator",
+    "Product"
+  ],
+  "excludedArtifacts": [
+    "UnrelatedSettings"
+  ],
+  "requiredEdges": [
+    {
+      "source": "POST /api/v1/catalog/products",
+      "sourceKind": "apiCall",
+      "target": "CreateProductEndpoint",
+      "targetKind": "aspNetEndpoint",
+      "kind": "calls"
+    },
+    {
+      "source": "CreateProductEndpoint",
+      "sourceKind": "aspNetEndpoint",
+      "target": "Product",
+      "targetKind": "martenDocument",
+      "kind": "writes"
+    }
+  ]
+}

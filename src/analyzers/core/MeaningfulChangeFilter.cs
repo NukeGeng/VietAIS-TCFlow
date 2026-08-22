@@ -40,7 +40,18 @@ public sealed partial class MeaningfulChangeFilter
         "hasPermission",
         "permission",
         "pageNumber",
-        "pageSize"
+        "pageSize",
+        "MapGet(",
+        "MapPost(",
+        "MapPut(",
+        "MapDelete(",
+        "MapMethods(",
+        "RequireAuthorization",
+        "IQuerySession",
+        "IDocumentSession",
+        "SaveChangesAsync(",
+        "session.Store(",
+        "session.Delete("
     ];
 
     public ChangeFilterResult Evaluate(SourceFileChange fileChange)

@@ -143,4 +143,30 @@ public sealed class MartenTaskReconciliationReader(IQuerySession session)
             .Where(version => version.ProjectId == projectId && version.TaskId == taskId)
             .OrderBy(version => version.Version)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<SourceAwareEngineeringTask>> FindBySourceChangesAsync(
+        string projectId,
+        string repositoryId,
+        IReadOnlyCollection<string> sourceChangeIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(repositoryId))
+        {
+            throw new ArgumentException("Project and repository identities are required.");
+        }
+
+        ArgumentNullException.ThrowIfNull(sourceChangeIds);
+        var changeIds = sourceChangeIds.ToHashSet(StringComparer.Ordinal);
+        if (changeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var candidates = await session.Query<SourceAwareEngineeringTask>()
+            .Where(task => task.ProjectId == projectId && task.RepositoryId == repositoryId)
+            .OrderBy(task => task.CreatedAt)
+            .ThenBy(task => task.Id)
+            .ToListAsync(cancellationToken);
+        return candidates.Where(task => task.SourceChangeIds.Any(changeIds.Contains)).ToArray();
+    }
 }

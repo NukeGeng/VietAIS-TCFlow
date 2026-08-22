@@ -2,8 +2,9 @@
 
 This directory contains the technology-neutral source-analysis contracts and
 the deterministic source analyzers, contract comparison, knowledge graph,
-repository-governance engine, bounded AI reasoning/reconciliation engine, and
-GitHub analysis-request adapter introduced by project phases P5-P12.
+repository-governance engine, bounded AI reasoning/reconciliation engine,
+GitHub analysis-request adapter, and incremental monitoring pipeline introduced
+by project phases P5-P13.
 
 ## Structure
 
@@ -30,13 +31,18 @@ GitHub analysis-request adapter introduced by project phases P5-P12.
 - `github/` validates the backend's GitHub analysis-request contract and maps
   initial-scan, push, pull-request, and merge requests into provider-neutral
   repository analysis work items. It does not fetch source or call AI.
+- `monitoring/` ingests changed-file contents, claims delivery correlation
+  keys, filters cosmetic work, applies path-scoped analyzer updates, emits
+  deterministic impacts, queues bounded deep-reasoning jobs, detects exact
+  reverts, and reconciles source-backed tasks under AI policy.
 - `tests/` verifies deterministic output and evidence boundaries against the
   fixtures in `samples/vue-full-application/`,
   `samples/aspnet-full-application/`, and
   `samples/marten-full-application/`; contract comparison ground truth lives
   in `samples/contract-comparison/`, and canonical reconciliation outcomes
   live in `samples/reasoning/`. The cross-domain GitHub request fixture lives
-  in `samples/github/`.
+  in `samples/github/`; P13 latency, duplicate, cosmetic, and reconciliation
+  targets live in `samples/incremental-monitoring/`.
 
 The Vue analyzer recognizes single-file components, `<script setup>`, props,
 emits, form bindings and validation attributes, reactive/loading/error state,
@@ -69,10 +75,11 @@ as a specific HTTP status contract.
 The knowledge graph adds a deterministic API-call-to-endpoint edge from an
 unambiguous contract pair and reuses analyzer dependencies to reach handlers,
 DTOs, validators, and Marten documents. Incremental replacement is scoped by
-analyzer producer, removes dangling derived records, and recomputes contract
-edges. Retrieval walks dependencies in both directions to a bounded depth and
-returns only the selected artifacts and their capabilities, contracts,
-changes, impacts, mismatches, and evidence provenance.
+analyzer producer or changed repository path, preserves unaffected analyzer
+records, removes dangling derived records, and recomputes contract edges.
+Retrieval walks dependencies in both directions to a bounded depth and returns
+only the selected artifacts and their capabilities, contracts, changes,
+impacts, mismatches, and evidence provenance.
 
 Marten storage uses repository-indexed documents for every record category and
 an optimistic-concurrency manifest. Writes use `IDocumentSession` and one
@@ -116,8 +123,25 @@ JSON, including its current numeric enum representation. It validates request,
 project, repository, and delivery correlation; enforces full-scan versus
 incremental event invariants; rejects unsafe repository-relative paths; and
 maps GitHub file states into the analyzer core's technology-neutral
-`RepositoryAnalysisWorkItem` and `ChangeKind`. Content retrieval and
-incremental analysis remain P13 responsibilities.
+`RepositoryAnalysisWorkItem` and `ChangeKind`. Content retrieval is supplied
+through the P13 change-source boundary.
+
+The incremental fast path accepts only provider-neutral incremental work items
+and validates loaded contents against event paths unless the GitHub contract
+requires deferred pull-request file retrieval. A concurrent delivery claim
+prevents the same correlation key from updating the graph or queue twice.
+Cosmetic/non-behavioral batches stop before parsing. Meaningful batches run
+only analyzers affected by the changed extensions and patch their records by
+path, so unrelated artifacts from the same analyzer remain intact.
+
+Fast-path results carry elapsed time, source changes, immediate impacts, graph
+revision, and an optional deep-reasoning job. The job snapshots only mismatch
+IDs in the targeted neighborhood; it never sends the full repository to AI.
+Exact inverse before/after hashes identify reverts. Revert jobs skip fresh AI
+reasoning and reconcile tasks already traced to the reverted source change.
+The deep worker still separates AI verification from human approval and routes
+every mutation through the existing trust, permission, version-history, and
+audit writer.
 
 ## Evidence policy
 
@@ -144,7 +168,7 @@ Whitespace-only, documentation-only, stylesheet-only, and Vue `<style>`-only
 changes have no cross-layer potential and recommend zero AI requests.
 Executable changes are re-analyzed deterministically; one reconciliation pass
 is recommended only when the changed text contains a contract, state, route,
-or permission signal.
+permission, ASP.NET endpoint, or Marten persistence signal.
 
 ## Build and test
 

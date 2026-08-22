@@ -273,6 +273,11 @@ public sealed class ReasoningAndReconciliationTests
                 ProjectId,
                 current.Id,
                 TestContext.Current.CancellationToken));
+            Assert.Single(await reader.FindBySourceChangesAsync(
+                ProjectId,
+                RepositoryId,
+                proposal.SourceChangeIds,
+                TestContext.Current.CancellationToken));
             Assert.Single(await session.Query<AiActionAudit>().ToListAsync(TestContext.Current.CancellationToken));
         }
 

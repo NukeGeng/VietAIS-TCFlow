@@ -16,6 +16,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Ma
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Marten.Tests", "tests/marten/VietAIS.TCFlow.Analyzers.Marten.Tests.csproj", "{67ED8578-A4CA-48A7-A52C-403747740CEB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Contracts", "contracts/VietAIS.TCFlow.Analyzers.Contracts.csproj", "{1C4D82B7-9F31-4E1A-8A77-23BE4501C6D2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Contracts.Tests", "tests/contracts/VietAIS.TCFlow.Analyzers.Contracts.Tests.csproj", "{75A3F04D-B28E-42E9-A1B7-66C8D94725F3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,5 +54,13 @@ Global
 		{67ED8578-A4CA-48A7-A52C-403747740CEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{67ED8578-A4CA-48A7-A52C-403747740CEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{67ED8578-A4CA-48A7-A52C-403747740CEB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C4D82B7-9F31-4E1A-8A77-23BE4501C6D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C4D82B7-9F31-4E1A-8A77-23BE4501C6D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C4D82B7-9F31-4E1A-8A77-23BE4501C6D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C4D82B7-9F31-4E1A-8A77-23BE4501C6D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75A3F04D-B28E-42E9-A1B7-66C8D94725F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75A3F04D-B28E-42E9-A1B7-66C8D94725F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75A3F04D-B28E-42E9-A1B7-66C8D94725F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75A3F04D-B28E-42E9-A1B7-66C8D94725F3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

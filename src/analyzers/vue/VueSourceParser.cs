@@ -211,11 +211,7 @@ internal static partial class VueSourceParser
                 EvidenceLevel.Confirmed,
                 "vue.form-field",
                 model);
-            var validations = ValidationAttributeRegex().Matches(attributes)
-                .Select(attribute => attribute.Groups["name"].Value)
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)
-                .ToArray();
+            var validations = ParseValidationAttributes(attributes);
             var artifactId = accumulator.AddArtifact(
                 ArtifactKind.FormField,
                 model,
@@ -386,6 +382,23 @@ internal static partial class VueSourceParser
                 .Select(group => group.OrderBy(field => field.Type == "unknown").First())
                 .OrderBy(field => field.Name, StringComparer.Ordinal)
                 .ToArray();
+            foreach (var field in requestFields.Where(field => field.Validations.Count > 0))
+            {
+                var formField = FindFormField(file.Content, field.Name);
+                if (formField is null)
+                {
+                    continue;
+                }
+
+                evidenceIds.Add(accumulator.AddEvidence(
+                    file,
+                    formField.Index,
+                    $"Request field {field.Name} declares validation: {string.Join(", ", field.Validations)}.",
+                    EvidenceLevel.Confirmed,
+                    "vue.contract-validation",
+                    field.Name));
+            }
+
             if (responseUsageFields.Count > 0)
             {
                 evidenceIds.Add(accumulator.AddEvidence(
@@ -481,7 +494,10 @@ internal static partial class VueSourceParser
                 field.Type,
                 field.Required,
                 EvidenceLevel.Confirmed,
-                field.Location)).ToArray();
+                field.Location)
+            {
+                Validations = FormValidations(file.Content, field.Name)
+            }).ToArray();
         }
 
         if (!value.StartsWith('{') || !value.EndsWith('}'))
@@ -502,7 +518,10 @@ internal static partial class VueSourceParser
                     InferType(fieldValue),
                     true,
                     level,
-                    new SourceLocation(file.RelativePath, line, line, name));
+                    new SourceLocation(file.RelativePath, line, line, name))
+                {
+                    Validations = FormValidations(file.Content, name)
+                };
             })
             .Where(field => IdentifierRegex().IsMatch(field.Name))
             .OrderBy(field => field.Name, StringComparer.Ordinal)
@@ -642,6 +661,39 @@ internal static partial class VueSourceParser
         return value is "true" or "false" ? "boolean" : "unknown";
     }
 
+    private static IReadOnlyList<string> FormValidations(string source, string fieldName)
+    {
+        var match = FindFormField(source, fieldName);
+        return match is null ? [] : ParseValidationAttributes(match.Groups["attributes"].Value);
+    }
+
+    private static Match? FindFormField(string source, string fieldName) => FormFieldRegex()
+        .Matches(source)
+        .FirstOrDefault(match =>
+        {
+            var model = ModelRegex().Match(match.Groups["attributes"].Value);
+            return model.Success && string.Equals(
+                model.Groups["model"].Value.Split('.').Last(),
+                fieldName,
+                StringComparison.Ordinal);
+        });
+
+    private static IReadOnlyList<string> ParseValidationAttributes(string attributes) =>
+        ValidationAttributeRegex().Matches(attributes)
+            .Select(attribute =>
+            {
+                var name = attribute.Groups["name"].Value.ToLowerInvariant();
+                var value = attribute.Groups["double"].Success
+                    ? attribute.Groups["double"].Value
+                    : attribute.Groups["single"].Success
+                        ? attribute.Groups["single"].Value
+                        : attribute.Groups["bare"].Value;
+                return string.IsNullOrEmpty(value) ? name : $"{name}:{value}";
+            })
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
     private static string CapabilityName(string method, string route)
     {
         var resource = route.Split('?', 2)[0]
@@ -698,7 +750,7 @@ internal static partial class VueSourceParser
     [GeneratedRegex("""\btype\s*=\s*['"](?<type>[^'"]+)['"]""", RegexOptions.IgnoreCase)]
     private static partial Regex TypeAttributeRegex();
 
-    [GeneratedRegex(@"\b(?<name>required|min|max|minlength|maxlength|pattern)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex("""\b(?<name>required|min|max|minlength|maxlength|pattern)\b(?:\s*=\s*(?:"(?<double>[^"]*)"|'(?<single>[^']*)'|(?<bare>[^\s>]+)))?""", RegexOptions.IgnoreCase)]
     private static partial Regex ValidationAttributeRegex();
 
     [GeneratedRegex("""defineStore\s*\(\s*['"](?<name>[^'"]+)['"]""")]

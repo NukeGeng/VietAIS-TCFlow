@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Analyzers.Monitoring</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Analyzers.Monitoring</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../core/VietAIS.TCFlow.Analyzers.Core.csproj" />
+    <ProjectReference Include="../knowledge/VietAIS.TCFlow.Analyzers.Knowledge.csproj" />
+    <ProjectReference Include="../governance/VietAIS.TCFlow.Analyzers.Governance.csproj" />
+    <ProjectReference Include="../reasoning/VietAIS.TCFlow.Analyzers.Reasoning.csproj" />
+  </ItemGroup>
+</Project>

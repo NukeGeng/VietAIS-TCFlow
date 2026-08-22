@@ -1,0 +1,27 @@
+{
+  "id": "1a111111-1111-1111-1111-111111111111",
+  "projectId": "2b222222-2222-2222-2222-222222222222",
+  "repositoryId": "3c333333-3333-3333-3333-333333333333",
+  "trigger": 1,
+  "deliveryId": "delivery-push-001",
+  "baseRevision": "base-sha",
+  "headRevision": "head-sha",
+  "reference": "refs/heads/main",
+  "pullRequestNumber": null,
+  "fullScan": false,
+  "requiresChangedFileFetch": false,
+  "changedFiles": [
+    {
+      "path": "src/removed.cs",
+      "status": 2
+    },
+    {
+      "path": "src/added.cs",
+      "status": 0
+    }
+  ],
+  "status": 0,
+  "requestedAt": "2026-08-22T08:30:00+00:00",
+  "requestedByType": "system",
+  "requestedBy": null
+}

@@ -1,57 +1,105 @@
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import ResourceState from '../components/ResourceState.vue'
+import { useSessionStore } from '../stores/session'
 import { useWorkspaceStore } from '../stores/workspace'
+import { TaskLifecycleStatus } from '../types/contracts'
 
+const session = useSessionStore()
 const workspace = useWorkspaceStore()
-const { capabilities, readyCount } = storeToRefs(workspace)
+const { profile } = storeToRefs(session)
+const { projects, selectedProject, tasks, tasksState, repositories } = storeToRefs(workspace)
+
+const activeTasks = computed(
+  () => tasks.value.filter((task) => task.status === TaskLifecycleStatus.InProgress).length,
+)
+const tracedTasks = computed(
+  () =>
+    tasks.value.filter(
+      (task) => task.sourceTrace.sourceChangeId || task.sourceTrace.artifactIds.length,
+    ).length,
+)
+
+async function load(): Promise<void> {
+  if (!projects.value.length) await workspace.loadProjects()
+  if (workspace.selectedProjectId) {
+    await Promise.all([workspace.loadTasks(), workspace.loadRepositories()])
+  }
+}
+
+onMounted(load)
 </script>
 
 <template>
-  <section class="hero-panel">
+  <section class="page-heading page-heading--dashboard">
     <div>
-      <span class="eyebrow">Repository intelligence</span>
-      <h1>Plan from evidence,<br />not assumptions.</h1>
-      <p>
-        TCFlow connects frontend intent, backend contracts, persistence, and permissions into an
-        explainable engineering plan.
-      </p>
+      <span class="eyebrow">Engineering intelligence</span>
+      <h1>
+        Good {{ new Date().getHours() < 12 ? 'morning' : 'afternoon' }},
+        {{ profile?.firstName || profile?.userName || 'builder' }}.
+      </h1>
+      <p>See what changed, what needs attention, and why each task exists.</p>
     </div>
-
-    <div class="hero-metric" aria-label="Foundation readiness">
-      <strong>{{ readyCount }}/{{ capabilities.length }}</strong>
-      <span>foundation capabilities ready</span>
-    </div>
+    <RouterLink class="primary-button" to="/projects">Manage projects</RouterLink>
   </section>
 
-  <section aria-labelledby="capability-heading">
-    <div class="section-heading">
-      <div>
-        <span class="eyebrow">Delivery map</span>
-        <h2 id="capability-heading">Build status</h2>
+  <div class="metric-grid" aria-label="Workspace summary">
+    <article>
+      <span>Projects</span><strong>{{ projects.length }}</strong
+      ><small>visible memberships</small>
+    </article>
+    <article>
+      <span>Repositories</span><strong>{{ repositories.length }}</strong
+      ><small>in selected project</small>
+    </article>
+    <article>
+      <span>In progress</span><strong>{{ activeTasks }}</strong
+      ><small>tasks moving now</small>
+    </article>
+    <article>
+      <span>Source traced</span><strong>{{ tracedTasks }}</strong
+      ><small>tasks backed by evidence</small>
+    </article>
+  </div>
+
+  <section class="dashboard-grid">
+    <article class="panel panel--dark">
+      <span class="eyebrow">Current project</span>
+      <h2>{{ selectedProject?.name || 'Select a project' }}</h2>
+      <p v-if="selectedProject">
+        Project contracts, repositories, impact, and delivery state are scoped here.
+      </p>
+      <p v-else>Create or select a project to begin tracing delivery decisions.</p>
+      <RouterLink :to="selectedProject ? `/projects/${selectedProject.id}/tasks` : '/projects'">
+        {{ selectedProject ? 'Open task board' : 'Choose project' }}
+      </RouterLink>
+    </article>
+
+    <article class="panel">
+      <div class="section-heading section-heading--compact">
+        <div>
+          <span class="eyebrow">Evidence health</span>
+          <h2>Trace coverage</h2>
+        </div>
+        <span class="evidence-badge">CONFIRMED</span>
       </div>
-      <span class="evidence-badge">CONFIRMED SOURCE</span>
-    </div>
-
-    <div class="capability-grid">
-      <article v-for="capability in capabilities" :key="capability.name" class="capability-card">
-        <span :class="['state-pill', `state-pill--${capability.state}`]">
-          {{ capability.state }}
-        </span>
-        <h3>{{ capability.name }}</h3>
-        <p>{{ capability.description }}</p>
-      </article>
-    </div>
-  </section>
-
-  <section class="next-step" aria-labelledby="next-step-heading">
-    <span class="step-number">01</span>
-    <div>
-      <span class="eyebrow">Next verified contract</span>
-      <h2 id="next-step-heading">Identity, ownership, and permission scope</h2>
-      <p>
-        Product screens remain intentionally read-only placeholders until the P2 and P3 backend
-        contracts are implemented and verified.
-      </p>
-    </div>
+      <ResourceState
+        :state="tasksState"
+        empty-title="No tasks yet"
+        empty-message="Create a task to start measuring evidence coverage."
+        @retry="load"
+      >
+        <div class="coverage-meter">
+          <strong>{{ tasks.length ? Math.round((tracedTasks / tasks.length) * 100) : 0 }}%</strong>
+          <div>
+            <span
+              :style="{ width: `${tasks.length ? (tracedTasks / tasks.length) * 100 : 0}%` }"
+            ></span>
+          </div>
+          <small>{{ tracedTasks }} of {{ tasks.length }} tasks include source evidence.</small>
+        </div>
+      </ResourceState>
+    </article>
   </section>
 </template>

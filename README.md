@@ -15,7 +15,20 @@ FullStackHero `2.0.4-rc`, Marten + PostgreSQL, and .NET Aspire.
 - [`WORKFLOW.md`](WORKFLOW.md) — mandatory implementation lifecycle
 - [`GIT_RULES.md`](GIT_RULES.md) — branch, pull request, and merge workflow
 
-The foundation now includes the FullStackHero backend, PostgreSQL, Redis,
-Marten document persistence, a Vue product shell, and one .NET Aspire AppHost
-for local orchestration. Later product milestones remain governed by the
-dependency order and evidence gates in `PROJECT_PLAN.md`.
+The integrated baseline includes the FullStackHero backend, PostgreSQL, Redis,
+Marten document persistence, the Vue product workspace, and one .NET Aspire
+AppHost for local orchestration.
+
+Technology-neutral analyzer contracts, deterministic analyzers,
+knowledge/governance engines, and bounded AI task reconciliation are documented
+in [`src/analyzers/README.md`](src/analyzers/README.md).
+
+## Analyzer verification
+
+With the repository's .NET 9 SDK available:
+
+```bash
+dotnet restore src/analyzers/VietAIS.TCFlow.Analyzers.sln
+dotnet build src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-restore
+dotnet test src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-build --no-restore
+```

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Analyzers.Vue</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Analyzers.Vue</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../core/VietAIS.TCFlow.Analyzers.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,16 @@
+{
+  "observations": [
+    { "kind": "architecture", "value": "feature-based" },
+    { "kind": "architecture", "value": "module-based" },
+    { "kind": "apiStyle", "value": "minimal-api" },
+    { "kind": "persistence", "value": "marten-document-database" },
+    { "kind": "validation", "value": "fluent-validation" },
+    { "kind": "requestDtoNaming", "value": "Command" },
+    { "kind": "responseDtoNaming", "value": "Response" },
+    { "kind": "handlerNaming", "value": "Handler" },
+    { "kind": "endpointNaming", "value": "Endpoint" },
+    { "kind": "moduleLayout", "value": "src/api/modules/{module}" },
+    { "kind": "frontendState", "value": "pinia" },
+    { "kind": "frontendRouting", "value": "vue-router" }
+  ]
+}

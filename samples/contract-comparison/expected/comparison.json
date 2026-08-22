@@ -1,0 +1,77 @@
+{
+  "pair": {
+    "frontendMethod": "POST",
+    "frontendRoute": "/api/products",
+    "backendMethod": "POST",
+    "backendRoute": "/api/v{version:apiVersion}/catalog/products",
+    "status": "matched",
+    "evidenceLevel": "inferred",
+    "confidence": 0.78
+  },
+  "mismatches": [
+    {
+      "kind": "route",
+      "subject": "route",
+      "frontendValue": "/api/products",
+      "backendValue": "/api/v{version:apiVersion}/catalog/products",
+      "evidenceLevel": "inferred",
+      "confidence": 0.78
+    },
+    {
+      "kind": "requestFieldMissingBackend",
+      "subject": "categoryId",
+      "frontendValue": "string (required)",
+      "backendValue": "<missing>",
+      "evidenceLevel": "inferred",
+      "confidence": 0.78
+    },
+    {
+      "kind": "requestFieldValidation",
+      "subject": "name",
+      "frontendValue": "maximumLength:120",
+      "backendValue": "maximumLength:75,minimumLength:2",
+      "evidenceLevel": "inferred",
+      "confidence": 0.78
+    },
+    {
+      "kind": "requestFieldValidation",
+      "subject": "price",
+      "frontendValue": "minimumInclusive:0",
+      "backendValue": "minimumExclusive:0",
+      "evidenceLevel": "inferred",
+      "confidence": 0.78
+    },
+    {
+      "kind": "responseFieldMissingBackend",
+      "subject": "categoryId",
+      "frontendValue": "string (required)",
+      "backendValue": "<missing>",
+      "evidenceLevel": "inferred",
+      "confidence": 0.78
+    },
+    {
+      "kind": "responseFieldMissingBackend",
+      "subject": "name",
+      "frontendValue": "string (required)",
+      "backendValue": "<missing>",
+      "evidenceLevel": "inferred",
+      "confidence": 0.78
+    },
+    {
+      "kind": "responseFieldMissingBackend",
+      "subject": "price",
+      "frontendValue": "number (required)",
+      "backendValue": "<missing>",
+      "evidenceLevel": "inferred",
+      "confidence": 0.78
+    },
+    {
+      "kind": "responseFieldOptionality",
+      "subject": "id",
+      "frontendValue": "required",
+      "backendValue": "optional",
+      "evidenceLevel": "inferred",
+      "confidence": 0.78
+    }
+  ]
+}

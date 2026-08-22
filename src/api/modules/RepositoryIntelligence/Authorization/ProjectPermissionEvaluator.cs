@@ -5,33 +5,31 @@ namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 
 public sealed class ProjectPermissionEvaluator(IQuerySession session) : IProjectPermissionEvaluator
 {
-    public async Task<EffectivePermissionResult> GetEffectivePermissionsAsync(
+    public async Task<IReadOnlyList<PermissionGrantTrace>> GetProjectPermissionGrantsAsync(
         Guid userId,
-        AuthorizationResourceContext resource,
+        Guid projectId,
         CancellationToken cancellationToken)
     {
         var membership = await session.Query<ProjectMembership>()
             .SingleOrDefaultAsync(
-                item => item.ProjectId == resource.ProjectId && item.UserId == userId && item.IsActive,
+                item => item.ProjectId == projectId && item.UserId == userId && item.IsActive,
                 cancellationToken);
 
         if (membership is null)
         {
-            return new EffectivePermissionResult(resource.ProjectId, userId, []);
+            return [];
         }
 
         var grants = new List<PermissionGrantTrace>();
         foreach (var assignment in membership.Roles)
         {
             var role = await session.LoadAsync<ProjectRole>(assignment.RoleId, cancellationToken);
-            if (role is null || role.ProjectId != resource.ProjectId)
+            if (role is null || role.ProjectId != projectId)
             {
                 continue;
             }
 
-            grants.AddRange(role.Permissions
-                .Where(grant => AppliesTo(grant, userId, resource))
-                .Select(grant => new PermissionGrantTrace(
+            grants.AddRange(role.Permissions.Select(grant => new PermissionGrantTrace(
                     grant.PermissionCode,
                     role.Id,
                     role.Name,
@@ -40,13 +38,25 @@ public sealed class ProjectPermissionEvaluator(IQuerySession session) : IProject
                     grant.ComponentScopes)));
         }
 
+        return grants
+            .OrderBy(grant => grant.PermissionCode, StringComparer.Ordinal)
+            .ThenBy(grant => grant.RoleName, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public async Task<EffectivePermissionResult> GetEffectivePermissionsAsync(
+        Guid userId,
+        AuthorizationResourceContext resource,
+        CancellationToken cancellationToken)
+    {
+        var grants = await GetProjectPermissionGrantsAsync(
+            userId,
+            resource.ProjectId,
+            cancellationToken);
         return new EffectivePermissionResult(
             resource.ProjectId,
             userId,
-            grants
-                .OrderBy(grant => grant.PermissionCode, StringComparer.Ordinal)
-                .ThenBy(grant => grant.RoleName, StringComparer.Ordinal)
-                .ToArray());
+            grants.Where(grant => AppliesTo(grant, userId, resource)).ToArray());
     }
 
     public async Task EnsureAuthorizedAsync(
@@ -64,7 +74,7 @@ public sealed class ProjectPermissionEvaluator(IQuerySession session) : IProject
     }
 
     internal static bool AppliesTo(
-        RolePermissionGrant grant,
+        PermissionGrantTrace grant,
         Guid userId,
         AuthorizationResourceContext resource)
     {

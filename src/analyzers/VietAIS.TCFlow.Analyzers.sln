@@ -36,6 +36,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Gi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.GitHub.Tests", "tests/github/VietAIS.TCFlow.Analyzers.GitHub.Tests.csproj", "{408BC287-7480-4478-87F2-47F55C3C38F1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Monitoring", "monitoring/VietAIS.TCFlow.Analyzers.Monitoring.csproj", "{A6F02E16-04C2-4516-8ACD-1A88A2D6A6BD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Monitoring.Tests", "tests/monitoring/VietAIS.TCFlow.Analyzers.Monitoring.Tests.csproj", "{D7B8D385-E426-49FD-A5B8-236A21B32A48}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -110,5 +114,13 @@ Global
 		{408BC287-7480-4478-87F2-47F55C3C38F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{408BC287-7480-4478-87F2-47F55C3C38F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{408BC287-7480-4478-87F2-47F55C3C38F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A6F02E16-04C2-4516-8ACD-1A88A2D6A6BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A6F02E16-04C2-4516-8ACD-1A88A2D6A6BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A6F02E16-04C2-4516-8ACD-1A88A2D6A6BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A6F02E16-04C2-4516-8ACD-1A88A2D6A6BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7B8D385-E426-49FD-A5B8-236A21B32A48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7B8D385-E426-49FD-A5B8-236A21B32A48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7B8D385-E426-49FD-A5B8-236A21B32A48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7B8D385-E426-49FD-A5B8-236A21B32A48}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

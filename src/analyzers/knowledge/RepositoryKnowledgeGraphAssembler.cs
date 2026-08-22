@@ -47,6 +47,118 @@ public sealed class RepositoryKnowledgeGraphAssembler
         return records.Build(current.RepositoryId, checked(current.Revision + 1));
     }
 
+    public RepositoryKnowledgeGraph ApplyIncrementalPaths(
+        RepositoryKnowledgeGraph current,
+        IReadOnlyCollection<AnalysisResult> partialReplacements,
+        IReadOnlyCollection<string> changedPaths)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(partialReplacements);
+        ArgumentNullException.ThrowIfNull(changedPaths);
+        var normalizedPaths = changedPaths
+            .Select(NormalizePath)
+            .ToHashSet(StringComparer.Ordinal);
+        if (normalizedPaths.Count == 0)
+        {
+            throw new ArgumentException("At least one changed path is required.", nameof(changedPaths));
+        }
+
+        var mergedReplacements = partialReplacements
+            .Select(replacement => MergePathScopedResult(current, replacement, normalizedPaths))
+            .ToArray();
+        return ApplyIncremental(current, mergedReplacements);
+    }
+
+    private static AnalysisResult MergePathScopedResult(
+        RepositoryKnowledgeGraph current,
+        AnalysisResult partial,
+        IReadOnlySet<string> changedPaths)
+    {
+        var existingArtifacts = ProducedBy(current.Artifacts, item => item.Id, partial.Analyzer, current)
+            .ToArray();
+        var existingEvidence = ProducedBy(current.Evidence, item => item.Id, partial.Analyzer, current)
+            .ToArray();
+        var affectedArtifactIds = existingArtifacts
+            .Where(artifact => changedPaths.Contains(NormalizePath(artifact.Path)))
+            .Select(artifact => artifact.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        var affectedEvidenceIds = existingEvidence
+            .Where(evidence => changedPaths.Contains(NormalizePath(evidence.Location.Path)))
+            .Select(evidence => evidence.Id)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var retainedArtifacts = existingArtifacts.Where(artifact => !affectedArtifactIds.Contains(artifact.Id));
+        var retainedEvidence = existingEvidence.Where(evidence => !affectedEvidenceIds.Contains(evidence.Id));
+        var retainedDependencies = ProducedBy(
+                current.Dependencies,
+                item => item.Id,
+                partial.Analyzer,
+                current)
+            .Where(dependency =>
+                !affectedArtifactIds.Contains(dependency.SourceArtifactId) &&
+                !affectedArtifactIds.Contains(dependency.Target) &&
+                !affectedEvidenceIds.Contains(dependency.EvidenceId));
+        var retainedCapabilities = ProducedBy(
+                current.Capabilities,
+                item => item.Id,
+                partial.Analyzer,
+                current)
+            .Where(capability =>
+                !capability.ArtifactIds.Any(affectedArtifactIds.Contains) &&
+                !capability.EvidenceIds.Any(affectedEvidenceIds.Contains));
+        var retainedContracts = ProducedBy(current.Contracts, item => item.Id, partial.Analyzer, current)
+            .Where(contract =>
+                !contract.EvidenceIds.Any(affectedEvidenceIds.Contains) &&
+                !contract.RequestFields.Any(field => changedPaths.Contains(NormalizePath(field.Location.Path))) &&
+                !contract.ResponseFields.Any(field => changedPaths.Contains(NormalizePath(field.Location.Path))));
+        var retainedChanges = ProducedBy(current.Changes, item => item.Id, partial.Analyzer, current);
+        var retainedImpacts = ProducedBy(current.Impacts, item => item.Id, partial.Analyzer, current);
+
+        return partial with
+        {
+            Artifacts = Merge(retainedArtifacts, partial.Artifacts, item => item.Id),
+            Dependencies = Merge(retainedDependencies, partial.Dependencies, item => item.Id),
+            Evidence = Merge(retainedEvidence, partial.Evidence, item => item.Id),
+            Capabilities = Merge(retainedCapabilities, partial.Capabilities, item => item.Id),
+            Contracts = Merge(retainedContracts, partial.Contracts, item => item.Id),
+            Changes = Merge(retainedChanges, partial.Changes, item => item.Id),
+            Impacts = Merge(retainedImpacts, partial.Impacts, item => item.Id)
+        };
+    }
+
+    private static IReadOnlyList<T> ProducedBy<T>(
+        IEnumerable<T> values,
+        Func<T, string> idSelector,
+        string producer,
+        RepositoryKnowledgeGraph graph) => values
+        .Where(value => graph.RecordProducers.TryGetValue(idSelector(value), out var valueProducer) &&
+            string.Equals(valueProducer, producer, StringComparison.Ordinal))
+        .ToArray();
+
+    private static IReadOnlyList<T> Merge<T>(
+        IEnumerable<T> retained,
+        IEnumerable<T> replacements,
+        Func<T, string> idSelector)
+    {
+        var values = retained.ToDictionary(idSelector, StringComparer.Ordinal);
+        foreach (var replacement in replacements)
+        {
+            values[idSelector(replacement)] = replacement;
+        }
+
+        return values.Values.ToArray();
+    }
+
+    private static string NormalizePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Repository-relative paths are required.", nameof(path));
+        }
+
+        return path.Replace('\\', '/');
+    }
+
     private static void AddAnalyses(KnowledgeRecords records, IEnumerable<AnalysisResult> analyses)
     {
         var ordered = analyses.OrderBy(result => result.Analyzer, StringComparer.Ordinal).ToArray();

@@ -81,6 +81,11 @@ public static class RepositoryIntelligenceModule
                     .UseOptimisticConcurrency(true)
                     .UniqueIndex(installation => installation.InstallationId)
                     .Index(installation => installation.ProjectId);
+                options.Schema.For<GitHubConnectionAttempt>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(attempt => attempt.ProjectId)
+                    .Index(attempt => attempt.ActorId)
+                    .Index(attempt => attempt.ExpiresAt);
                 options.Schema.For<GitHubRepositoryAccess>()
                     .UseOptimisticConcurrency(true)
                     .UniqueIndex(
@@ -103,6 +108,9 @@ public static class RepositoryIntelligenceModule
             .UseLightweightSessions();
 
         builder.Services.AddScoped<IProjectPermissionEvaluator, ProjectPermissionEvaluator>();
+        builder.Services.AddOptions<GitHubAppOptions>()
+            .BindConfiguration(GitHubAppOptions.SectionName);
+        builder.Services.AddHttpClient<IGitHubAppClient, GitHubAppClient>();
         builder.Services.AddSingleton<IGitHubWebhookSignatureValidator>(
             new GitHubWebhookSignatureValidator(builder.Configuration["GitHub:WebhookSecret"]));
         builder.Services.AddSingleton(TimeProvider.System);

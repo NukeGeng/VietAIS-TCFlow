@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Analyzers.Vue.Tests</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Analyzers.Vue.Tests</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DefaultItemExcludes>$(DefaultItemExcludes);aspnet/**/*.cs;marten/**/*.cs;contracts/**/*.cs;knowledge/**/*.cs;governance/**/*.cs;reasoning/**/*.cs;github/**/*.cs;monitoring/**/*.cs</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../core/VietAIS.TCFlow.Analyzers.Core.csproj" />
+    <ProjectReference Include="../vue/VietAIS.TCFlow.Analyzers.Vue.csproj" />
+  </ItemGroup>
+</Project>

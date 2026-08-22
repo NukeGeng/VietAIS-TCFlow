@@ -1,0 +1,37 @@
+{
+  "documents": [
+    {
+      "name": "Project",
+      "path": "src/api/modules/RepositoryIntelligence/Management/ProjectModels.cs",
+      "schemaConfigured": true
+    },
+    {
+      "name": "ProjectRepository",
+      "path": "src/api/modules/RepositoryIntelligence/Management/ProjectModels.cs",
+      "schemaConfigured": true
+    }
+  ],
+  "sessions": [
+    { "name": "CreateProjectHandler", "sessionType": "IDocumentSession", "hasSaveChanges": true, "writeCount": 1 },
+    { "name": "GetProjectHandler", "sessionType": "IQuerySession", "hasSaveChanges": false, "writeCount": 0 },
+    { "name": "SearchProjectsHandler", "sessionType": "IQuerySession", "hasSaveChanges": false, "writeCount": 0 },
+    { "name": "DeleteProjectHandler", "sessionType": "IDocumentSession", "hasSaveChanges": true, "writeCount": 1 },
+    { "name": "CreateRepositoryWithoutSaveHandler", "sessionType": "IDocumentSession", "hasSaveChanges": false, "writeCount": 1 }
+  ],
+  "operations": [
+    { "owner": "CreateProjectHandler", "kind": "store", "documentType": "Project", "line": 23, "pagination": false, "committed": true },
+    { "owner": "CreateProjectHandler", "kind": "saveChanges", "documentType": "", "line": 24, "pagination": false, "committed": true },
+    { "owner": "GetProjectHandler", "kind": "load", "documentType": "Project", "line": 34, "pagination": false, "committed": true },
+    { "owner": "SearchProjectsHandler", "kind": "query", "documentType": "Project", "line": 46, "pagination": true, "committed": true },
+    { "owner": "DeleteProjectHandler", "kind": "load", "documentType": "Project", "line": 59, "pagination": false, "committed": true },
+    { "owner": "DeleteProjectHandler", "kind": "delete", "documentType": "Project", "line": 61, "pagination": false, "committed": true },
+    { "owner": "DeleteProjectHandler", "kind": "saveChanges", "documentType": "", "line": 62, "pagination": false, "committed": true },
+    { "owner": "CreateRepositoryWithoutSaveHandler", "kind": "store", "documentType": "ProjectRepository", "line": 74, "pagination": false, "committed": false }
+  ],
+  "missingSave": {
+    "code": "MARTEN001",
+    "path": "src/api/modules/RepositoryIntelligence/Management/ProjectFeatures.cs",
+    "line": 66,
+    "owner": "CreateRepositoryWithoutSaveHandler"
+  }
+}

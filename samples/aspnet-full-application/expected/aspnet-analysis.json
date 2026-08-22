@@ -1,0 +1,132 @@
+{
+  "endpoints": [
+    {
+      "name": "CreateProductEndpoint",
+      "path": "src/api/modules/Catalog/Catalog.Infrastructure/Endpoints/v1/CreateProductEndpoint.cs",
+      "line": 15,
+      "method": "POST",
+      "route": "/api/v{version:apiVersion}/catalog/products",
+      "commandType": "CreateProductCommand",
+      "responseType": "CreateProductResponse",
+      "successStatus": "200",
+      "apiVersion": "1"
+    },
+    {
+      "name": "CreateProject",
+      "path": "src/api/modules/RepositoryIntelligence/Management/ProjectManagementEndpoints.cs",
+      "line": 18,
+      "method": "POST",
+      "route": "/api/v{version:apiVersion}/projects",
+      "commandType": "CreateProjectCommand",
+      "responseType": "CreateProjectResponse",
+      "successStatus": "201",
+      "apiVersion": "1"
+    },
+    {
+      "name": "GetProject",
+      "path": "src/api/modules/RepositoryIntelligence/Management/ProjectManagementEndpoints.cs",
+      "line": 25,
+      "method": "GET",
+      "route": "/api/v{version:apiVersion}/projects/{projectId:guid}",
+      "commandType": "GetProjectQuery",
+      "responseType": "Project",
+      "successStatus": "200",
+      "apiVersion": "1"
+    }
+  ],
+  "contracts": [
+    {
+      "method": "POST",
+      "route": "/api/v{version:apiVersion}/catalog/products",
+      "evidenceLevel": "confirmed",
+      "requestFields": [
+        { "name": "Name", "type": "string", "required": true, "validations": ["notEmpty", "minimumLength:2", "maximumLength:75"] },
+        { "name": "Price", "type": "decimal", "required": true, "validations": ["greaterThan:0"] },
+        { "name": "Description", "type": "string", "required": false, "validations": [] },
+        { "name": "BrandId", "type": "Guid", "required": false, "validations": [] }
+      ],
+      "responseFields": [
+        { "name": "Id", "type": "Guid", "required": false, "validations": [] }
+      ],
+      "errors": [],
+      "permissions": ["Permissions.Products.Create"],
+      "hasPagination": false
+    },
+    {
+      "method": "POST",
+      "route": "/api/v{version:apiVersion}/projects",
+      "evidenceLevel": "confirmed",
+      "requestFields": [
+        { "name": "Name", "type": "string", "required": true, "validations": [] }
+      ],
+      "responseFields": [
+        { "name": "Project", "type": "Project", "required": true, "validations": [] }
+      ],
+      "errors": ["400", "401"],
+      "permissions": ["authenticated"],
+      "hasPagination": false
+    },
+    {
+      "method": "GET",
+      "route": "/api/v{version:apiVersion}/projects/{projectId:guid}",
+      "evidenceLevel": "confirmed",
+      "requestFields": [
+        { "name": "projectId", "type": "Guid", "required": true, "validations": [] }
+      ],
+      "responseFields": [
+        { "name": "Id", "type": "Guid", "required": true, "validations": [] },
+        { "name": "Name", "type": "string", "required": true, "validations": [] },
+        { "name": "PrimaryOwnerId", "type": "Guid", "required": true, "validations": [] }
+      ],
+      "errors": ["401", "403", "404"],
+      "permissions": ["project.view"],
+      "hasPagination": false
+    }
+  ],
+  "openApiOperations": [
+    {
+      "name": "CreateProductEndpoint",
+      "path": "src/api/modules/Catalog/Catalog.Infrastructure/Endpoints/v1/CreateProductEndpoint.cs",
+      "line": 20,
+      "summary": "creates a product",
+      "description": "creates a product",
+      "responseType": "CreateProductResponse",
+      "successStatus": "200",
+      "errorStatuses": [],
+      "apiVersion": "1"
+    },
+    {
+      "name": "CreateProject",
+      "path": "src/api/modules/RepositoryIntelligence/Management/ProjectManagementEndpoints.cs",
+      "line": 19,
+      "summary": "",
+      "description": "",
+      "responseType": "CreateProjectResponse",
+      "successStatus": "201",
+      "errorStatuses": ["400", "401"],
+      "apiVersion": "1"
+    },
+    {
+      "name": "GetProject",
+      "path": "src/api/modules/RepositoryIntelligence/Management/ProjectManagementEndpoints.cs",
+      "line": 26,
+      "summary": "",
+      "description": "",
+      "responseType": "Project",
+      "successStatus": "200",
+      "errorStatuses": ["401", "403", "404"],
+      "apiVersion": "1"
+    }
+  ],
+  "artifacts": [
+    { "kind": "validator", "name": "CreateProductCommandValidator" },
+    { "kind": "handler", "name": "CreateProductHandler" },
+    { "kind": "handler", "name": "CreateProjectHandler" },
+    { "kind": "handler", "name": "GetProjectHandler" },
+    { "kind": "interface", "name": "IProductWriter" },
+    { "kind": "interface", "name": "IProjectPermissionEvaluator" },
+    { "kind": "openApiOperation", "name": "CreateProductEndpoint" },
+    { "kind": "openApiOperation", "name": "CreateProject" },
+    { "kind": "openApiOperation", "name": "GetProject" }
+  ]
+}

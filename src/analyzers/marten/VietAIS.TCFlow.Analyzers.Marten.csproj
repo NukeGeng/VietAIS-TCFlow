@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Analyzers.Marten</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Analyzers.Marten</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../core/VietAIS.TCFlow.Analyzers.Core.csproj" />
+    <ProjectReference Include="../aspnet/VietAIS.TCFlow.Analyzers.AspNet.csproj" />
+  </ItemGroup>
+</Project>

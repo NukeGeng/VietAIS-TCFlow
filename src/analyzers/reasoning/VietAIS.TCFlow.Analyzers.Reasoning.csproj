@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Analyzers.Reasoning</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Analyzers.Reasoning</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Marten" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../core/VietAIS.TCFlow.Analyzers.Core.csproj" />
+    <ProjectReference Include="../contracts/VietAIS.TCFlow.Analyzers.Contracts.csproj" />
+    <ProjectReference Include="../knowledge/VietAIS.TCFlow.Analyzers.Knowledge.csproj" />
+    <ProjectReference Include="../governance/VietAIS.TCFlow.Analyzers.Governance.csproj" />
+  </ItemGroup>
+</Project>

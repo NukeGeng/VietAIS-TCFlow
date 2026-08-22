@@ -30,6 +30,9 @@ public enum ArtifactKind
     Service,
     Interface,
     OpenApiOperation,
+    MartenDocument,
+    MartenSession,
+    MartenOperation,
     Unknown
 }
 
@@ -47,7 +50,8 @@ public enum DependencyKind
     Validates,
     Authorizes,
     DelegatesTo,
-    Produces
+    Produces,
+    Deletes
 }
 
 public enum ContractDirection

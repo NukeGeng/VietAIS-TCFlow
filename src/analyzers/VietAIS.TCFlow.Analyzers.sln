@@ -24,6 +24,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Kn
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Knowledge.Tests", "tests/knowledge/VietAIS.TCFlow.Analyzers.Knowledge.Tests.csproj", "{8D37C021-A7E5-4B3E-BC44-639F0F52A861}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Governance", "governance/VietAIS.TCFlow.Analyzers.Governance.csproj", "{C23A9A68-9854-44E3-9D14-21B8CB0D53F2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VietAIS.TCFlow.Analyzers.Governance.Tests", "tests/governance/VietAIS.TCFlow.Analyzers.Governance.Tests.csproj", "{97A452DE-EF81-46C4-A064-8B39E3A7D2C1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -74,5 +78,13 @@ Global
 		{8D37C021-A7E5-4B3E-BC44-639F0F52A861}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8D37C021-A7E5-4B3E-BC44-639F0F52A861}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8D37C021-A7E5-4B3E-BC44-639F0F52A861}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C23A9A68-9854-44E3-9D14-21B8CB0D53F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C23A9A68-9854-44E3-9D14-21B8CB0D53F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C23A9A68-9854-44E3-9D14-21B8CB0D53F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C23A9A68-9854-44E3-9D14-21B8CB0D53F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97A452DE-EF81-46C4-A064-8B39E3A7D2C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97A452DE-EF81-46C4-A064-8B39E3A7D2C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97A452DE-EF81-46C4-A064-8B39E3A7D2C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97A452DE-EF81-46C4-A064-8B39E3A7D2C1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

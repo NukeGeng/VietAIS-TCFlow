@@ -1,8 +1,8 @@
 # TCFlow analyzers
 
 This directory contains the technology-neutral source-analysis contracts and
-the deterministic source analyzers and contract comparison introduced by
-project phases P5-P8.
+the deterministic source analyzers, contract comparison, knowledge graph, and
+repository-governance engine introduced by project phases P5-P10.
 
 ## Structure
 
@@ -19,6 +19,9 @@ project phases P5-P8.
 - `knowledge/` assembles analyzer outputs into a repository graph, performs
   bounded neighborhood retrieval, preserves record/evidence provenance, and
   persists repository-scoped graph records with Marten.
+- `governance/` detects evidence-backed repository conventions, evaluates
+  project authority policy, builds convention-aware impact plans, and persists
+  convention profiles with Marten.
 - `tests/` verifies deterministic output and evidence boundaries against the
   fixtures in `samples/vue-full-application/`,
   `samples/aspnet-full-application/`, and
@@ -66,6 +69,18 @@ an optimistic-concurrency manifest. Writes use `IDocumentSession` and one
 explicit `SaveChangesAsync`; reads use `IQuerySession`. P9 introduces no event
 sourcing and no standalone graph database.
 
+The governance engine detects architecture, API, persistence, validation,
+naming, module-layout, state-management, and routing conventions from the
+knowledge graph. Onboarding authority defaults remain `Proposed` until a
+project configures them. Authority determines which source a mismatch should
+align to; it is deliberately independent from actor permissions, which remain
+the backend's responsibility. Plans only reference artifacts already present
+in the graph and carry both convention and source-evidence identities.
+
+Convention profiles use optimistic revision checks. Writes use
+`IDocumentSession` followed by explicit `SaveChangesAsync`, while reads use
+`IQuerySession`.
+
 ## Evidence policy
 
 - Literal file extensions, declarations, fields, imports, methods, and static
@@ -101,6 +116,6 @@ dotnet build src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-restore
 dotnet test src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-build --no-restore
 ```
 
-Knowledge persistence tests require Docker because they start a disposable
-PostgreSQL 16 container and verify a real Marten write/read/reconciliation
-round trip.
+Knowledge and governance persistence tests require Docker because they start
+disposable PostgreSQL 16 containers and verify real Marten persistence round
+trips.

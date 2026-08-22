@@ -33,6 +33,7 @@ public static class PermissionCatalog
         Project(ProjectPermissionCodes.RepositoryCreate),
         Project(ProjectPermissionCodes.RepositoryUpdate),
         Project(ProjectPermissionCodes.RepositoryDelete),
+        Project(ProjectPermissionCodes.RepositoryAccessManage),
         Project(ProjectPermissionCodes.ComponentView),
         Project(ProjectPermissionCodes.ComponentCreate),
         Project(ProjectPermissionCodes.ComponentUpdate),

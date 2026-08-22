@@ -2,8 +2,8 @@
 
 This directory contains the technology-neutral source-analysis contracts and
 the deterministic source analyzers, contract comparison, knowledge graph,
-repository-governance engine, and bounded AI reasoning/reconciliation engine
-introduced by project phases P5-P11.
+repository-governance engine, bounded AI reasoning/reconciliation engine, and
+GitHub analysis-request adapter introduced by project phases P5-P12.
 
 ## Structure
 
@@ -27,12 +27,16 @@ introduced by project phases P5-P11.
   reasoning context, structured impact/task output, progressive AI trust,
   source-aware task reconciliation, task version history, and AI audit
   persistence.
+- `github/` validates the backend's GitHub analysis-request contract and maps
+  initial-scan, push, pull-request, and merge requests into provider-neutral
+  repository analysis work items. It does not fetch source or call AI.
 - `tests/` verifies deterministic output and evidence boundaries against the
   fixtures in `samples/vue-full-application/`,
   `samples/aspnet-full-application/`, and
   `samples/marten-full-application/`; contract comparison ground truth lives
   in `samples/contract-comparison/`, and canonical reconciliation outcomes
-  live in `samples/reasoning/`.
+  live in `samples/reasoning/`. The cross-domain GitHub request fixture lives
+  in `samples/github/`.
 
 The Vue analyzer recognizes single-file components, `<script setup>`, props,
 emits, form bindings and validation attributes, reactive/loading/error state,
@@ -106,6 +110,14 @@ Create, Update, Merge, Close, Reopen, or Ignore. Marten writes the current task,
 an immutable version snapshot, and an AI audit record in one explicit commit.
 Every mutation is checked against both the configured AI permission and the
 project's progressive trust ceiling.
+
+The GitHub adapter accepts the backend's pending `RepositoryAnalysisRequest`
+JSON, including its current numeric enum representation. It validates request,
+project, repository, and delivery correlation; enforces full-scan versus
+incremental event invariants; rejects unsafe repository-relative paths; and
+maps GitHub file states into the analyzer core's technology-neutral
+`RepositoryAnalysisWorkItem` and `ChangeKind`. Content retrieval and
+incremental analysis remain P13 responsibilities.
 
 ## Evidence policy
 

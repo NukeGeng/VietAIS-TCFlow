@@ -64,6 +64,64 @@ export interface ProjectRepository {
   createdBy: string
 }
 
+export interface GitHubAppInstallation {
+  id: string
+  projectId: string
+  installationId: number
+  accountId: number
+  accountLogin: string
+  accountKind: number
+  repositorySelection: number
+  status: number
+  createdAt: string
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface GitHubRepositorySummary {
+  id: number
+  name: string
+  fullName: string
+  private: boolean
+  defaultBranch: string
+  htmlUrl: string
+}
+
+export interface GitHubInstallationStart {
+  installationUrl: string
+  expiresAt: string
+}
+
+export interface GitHubAuthorizationStart {
+  projectId: string
+  authorizationUrl: string
+  state: string
+  codeVerifier: string
+  expiresAt: string
+}
+
+export interface GitHubConnectionResult {
+  projectId: string
+  installation: GitHubAppInstallation
+  repositories: GitHubRepositorySummary[]
+}
+
+export interface ConnectedGitHubRepository {
+  repository: ProjectRepository
+  access: {
+    id: string
+    projectId: string
+    projectRepositoryId: string
+    installationDocumentId: string
+    installationId: number
+    gitHubRepositoryId: number
+    fullName: string
+    isSelected: boolean
+    selectedAt: string
+    selectedBy: string
+  }
+}
+
 export enum ComponentScopeKind {
   Frontend = 0,
   Backend = 1,

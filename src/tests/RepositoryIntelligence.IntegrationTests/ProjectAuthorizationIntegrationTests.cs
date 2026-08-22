@@ -307,9 +307,9 @@ public sealed class ProjectAuthorizationIntegrationTests
             app.MapGroup("api/v{version:apiVersion}")
                 .WithApiVersionSet(versions)
                 .MapCarter();
-            app.Urls.Add("http://127.0.0.1:0");
         }
 
+        app.Urls.Add("http://127.0.0.1:0");
         await app.StartAsync(TestContext.Current.CancellationToken);
         var store = app.Services.GetRequiredService<IDocumentStore>();
         await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync();

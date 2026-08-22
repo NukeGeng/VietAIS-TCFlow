@@ -11,6 +11,11 @@ var jwtKey = builder.AddParameter("jwt-key", secret: true);
 var hangfirePassword = builder.AddParameter("hangfire-password", secret: true);
 var bootstrapAdminPassword = builder.AddParameter("bootstrap-admin-password", secret: true);
 var githubWebhookSecret = builder.AddParameter("github-webhook-secret", secret: true);
+var githubAppId = builder.AddParameter("github-app-id");
+var githubAppSlug = builder.AddParameter("github-app-slug");
+var githubClientId = builder.AddParameter("github-client-id");
+var githubClientSecret = builder.AddParameter("github-client-secret", secret: true);
+var githubPrivateKeyBase64 = builder.AddParameter("github-private-key-base64", secret: true);
 
 var webApi = builder.AddProject<Projects.Server>("webapi")
     .WithReference(database)
@@ -19,6 +24,12 @@ var webApi = builder.AddProject<Projects.Server>("webapi")
     .WithEnvironment("HangfireOptions__Password", hangfirePassword)
     .WithEnvironment("BootstrapAdminOptions__Password", bootstrapAdminPassword)
     .WithEnvironment("GitHub__WebhookSecret", githubWebhookSecret)
+    .WithEnvironment("GitHub__AppId", githubAppId)
+    .WithEnvironment("GitHub__AppSlug", githubAppSlug)
+    .WithEnvironment("GitHub__ClientId", githubClientId)
+    .WithEnvironment("GitHub__ClientSecret", githubClientSecret)
+    .WithEnvironment("GitHub__PrivateKeyBase64", githubPrivateKeyBase64)
+    .WithEnvironment("GitHub__OAuthCallbackUrl", "http://localhost:5173/github/callback")
     .WaitFor(database)
     .WaitFor(redis);
 

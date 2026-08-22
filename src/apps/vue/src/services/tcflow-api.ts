@@ -5,6 +5,12 @@ import type {
   EffectivePermissionResult,
   EngineeringTask,
   EngineeringTaskDetails,
+  ConnectedGitHubRepository,
+  GitHubAppInstallation,
+  GitHubAuthorizationStart,
+  GitHubConnectionResult,
+  GitHubInstallationStart,
+  GitHubRepositorySummary,
   PagedList,
   PermissionDefinition,
   Project,
@@ -174,6 +180,67 @@ export const tcflowApi = {
       method: 'POST',
       body: JSON.stringify(input),
     })
+  },
+
+  startGitHubConnection(projectId: string): Promise<GitHubInstallationStart> {
+    return apiRequest<GitHubInstallationStart>(`/api/v1/projects/${projectId}/github/connections`, {
+      method: 'POST',
+    })
+  },
+
+  prepareGitHubAuthorization(
+    state: string,
+    installationId: number,
+  ): Promise<GitHubAuthorizationStart> {
+    return apiRequest<GitHubAuthorizationStart>('/api/v1/github/connections/authorize', {
+      method: 'POST',
+      body: JSON.stringify({ state, installationId }),
+    })
+  },
+
+  completeGitHubConnection(
+    state: string,
+    code: string,
+    codeVerifier: string,
+  ): Promise<GitHubConnectionResult> {
+    return apiRequest<GitHubConnectionResult>('/api/v1/github/connections/complete', {
+      method: 'POST',
+      body: JSON.stringify({ state, code, codeVerifier }),
+    })
+  },
+
+  gitHubInstallations(projectId: string): Promise<GitHubAppInstallation[]> {
+    return apiRequest<GitHubAppInstallation[]>(`/api/v1/projects/${projectId}/github/installations`)
+  },
+
+  gitHubRepositories(
+    projectId: string,
+    installationId: number,
+  ): Promise<GitHubRepositorySummary[]> {
+    return apiRequest<GitHubRepositorySummary[]>(
+      `/api/v1/projects/${projectId}/github/installations/${installationId}/repositories`,
+    )
+  },
+
+  connectGitHubRepository(
+    projectId: string,
+    installationId: number,
+    gitHubRepositoryId: number,
+  ): Promise<ConnectedGitHubRepository> {
+    return apiRequest<ConnectedGitHubRepository>(
+      `/api/v1/projects/${projectId}/github/repositories`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ installationId, gitHubRepositoryId }),
+      },
+    )
+  },
+
+  triggerInitialGitHubScan(projectId: string, repositoryId: string): Promise<unknown> {
+    return apiRequest(
+      `/api/v1/projects/${projectId}/github/repositories/${repositoryId}/initial-scan`,
+      { method: 'POST' },
+    )
   },
 
   createFeature(projectId: string, name: string, description?: string): Promise<ProjectFeature> {

@@ -3,6 +3,7 @@ import { authSession } from '../services/auth-session'
 import AnalysisView from '../views/AnalysisView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import FeaturesView from '../views/FeaturesView.vue'
+import GitHubCallbackView from '../views/GitHubCallbackView.vue'
 import ImpactGraphView from '../views/ImpactGraphView.vue'
 import LoginView from '../views/LoginView.vue'
 import ProjectAdminView from '../views/ProjectAdminView.vue'
@@ -19,6 +20,7 @@ export function createAppRouter() {
       { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
       { path: '/', name: 'dashboard', component: DashboardView },
       { path: '/projects', name: 'projects', component: ProjectsView },
+      { path: '/github/callback', name: 'github-callback', component: GitHubCallbackView },
       {
         path: '/projects/:projectId/repositories',
         name: 'repositories',

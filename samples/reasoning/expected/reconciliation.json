@@ -1,0 +1,9 @@
+{
+  "create": "create",
+  "ignore": "ignore",
+  "update": "update",
+  "merge": "merge",
+  "close": "close",
+  "reopen": "reopen",
+  "completedRevert": "ignore"
+}

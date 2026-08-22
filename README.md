@@ -16,8 +16,9 @@ FullStackHero `2.0.4-rc`, Marten + PostgreSQL, and .NET Aspire.
 - [`GIT_RULES.md`](GIT_RULES.md) — branch, pull request, and merge workflow
 
 Implementation is delivered incrementally through the integration branches
-defined in `GIT_RULES.md`. The technology-neutral analyzer contracts and the
-first deterministic Vue analyzer are documented in
+defined in `GIT_RULES.md`. The technology-neutral analyzer contracts,
+deterministic analyzers, knowledge/governance engines, and bounded AI task
+reconciliation are documented in
 [`src/analyzers/README.md`](src/analyzers/README.md).
 
 ## Analyzer verification

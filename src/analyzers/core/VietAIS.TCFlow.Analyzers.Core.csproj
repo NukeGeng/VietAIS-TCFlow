@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Analyzers.Core</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Analyzers.Core</AssemblyName>
+  </PropertyGroup>
+</Project>

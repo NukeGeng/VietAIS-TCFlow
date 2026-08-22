@@ -1,0 +1,12 @@
+{
+  "frontendAuthority": {
+    "source": "frontend",
+    "action": "alignBackendToFrontend",
+    "target": "backend"
+  },
+  "backendAuthority": {
+    "source": "backend",
+    "action": "alignFrontendToBackend",
+    "target": "frontend"
+  }
+}

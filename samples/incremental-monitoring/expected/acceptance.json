@@ -1,0 +1,8 @@
+{
+  "maximumChangedFiles": 20,
+  "maximumP95Milliseconds": 2000,
+  "cosmeticAiRequests": 0,
+  "duplicateChanges": 0,
+  "duplicateTasks": 0,
+  "canonicalReconciliationAccuracy": 1.0
+}

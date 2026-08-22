@@ -468,6 +468,7 @@ $RECYCLE.BIN/
 # Frontend outputs
 dist/
 coverage/
+.eslintcache
 
 # .NET build outputs shared by the backend domain branch
 [Bb]in/

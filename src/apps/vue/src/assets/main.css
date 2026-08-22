@@ -743,6 +743,45 @@ code {
   align-items: start;
 }
 
+.connection-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.page-alert {
+  margin-bottom: 1rem;
+}
+
+.callback-panel {
+  display: grid;
+  max-width: 38rem;
+  min-height: 24rem;
+  margin: 3rem auto;
+  padding: 3rem;
+  place-content: center;
+  justify-items: start;
+  border: 1px solid #dce2d8;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.callback-panel .eyebrow {
+  margin-top: 1rem;
+}
+
+.callback-panel h1 {
+  margin-top: 0.65rem;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+}
+
+.callback-panel p {
+  color: #69766f;
+}
+
+.callback-panel .secondary-button {
+  margin-top: 1rem;
+}
+
 .dashboard-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 1rem;

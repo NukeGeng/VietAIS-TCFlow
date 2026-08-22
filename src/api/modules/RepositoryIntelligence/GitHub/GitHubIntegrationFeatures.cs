@@ -21,9 +21,7 @@ public sealed record ConnectGitHubRepositoryCommand(
     Guid ActorId,
     Guid ProjectId,
     long InstallationId,
-    long GitHubRepositoryId,
-    string FullName,
-    string DefaultBranch)
+    long GitHubRepositoryId)
     : IRequest<ConnectedGitHubRepository>;
 
 public sealed record TriggerInitialRepositoryScanCommand(
@@ -137,6 +135,7 @@ public sealed class RegisterGitHubInstallationHandler(
 public sealed class ConnectGitHubRepositoryHandler(
     IDocumentSession session,
     IProjectPermissionEvaluator evaluator,
+    IGitHubAppClient gitHub,
     TimeProvider timeProvider)
     : IRequestHandler<ConnectGitHubRepositoryCommand, ConnectedGitHubRepository>
 {
@@ -168,9 +167,16 @@ public sealed class ConnectGitHubRepositoryHandler(
                     item.Status == GitHubInstallationStatus.Active,
                 cancellationToken)
             ?? throw new NotFoundException("Active GitHub installation not found.");
-        var fullName = ValidateFullName(request.FullName);
+        var remoteRepositories = await gitHub.GetInstallationRepositoriesAsync(
+            installation.InstallationId,
+            cancellationToken);
+        var remoteRepository = remoteRepositories.SingleOrDefault(
+            item => item.Id == request.GitHubRepositoryId)
+            ?? throw new ForbiddenException(
+                "Repository is not accessible to the project's GitHub App installation.");
+        var fullName = ValidateFullName(remoteRepository.FullName);
         var defaultBranch = CreateProjectRepositoryHandler.ValidateName(
-            request.DefaultBranch,
+            remoteRepository.DefaultBranch,
             "Default branch");
         var existingAccess = await session.Query<GitHubRepositoryAccess>()
             .SingleOrDefaultAsync(
@@ -209,7 +215,7 @@ public sealed class ConnectGitHubRepositoryHandler(
             fullName,
             RepositoryProviderKind.GitHub,
             null,
-            $"https://github.com/{fullName}",
+            remoteRepository.HtmlUrl,
             defaultBranch,
             RepositoryLifecycleStatus.Active,
             now,

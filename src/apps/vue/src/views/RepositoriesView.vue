@@ -1,37 +1,158 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
 import PermissionNotice from '../components/PermissionNotice.vue'
 import ResourceState from '../components/ResourceState.vue'
+import { externalNavigation } from '../services/external-navigation'
+import { tcflowApi } from '../services/tcflow-api'
 import { useWorkspaceStore } from '../stores/workspace'
+import type { GitHubAppInstallation, GitHubRepositorySummary } from '../types/contracts'
 import { RepositoryProviderKind } from '../types/contracts'
 
+const route = useRoute()
 const workspace = useWorkspaceStore()
-const { repositories, repositoriesState, selectedProject } = storeToRefs(workspace)
-const name = ref('')
-const provider = ref(RepositoryProviderKind.GitHub)
-const location = ref('')
+const { repositories, repositoriesState, selectedProject, selectedProjectId } =
+  storeToRefs(workspace)
+const localName = ref('')
+const localPath = ref('')
 const defaultBranch = ref('main')
+const installations = ref<GitHubAppInstallation[]>([])
+const availableRepositories = ref<GitHubRepositorySummary[]>([])
+const selectedInstallationId = ref<number | null>(null)
+const selectedRepositoryId = ref<number | null>(null)
+const loadingGitHub = ref(false)
+const connectingRepository = ref(false)
 const formError = ref('')
+const successMessage = ref(route.query.github === 'connected' ? 'GitHub account connected.' : '')
 
-async function createRepository(): Promise<void> {
+const canManageGitHub = computed(
+  () =>
+    workspace.hasPermission('repository.access.manage') &&
+    workspace.hasPermission('repository.create'),
+)
+
+async function createLocalRepository(): Promise<void> {
   formError.value = ''
   try {
     await workspace.createRepository({
-      name: name.value,
-      provider: provider.value,
-      localPath: provider.value === RepositoryProviderKind.Local ? location.value : undefined,
-      remoteUrl: provider.value === RepositoryProviderKind.GitHub ? location.value : undefined,
+      name: localName.value,
+      provider: RepositoryProviderKind.Local,
+      localPath: localPath.value,
       defaultBranch: defaultBranch.value,
     })
-    name.value = ''
-    location.value = ''
+    localName.value = ''
+    localPath.value = ''
   } catch (error) {
-    formError.value = error instanceof Error ? error.message : 'Unable to connect repository.'
+    formError.value = error instanceof Error ? error.message : 'Unable to add local repository.'
   }
 }
 
-workspace.loadRepositories()
+async function startGitHubConnection(): Promise<void> {
+  if (!selectedProjectId.value) return
+  formError.value = ''
+  loadingGitHub.value = true
+  try {
+    const result = await tcflowApi.startGitHubConnection(selectedProjectId.value)
+    externalNavigation.assign(result.installationUrl)
+  } catch (error) {
+    formError.value = error instanceof Error ? error.message : 'Unable to start GitHub connection.'
+    loadingGitHub.value = false
+  }
+}
+
+async function loadGitHubInstallations(): Promise<void> {
+  if (!selectedProjectId.value || !canManageGitHub.value) return
+  loadingGitHub.value = true
+  formError.value = ''
+  try {
+    installations.value = await tcflowApi.gitHubInstallations(selectedProjectId.value)
+    const requestedInstallation = Number(route.query.installation)
+    const selected = installations.value.find(
+      (item) => item.installationId === requestedInstallation,
+    )
+    selectedInstallationId.value =
+      selected?.installationId ?? installations.value[0]?.installationId ?? null
+    if (selectedInstallationId.value) await loadAvailableRepositories()
+  } catch (error) {
+    formError.value =
+      error instanceof Error ? error.message : 'Unable to load GitHub installations.'
+  } finally {
+    loadingGitHub.value = false
+  }
+}
+
+async function loadAvailableRepositories(): Promise<void> {
+  if (!selectedProjectId.value || !selectedInstallationId.value) {
+    availableRepositories.value = []
+    selectedRepositoryId.value = null
+    return
+  }
+  loadingGitHub.value = true
+  formError.value = ''
+  try {
+    availableRepositories.value = await tcflowApi.gitHubRepositories(
+      selectedProjectId.value,
+      selectedInstallationId.value,
+    )
+    const connectedIds = new Set(
+      repositories.value
+        .filter((repository) => repository.provider === RepositoryProviderKind.GitHub)
+        .map((repository) => repository.remoteUrl),
+    )
+    selectedRepositoryId.value =
+      availableRepositories.value.find((repository) => !connectedIds.has(repository.htmlUrl))?.id ??
+      null
+  } catch (error) {
+    availableRepositories.value = []
+    formError.value = error instanceof Error ? error.message : 'Unable to load GitHub repositories.'
+  } finally {
+    loadingGitHub.value = false
+  }
+}
+
+async function connectSelectedRepository(): Promise<void> {
+  if (!selectedProjectId.value || !selectedInstallationId.value || !selectedRepositoryId.value)
+    return
+  connectingRepository.value = true
+  formError.value = ''
+  successMessage.value = ''
+  try {
+    const connected = await tcflowApi.connectGitHubRepository(
+      selectedProjectId.value,
+      selectedInstallationId.value,
+      selectedRepositoryId.value,
+    )
+    await workspace.loadRepositories()
+    await loadAvailableRepositories()
+    successMessage.value = `${connected.repository.name} connected.`
+    if (workspace.hasPermission('source.analyze')) {
+      try {
+        await tcflowApi.triggerInitialGitHubScan(selectedProjectId.value, connected.repository.id)
+        successMessage.value += ' Initial analysis queued.'
+      } catch (error) {
+        formError.value =
+          error instanceof Error
+            ? `Repository connected, but initial analysis was not queued: ${error.message}`
+            : 'Repository connected, but initial analysis was not queued.'
+      }
+    }
+  } catch (error) {
+    formError.value = error instanceof Error ? error.message : 'Unable to connect repository.'
+  } finally {
+    connectingRepository.value = false
+  }
+}
+
+watch(
+  [selectedProjectId, canManageGitHub],
+  async ([projectId, canManage]) => {
+    if (!projectId) return
+    await workspace.loadRepositories()
+    if (canManage) await loadGitHubInstallations()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -39,15 +160,25 @@ workspace.loadRepositories()
     <div>
       <span class="eyebrow">{{ selectedProject?.name }}</span>
       <h1>Repositories</h1>
-      <p>Code sources stay inside the selected project and permission scope.</p>
+      <p>Connect GitHub through an authorized App installation, or add a local source path.</p>
     </div>
   </section>
+
+  <div v-if="successMessage" class="success-alert" role="status">{{ successMessage }}</div>
+  <div v-if="formError" class="inline-alert page-alert" role="alert">{{ formError }}</div>
+
   <div class="content-split">
     <section class="panel">
+      <div class="section-heading section-heading--compact">
+        <div>
+          <span class="eyebrow">Project sources</span>
+          <h2>Connected repositories</h2>
+        </div>
+      </div>
       <ResourceState
         :state="repositoriesState"
         empty-title="No repositories connected"
-        empty-message="Connect a local path or GitHub HTTPS remote to establish a source boundary."
+        empty-message="Install the GitHub App or add a local path to establish a source boundary."
         @retry="workspace.loadRepositories()"
       >
         <div class="item-list">
@@ -59,13 +190,13 @@ workspace.loadRepositories()
             <span class="avatar-mark">{{
               repository.provider === RepositoryProviderKind.GitHub ? 'GH' : 'LO'
             }}</span>
-            <span
-              ><strong>{{ repository.name }}</strong
-              ><small
+            <span>
+              <strong>{{ repository.name }}</strong>
+              <small
                 >{{ repository.remoteUrl || repository.localPath }} ·
                 {{ repository.defaultBranch }}</small
-              ></span
-            >
+              >
+            </span>
             <span class="state-pill state-pill--planned">{{
               repository.status === 0 ? 'pending' : repository.status === 1 ? 'active' : 'disabled'
             }}</span>
@@ -74,37 +205,82 @@ workspace.loadRepositories()
       </ResourceState>
     </section>
 
-    <PermissionNotice
-      :allowed="workspace.hasPermission('repository.create')"
-      permission="repository.create"
-    >
-      <form class="form-card" @submit.prevent="createRepository">
-        <span class="eyebrow">Source connection</span>
-        <h2>Add repository</h2>
-        <label
-          >Name<input v-model="name" required maxlength="150" placeholder="web-platform"
-        /></label>
-        <label
-          >Provider<select v-model="provider">
-            <option :value="RepositoryProviderKind.GitHub">GitHub</option>
-            <option :value="RepositoryProviderKind.Local">Local</option>
-          </select></label
-        >
-        <label
-          >{{ provider === RepositoryProviderKind.GitHub ? 'HTTPS remote' : 'Local path'
-          }}<input
-            v-model="location"
-            required
-            :placeholder="
-              provider === RepositoryProviderKind.GitHub
-                ? 'https://github.com/org/repo.git'
-                : '/workspace/repo'
-            "
-        /></label>
-        <label>Default branch<input v-model="defaultBranch" required /></label>
-        <div v-if="formError" class="inline-alert" role="alert">{{ formError }}</div>
-        <button class="primary-button" type="submit">Connect repository</button>
-      </form>
-    </PermissionNotice>
+    <div class="connection-stack">
+      <PermissionNotice
+        :allowed="canManageGitHub"
+        permission="repository.access.manage + repository.create"
+      >
+        <section class="form-card">
+          <span class="eyebrow">Private repositories</span>
+          <h2>GitHub App</h2>
+          <p>
+            Install TCFlow on your GitHub account, then choose only repositories that installation
+            can access.
+          </p>
+          <button
+            class="secondary-button"
+            type="button"
+            :disabled="loadingGitHub"
+            @click="startGitHubConnection"
+          >
+            {{ installations.length ? 'Connect another GitHub account' : 'Connect GitHub account' }}
+          </button>
+
+          <template v-if="installations.length">
+            <label>
+              GitHub account
+              <select v-model="selectedInstallationId" @change="loadAvailableRepositories">
+                <option
+                  v-for="installation in installations"
+                  :key="installation.id"
+                  :value="installation.installationId"
+                >
+                  {{ installation.accountLogin }}
+                </option>
+              </select>
+            </label>
+            <label>
+              Repository
+              <select v-model="selectedRepositoryId" :disabled="loadingGitHub">
+                <option :value="null">Select a repository</option>
+                <option
+                  v-for="repository in availableRepositories"
+                  :key="repository.id"
+                  :value="repository.id"
+                >
+                  {{ repository.fullName }}{{ repository.private ? ' · private' : '' }}
+                </option>
+              </select>
+            </label>
+            <button
+              class="primary-button"
+              type="button"
+              :disabled="!selectedRepositoryId || connectingRepository"
+              @click="connectSelectedRepository"
+            >
+              {{ connectingRepository ? 'Connecting…' : 'Add selected repository' }}
+            </button>
+          </template>
+        </section>
+      </PermissionNotice>
+
+      <PermissionNotice
+        :allowed="workspace.hasPermission('repository.create')"
+        permission="repository.create"
+      >
+        <form class="form-card" @submit.prevent="createLocalRepository">
+          <span class="eyebrow">Local source</span>
+          <h2>Add local repository</h2>
+          <label
+            >Name<input v-model="localName" required maxlength="150" placeholder="web-platform"
+          /></label>
+          <label
+            >Local path<input v-model="localPath" required placeholder="/workspace/repo"
+          /></label>
+          <label>Default branch<input v-model="defaultBranch" required /></label>
+          <button class="primary-button" type="submit">Add local repository</button>
+        </form>
+      </PermissionNotice>
+    </div>
   </div>
 </template>

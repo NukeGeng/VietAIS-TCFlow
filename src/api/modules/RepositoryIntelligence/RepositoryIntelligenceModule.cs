@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
+using VietAIS.TCFlow.WebApi.RepositoryIntelligence.GitHub;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
 
 namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence;
@@ -76,10 +77,34 @@ public static class RepositoryIntelligenceModule
                     .Index(artifact => artifact.ProjectId);
                 options.Schema.For<SourceImpact>()
                     .Index(impact => impact.ProjectId);
+                options.Schema.For<GitHubAppInstallation>()
+                    .UseOptimisticConcurrency(true)
+                    .UniqueIndex(installation => installation.InstallationId)
+                    .Index(installation => installation.ProjectId);
+                options.Schema.For<GitHubRepositoryAccess>()
+                    .UseOptimisticConcurrency(true)
+                    .UniqueIndex(
+                        "uidx_gh_repository_access_installation_repository",
+                        access => access.InstallationId,
+                        access => access.GitHubRepositoryId)
+                    .UniqueIndex(access => access.ProjectRepositoryId)
+                    .Index(access => access.ProjectId);
+                options.Schema.For<GitHubWebhookDelivery>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(delivery => delivery.ProjectId)
+                    .Index(delivery => delivery.ProjectRepositoryId);
+                options.Schema.For<RepositoryAnalysisRequest>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(request => request.ProjectId)
+                    .Index(request => request.RepositoryId)
+                    .Index(request => request.DeliveryId)
+                    .Index(request => request.Status);
             })
             .UseLightweightSessions();
 
         builder.Services.AddScoped<IProjectPermissionEvaluator, ProjectPermissionEvaluator>();
+        builder.Services.AddSingleton<IGitHubWebhookSignatureValidator>(
+            new GitHubWebhookSignatureValidator(builder.Configuration["GitHub:WebhookSecret"]));
         builder.Services.AddSingleton(TimeProvider.System);
 
         return builder;

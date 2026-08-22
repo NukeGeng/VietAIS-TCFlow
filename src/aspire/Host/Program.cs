@@ -10,6 +10,7 @@ var redis = builder.AddRedis("redis")
 var jwtKey = builder.AddParameter("jwt-key", secret: true);
 var hangfirePassword = builder.AddParameter("hangfire-password", secret: true);
 var bootstrapAdminPassword = builder.AddParameter("bootstrap-admin-password", secret: true);
+var githubWebhookSecret = builder.AddParameter("github-webhook-secret", secret: true);
 
 var webApi = builder.AddProject<Projects.Server>("webapi")
     .WithReference(database)
@@ -17,6 +18,7 @@ var webApi = builder.AddProject<Projects.Server>("webapi")
     .WithEnvironment("JwtOptions__Key", jwtKey)
     .WithEnvironment("HangfireOptions__Password", hangfirePassword)
     .WithEnvironment("BootstrapAdminOptions__Password", bootstrapAdminPassword)
+    .WithEnvironment("GitHub__WebhookSecret", githubWebhookSecret)
     .WaitFor(database)
     .WaitFor(redis);
 

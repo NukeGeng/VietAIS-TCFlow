@@ -54,6 +54,7 @@ their values in the AppHost user-secrets store; do not add them to an
 dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:jwt-key" "<at-least-32-random-characters>"
 dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:hangfire-password" "<random-password>"
 dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:bootstrap-admin-password" "<at-least-12-random-characters>"
+dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-webhook-secret" "<github-app-webhook-secret>"
 ```
 
 ## Run locally
@@ -149,3 +150,31 @@ rejected. Completion requires explicit human approval; AI verification is a
 separate state and never implies human approval. Every task mutation stores a
 typed version snapshot and audit record atomically. Source-generated tasks can
 trace back to change, artifact, evidence, and impact documents.
+
+## GitHub App integration
+
+GitHub repository access and Codex authentication are separate concerns. The
+backend stores GitHub App installation metadata, selected-repository grants,
+delivery identifiers, payload hashes, and analysis requests. It does not store
+GitHub access tokens, the GitHub App private key, the webhook secret, ChatGPT
+cookies, or Codex credentials.
+
+The webhook secret is provided to the API as `GitHub__WebhookSecret`. The
+Aspire host maps it from the secret `Parameters:github-webhook-secret` shown
+above. If it is absent, webhook signature validation fails closed.
+
+GitHub integration routes are:
+
+| Method | Route | Authorization |
+| --- | --- | --- |
+| `PUT` | `/api/v1/projects/{projectId}/github/installations/{installationId}` | `repository.access.manage` |
+| `POST` | `/api/v1/projects/{projectId}/github/repositories` | `repository.create` and `repository.access.manage` |
+| `POST` | `/api/v1/projects/{projectId}/github/repositories/{repositoryId}/initial-scan` | `source.analyze` for the selected repository |
+| `POST` | `/api/v1/github/webhooks` | Valid `X-Hub-Signature-256`; no user session |
+
+Only repositories explicitly selected for the active installation can enqueue
+initial or incremental analysis. Push, pull-request, and merged pull-request
+events create pending analysis requests. `X-GitHub-Delivery` is the idempotency
+key, so retrying or concurrently delivering the same event does not create
+duplicate analysis requests. Repository selection, scan requests, and accepted
+webhook deliveries are audited without including raw payloads or secrets.

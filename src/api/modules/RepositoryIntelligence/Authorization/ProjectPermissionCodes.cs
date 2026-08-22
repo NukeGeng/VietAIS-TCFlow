@@ -18,6 +18,7 @@ public static class ProjectPermissionCodes
     public const string RepositoryCreate = "repository.create";
     public const string RepositoryUpdate = "repository.update";
     public const string RepositoryDelete = "repository.delete";
+    public const string RepositoryAccessManage = "repository.access.manage";
     public const string ComponentView = "component.view";
     public const string ComponentCreate = "component.create";
     public const string ComponentUpdate = "component.update";

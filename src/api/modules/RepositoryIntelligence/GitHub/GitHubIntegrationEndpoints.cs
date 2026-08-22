@@ -10,17 +10,16 @@ using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
 
 namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.GitHub;
 
-public sealed record RegisterGitHubInstallationRequest(
-    long AccountId,
-    string AccountLogin,
-    GitHubAccountKind AccountKind,
-    GitHubRepositorySelectionKind RepositorySelection);
-
 public sealed record ConnectGitHubRepositoryRequest(
     long InstallationId,
-    long GitHubRepositoryId,
-    string FullName,
-    string DefaultBranch);
+    long GitHubRepositoryId);
+
+public sealed record PrepareGitHubAuthorizationRequest(string State, long InstallationId);
+
+public sealed record CompleteGitHubConnectionRequest(
+    string State,
+    string Code,
+    string CodeVerifier);
 
 public sealed class GitHubIntegrationEndpoints : CarterModule
 {
@@ -32,12 +31,29 @@ public sealed class GitHubIntegrationEndpoints : CarterModule
             .WithTags("github-integration")
             .RequireAuthorization();
 
-        github.MapPut("installations/{installationId:long}", RegisterInstallation)
-            .WithName(nameof(RegisterInstallation))
-            .Produces<GitHubAppInstallation>()
+        github.MapPost("connections", StartConnection)
+            .WithName(nameof(StartConnection))
+            .Produces<GitHubInstallationStart>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        github.MapGet("installations", GetInstallations)
+            .WithName(nameof(GetInstallations))
+            .Produces<IReadOnlyList<GitHubAppInstallation>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        github.MapGet("installations/{installationId:long}/repositories", GetRepositories)
+            .WithName(nameof(GetRepositories))
+            .Produces<IReadOnlyList<GitHubRepositorySummary>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
             .MapToApiVersion(new ApiVersion(1, 0));
 
         github.MapPost("repositories", ConnectRepository)
@@ -47,6 +63,28 @@ public sealed class GitHubIntegrationEndpoints : CarterModule
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        var connections = app.MapGroup("github/connections")
+            .WithTags("github-integration")
+            .RequireAuthorization();
+
+        connections.MapPost("authorize", PrepareAuthorization)
+            .WithName(nameof(PrepareAuthorization))
+            .Produces<GitHubAuthorizationStart>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        connections.MapPost("complete", CompleteConnection)
+            .WithName(nameof(CompleteConnection))
+            .Produces<GitHubConnectionResult>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
             .MapToApiVersion(new ApiVersion(1, 0));
 
         github.MapPost("repositories/{repositoryId:guid}/initial-scan", TriggerInitialScan)
@@ -67,22 +105,60 @@ public sealed class GitHubIntegrationEndpoints : CarterModule
             .MapToApiVersion(new ApiVersion(1, 0));
     }
 
-    private static async Task<IResult> RegisterInstallation(
+    private static async Task<IResult> StartConnection(
         Guid projectId,
-        long installationId,
-        RegisterGitHubInstallationRequest request,
         HttpContext httpContext,
         ISender mediator,
         CancellationToken cancellationToken) =>
         Results.Ok(await mediator.Send(
-            new RegisterGitHubInstallationCommand(
+            new StartGitHubConnectionCommand(GetActorId(httpContext), projectId),
+            cancellationToken));
+
+    private static async Task<IResult> PrepareAuthorization(
+        PrepareGitHubAuthorizationRequest request,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new PrepareGitHubAuthorizationCommand(
+                GetActorId(httpContext),
+                request.State,
+                request.InstallationId),
+            cancellationToken));
+
+    private static async Task<IResult> CompleteConnection(
+        CompleteGitHubConnectionRequest request,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new CompleteGitHubConnectionCommand(
+                GetActorId(httpContext),
+                request.State,
+                request.Code,
+                request.CodeVerifier),
+            cancellationToken));
+
+    private static async Task<IResult> GetInstallations(
+        Guid projectId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new GetGitHubInstallationsQuery(GetActorId(httpContext), projectId),
+            cancellationToken));
+
+    private static async Task<IResult> GetRepositories(
+        Guid projectId,
+        long installationId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new GetGitHubRepositoriesQuery(
                 GetActorId(httpContext),
                 projectId,
-                installationId,
-                request.AccountId,
-                request.AccountLogin,
-                request.AccountKind,
-                request.RepositorySelection),
+                installationId),
             cancellationToken));
 
     private static async Task<IResult> ConnectRepository(
@@ -97,9 +173,7 @@ public sealed class GitHubIntegrationEndpoints : CarterModule
                 GetActorId(httpContext),
                 projectId,
                 request.InstallationId,
-                request.GitHubRepositoryId,
-                request.FullName,
-                request.DefaultBranch),
+                request.GitHubRepositoryId),
             cancellationToken);
         return Results.Created(
             $"projects/{projectId}/repositories/{connected.Repository.Id}",

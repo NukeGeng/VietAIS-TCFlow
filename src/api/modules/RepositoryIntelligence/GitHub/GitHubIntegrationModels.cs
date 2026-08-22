@@ -44,6 +44,22 @@ public enum GitHubChangedFileStatus
     Renamed
 }
 
+public enum GitHubConnectionStage
+{
+    Installation,
+    UserAuthorization
+}
+
+public sealed record GitHubConnectionAttempt(
+    string Id,
+    Guid ProjectId,
+    Guid ActorId,
+    GitHubConnectionStage Stage,
+    long? InstallationId,
+    string? CodeChallenge,
+    DateTimeOffset ExpiresAt,
+    DateTimeOffset? ConsumedAt);
+
 public sealed record GitHubAppInstallation(
     Guid Id,
     Guid ProjectId,
@@ -103,6 +119,30 @@ public sealed record RepositoryAnalysisRequest(
 public sealed record ConnectedGitHubRepository(
     Management.ProjectRepository Repository,
     GitHubRepositoryAccess Access);
+
+public sealed record GitHubRepositorySummary(
+    long Id,
+    string Name,
+    string FullName,
+    bool Private,
+    string DefaultBranch,
+    string HtmlUrl);
+
+public sealed record GitHubInstallationStart(
+    string InstallationUrl,
+    DateTimeOffset ExpiresAt);
+
+public sealed record GitHubAuthorizationStart(
+    Guid ProjectId,
+    string AuthorizationUrl,
+    string State,
+    string CodeVerifier,
+    DateTimeOffset ExpiresAt);
+
+public sealed record GitHubConnectionResult(
+    Guid ProjectId,
+    GitHubAppInstallation Installation,
+    IReadOnlyList<GitHubRepositorySummary> Repositories);
 
 public sealed record GitHubWebhookReceipt(
     bool Accepted,

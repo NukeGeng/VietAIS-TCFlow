@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.GitHub;
@@ -35,46 +36,77 @@ public sealed class GitHubIntegrationTests
         var outsiderId = Guid.NewGuid();
         var project = await CreateProjectAsync(app.Services, ownerId);
         using var client = CreateClient(app);
-        var installationRoute = $"api/v1/projects/{project.Id}/github/installations/101";
-        var installationRequest = new RegisterGitHubInstallationRequest(
-            202,
-            "NukeGeng",
-            GitHubAccountKind.User,
-            GitHubRepositorySelectionKind.Selected);
+        var connectionRoute = $"api/v1/projects/{project.Id}/github/connections";
 
-        var unauthenticated = await client.PutAsJsonAsync(
-            installationRoute,
-            installationRequest,
+        var unauthenticated = await client.PostAsync(
+            connectionRoute,
+            null,
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
 
         client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, outsiderId.ToString());
-        var forbidden = await client.PutAsJsonAsync(
-            installationRoute,
-            installationRequest,
+        var forbidden = await client.PostAsync(
+            connectionRoute,
+            null,
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
 
         client.DefaultRequestHeaders.Remove(TestAuthenticationHandler.UserHeader);
         client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, ownerId.ToString());
-        var installedResponse = await client.PutAsJsonAsync(
-            installationRoute,
-            installationRequest,
+        var startedResponse = await client.PostAsync(
+            connectionRoute,
+            null,
             TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, installedResponse.StatusCode);
-        var installation = await installedResponse.Content.ReadFromJsonAsync<GitHubAppInstallation>(
+        Assert.Equal(HttpStatusCode.OK, startedResponse.StatusCode);
+        var started = await startedResponse.Content.ReadFromJsonAsync<GitHubInstallationStart>(
             TestContext.Current.CancellationToken);
-        Assert.NotNull(installation);
-        Assert.Equal(project.Id, installation.ProjectId);
-        Assert.Equal(101, installation.InstallationId);
+        Assert.NotNull(started);
+        var installationState = QueryValue(started.InstallationUrl, "state");
+
+        var authorizationResponse = await client.PostAsJsonAsync(
+            "api/v1/github/connections/authorize",
+            new PrepareGitHubAuthorizationRequest(installationState, 101),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, authorizationResponse.StatusCode);
+        var authorization = await authorizationResponse.Content
+            .ReadFromJsonAsync<GitHubAuthorizationStart>(TestContext.Current.CancellationToken);
+        Assert.NotNull(authorization);
+        Assert.Equal(project.Id, authorization.ProjectId);
+        Assert.Equal(authorization.State, QueryValue(authorization.AuthorizationUrl, "state"));
+
+        var completedResponse = await client.PostAsJsonAsync(
+            "api/v1/github/connections/complete",
+            new CompleteGitHubConnectionRequest(
+                authorization.State,
+                "one-time-oauth-code",
+                authorization.CodeVerifier),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, completedResponse.StatusCode);
+        var completed = await completedResponse.Content.ReadFromJsonAsync<GitHubConnectionResult>(
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(completed);
+        Assert.Equal(project.Id, completed.ProjectId);
+        Assert.Equal(101, completed.Installation.InstallationId);
+        Assert.Contains(completed.Repositories, repository => repository.Id == 303 && repository.Private);
+
+        var replay = await client.PostAsJsonAsync(
+            "api/v1/github/connections/complete",
+            new CompleteGitHubConnectionRequest(
+                authorization.State,
+                "one-time-oauth-code",
+                authorization.CodeVerifier),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, replay.StatusCode);
+
+        var unavailableRepository = await client.PostAsJsonAsync(
+            $"api/v1/projects/{project.Id}/github/repositories",
+            new ConnectGitHubRepositoryRequest(101, 999),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, unavailableRepository.StatusCode);
 
         var connectedResponse = await client.PostAsJsonAsync(
             $"api/v1/projects/{project.Id}/github/repositories",
-            new ConnectGitHubRepositoryRequest(
-                101,
-                303,
-                "NukeGeng/VietAIS-TCFlow",
-                "main"),
+            new ConnectGitHubRepositoryRequest(101, 303),
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, connectedResponse.StatusCode);
         var connected = await connectedResponse.Content.ReadFromJsonAsync<ConnectedGitHubRepository>(
@@ -124,7 +156,11 @@ public sealed class GitHubIntegrationTests
         Assert.Equal(3, audits.Count);
         Assert.DoesNotContain(audits, audit =>
             (audit.Before?.Contains(WebhookSecret, StringComparison.Ordinal) ?? false) ||
-            (audit.After?.Contains(WebhookSecret, StringComparison.Ordinal) ?? false));
+            (audit.After?.Contains(WebhookSecret, StringComparison.Ordinal) ?? false) ||
+            (audit.Before?.Contains(authorization.CodeVerifier, StringComparison.Ordinal) ?? false) ||
+            (audit.After?.Contains(authorization.CodeVerifier, StringComparison.Ordinal) ?? false) ||
+            (audit.Before?.Contains("one-time-oauth-code", StringComparison.Ordinal) ?? false) ||
+            (audit.After?.Contains("one-time-oauth-code", StringComparison.Ordinal) ?? false));
         Assert.DoesNotContain(typeof(GitHubAppInstallation).GetProperties(), property =>
             property.Name.Contains("Token", StringComparison.OrdinalIgnoreCase) ||
             property.Name.Contains("Secret", StringComparison.OrdinalIgnoreCase) ||
@@ -335,9 +371,7 @@ public sealed class GitHubIntegrationTests
                 ownerId,
                 projectId,
                 101,
-                303,
-                "NukeGeng/VietAIS-TCFlow",
-                "main"),
+                303),
             TestContext.Current.CancellationToken);
     }
 
@@ -380,6 +414,14 @@ public sealed class GitHubIntegrationTests
     private static string Signature(byte[] payload) =>
         $"sha256={Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), payload))}";
 
+    private static string QueryValue(string url, string name)
+    {
+        var query = new Uri(url).Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+        var pair = query.Select(item => item.Split('=', 2))
+            .Single(item => Uri.UnescapeDataString(item[0]) == name);
+        return Uri.UnescapeDataString(pair[1]);
+    }
+
     private static HttpClient CreateClient(WebApplication app)
     {
         var address = app.Services.GetRequiredService<IServer>()
@@ -394,6 +436,8 @@ public sealed class GitHubIntegrationTests
         builder.Configuration["DatabaseOptions:ConnectionString"] = connectionString;
         builder.Configuration["GitHub:WebhookSecret"] = WebhookSecret;
         builder.RegisterRepositoryIntelligenceServices();
+        builder.Services.RemoveAll<IGitHubAppClient>();
+        builder.Services.AddSingleton<IGitHubAppClient, FakeGitHubAppClient>();
         builder.Services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssemblyContaining<RegisterGitHubInstallationCommand>());
         builder.Services.AddCarter(configurator: configuration =>
@@ -422,5 +466,54 @@ public sealed class GitHubIntegrationTests
         var store = app.Services.GetRequiredService<IDocumentStore>();
         await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync();
         return app;
+    }
+
+    private sealed class FakeGitHubAppClient : IGitHubAppClient
+    {
+        private static readonly GitHubRemoteInstallation Installation = new(
+            101,
+            202,
+            "NukeGeng",
+            GitHubAccountKind.User,
+            GitHubRepositorySelectionKind.Selected,
+            Suspended: false);
+
+        private static readonly GitHubRepositorySummary[] Repositories =
+        [
+            new(
+                303,
+                "VietAIS-TCFlow",
+                "NukeGeng/VietAIS-TCFlow",
+                Private: true,
+                "main",
+                "https://github.com/NukeGeng/VietAIS-TCFlow")
+        ];
+
+        public Uri CreateInstallationUrl(string state) =>
+            new($"https://github.test/apps/tcflow/installations/new?state={Uri.EscapeDataString(state)}");
+
+        public Uri CreateUserAuthorizationUrl(string state, string codeChallenge) =>
+            new(
+                "https://github.test/login/oauth/authorize" +
+                $"?state={Uri.EscapeDataString(state)}&code_challenge={Uri.EscapeDataString(codeChallenge)}");
+
+        public Task<GitHubRemoteInstallation> GetInstallationAsync(
+            long installationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(installationId == Installation.InstallationId
+                ? Installation
+                : throw new GitHubAppRequestException("Unknown installation."));
+
+        public Task<GitHubVerifiedConnection> VerifyUserInstallationAsync(
+            long installationId,
+            string code,
+            string codeVerifier,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new GitHubVerifiedConnection(Installation, Repositories));
+
+        public Task<IReadOnlyList<GitHubRepositorySummary>> GetInstallationRepositoriesAsync(
+            long installationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<GitHubRepositorySummary>>(Repositories);
     }
 }

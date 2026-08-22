@@ -15,11 +15,13 @@ FullStackHero `2.0.4-rc`, Marten + PostgreSQL, and .NET Aspire.
 - [`WORKFLOW.md`](WORKFLOW.md) — mandatory implementation lifecycle
 - [`GIT_RULES.md`](GIT_RULES.md) — branch, pull request, and merge workflow
 
-Implementation is delivered incrementally through the integration branches
-defined in `GIT_RULES.md`. The technology-neutral analyzer contracts,
-deterministic analyzers, knowledge/governance engines, and bounded AI task
-reconciliation are documented in
-[`src/analyzers/README.md`](src/analyzers/README.md).
+The integrated baseline includes the FullStackHero backend, PostgreSQL, Redis,
+Marten document persistence, the Vue product workspace, and one .NET Aspire
+AppHost for local orchestration.
+
+Technology-neutral analyzer contracts, deterministic analyzers,
+knowledge/governance engines, and bounded AI task reconciliation are documented
+in [`src/analyzers/README.md`](src/analyzers/README.md).
 
 ## Analyzer verification
 

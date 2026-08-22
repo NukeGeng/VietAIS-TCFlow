@@ -469,6 +469,10 @@ $RECYCLE.BIN/
 dist/
 coverage/
 
+# .NET build outputs shared by the backend domain branch
+[Bb]in/
+[Oo]bj/
+
 # Local configuration
 .env
 .env.*

@@ -45,6 +45,13 @@ public static class AiActionAuthorizer
             return AiTaskAction.Ignore;
         }
 
+        if (decision.Mutations.Count > 0 &&
+            decision.Mutations.Any(mutation => mutation.After.Status == SourceAwareTaskStatus.Upcoming) &&
+            decision.Mutations.All(IsSuggestionPromotionMutation))
+        {
+            return AiTaskAction.Create;
+        }
+
         if (decision.Mutations.Count > 0 && decision.Mutations.All(IsSuggestionLifecycleMutation))
         {
             return AiTaskAction.Suggest;
@@ -68,6 +75,11 @@ public static class AiActionAuthorizer
         (mutation.Before is null || mutation.Before.Status is
             SourceAwareTaskStatus.Suggested or SourceAwareTaskStatus.Cancelled) &&
         mutation.After.Status is SourceAwareTaskStatus.Suggested or SourceAwareTaskStatus.Cancelled;
+
+    private static bool IsSuggestionPromotionMutation(TaskMutation mutation) =>
+        (mutation.Before is null || mutation.Before.Status is
+            SourceAwareTaskStatus.Suggested or SourceAwareTaskStatus.Cancelled) &&
+        mutation.After.Status is SourceAwareTaskStatus.Upcoming or SourceAwareTaskStatus.Cancelled;
 
     public static IReadOnlyList<string> TrustPermissions(AiTrustLevel trustLevel) => trustLevel switch
     {

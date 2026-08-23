@@ -441,6 +441,7 @@ public sealed class ProjectManagementIntegrationTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.Configuration["DatabaseOptions:ConnectionString"] = connectionString;
+        builder.Configuration["RepositoryAnalysis:Enabled"] = "false";
         builder.RegisterRepositoryIntelligenceServices();
         builder.Services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssemblyContaining<CreateProjectCommand>());

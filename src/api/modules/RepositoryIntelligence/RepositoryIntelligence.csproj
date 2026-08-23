@@ -12,5 +12,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\framework\Core\Core.csproj" />
     <ProjectReference Include="..\..\framework\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\aspnet\VietAIS.TCFlow.Analyzers.AspNet.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\contracts\VietAIS.TCFlow.Analyzers.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\core\VietAIS.TCFlow.Analyzers.Core.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\github\VietAIS.TCFlow.Analyzers.GitHub.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\governance\VietAIS.TCFlow.Analyzers.Governance.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\knowledge\VietAIS.TCFlow.Analyzers.Knowledge.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\marten\VietAIS.TCFlow.Analyzers.Marten.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\monitoring\VietAIS.TCFlow.Analyzers.Monitoring.csproj" />
+    <ProjectReference Include="..\..\..\analyzers\vue\VietAIS.TCFlow.Analyzers.Vue.csproj" />
   </ItemGroup>
 </Project>

@@ -170,6 +170,8 @@ GitHub integration routes are:
 | `PUT` | `/api/v1/projects/{projectId}/github/installations/{installationId}` | `repository.access.manage` |
 | `POST` | `/api/v1/projects/{projectId}/github/repositories` | `repository.create` and `repository.access.manage` |
 | `POST` | `/api/v1/projects/{projectId}/github/repositories/{repositoryId}/initial-scan` | `source.analyze` for the selected repository |
+| `GET` | `/api/v1/projects/{projectId}/github/repositories/{repositoryId}/analyses/latest` | `source.analyze` for the selected repository |
+| `GET` | `/api/v1/projects/{projectId}/github/repositories/{repositoryId}/analyses/{analysisRequestId}` | `source.analyze` for the selected repository |
 | `POST` | `/api/v1/github/webhooks` | Valid `X-Hub-Signature-256`; no user session |
 
 Only repositories explicitly selected for the active installation can enqueue
@@ -178,3 +180,13 @@ events create pending analysis requests. `X-GitHub-Delivery` is the idempotency
 key, so retrying or concurrently delivering the same event does not create
 duplicate analysis requests. Repository selection, scan requests, and accepted
 webhook deliveries are audited without including raw payloads or secrets.
+
+The hosted initial-scan worker claims pending requests with optimistic
+concurrency, obtains a short-lived installation token, reads one immutable
+commit/tree snapshot, and persists the analyzer knowledge graph and convention
+profile. Tokens and source contents are not stored in analysis status or audit
+documents. A supported Vue, ASP.NET Core, or Marten repository completes with
+fact counts and diagnostics. Other stacks, including Next.js/React in V1,
+finish as `Unsupported` with `ANALYSIS001` and zero generated tasks rather than
+remaining pending or producing invented work. Processing leases allow a
+crashed worker attempt to be retried.

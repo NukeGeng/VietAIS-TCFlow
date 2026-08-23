@@ -1,6 +1,12 @@
 ﻿using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using VietAIS.TCFlow.Analyzers.AspNet;
+using VietAIS.TCFlow.Analyzers.Governance;
+using VietAIS.TCFlow.Analyzers.Knowledge;
+using VietAIS.TCFlow.Analyzers.Monitoring;
+using VietAIS.TCFlow.Analyzers.Vue;
+using IRepositoryAnalyzer = VietAIS.TCFlow.Analyzers.Core.IRepositoryAnalyzer;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.GitHub;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
@@ -104,6 +110,14 @@ public static class RepositoryIntelligenceModule
                     .Index(request => request.RepositoryId)
                     .Index(request => request.DeliveryId)
                     .Index(request => request.Status);
+                options.Schema.For<RepositoryAnalysisRun>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(run => run.ProjectId)
+                    .Index(run => run.RepositoryId)
+                    .Index(run => run.Status)
+                    .Index(run => run.UpdatedAt);
+                KnowledgeGraphStorage.Configure(options);
+                ConventionProfileStorage.Configure(options);
             })
             .UseLightweightSessions();
 
@@ -111,6 +125,19 @@ public static class RepositoryIntelligenceModule
         builder.Services.AddOptions<GitHubAppOptions>()
             .BindConfiguration(GitHubAppOptions.SectionName);
         builder.Services.AddHttpClient<IGitHubAppClient, GitHubAppClient>();
+        builder.Services.AddScoped<IRepositoryAnalyzer, VueAnalyzer>();
+        builder.Services.AddScoped<IRepositoryAnalyzer, AspNetAnalyzer>();
+        builder.Services.AddScoped<
+            IRepositoryAnalyzer,
+            VietAIS.TCFlow.Analyzers.Marten.MartenAnalyzer>();
+        builder.Services.AddScoped<IRepositorySnapshotSource, GitHubRepositorySnapshotSource>();
+        builder.Services.AddScoped(serviceProvider => new InitialRepositoryAnalysisService(
+            serviceProvider.GetRequiredService<IRepositorySnapshotSource>(),
+            serviceProvider.GetServices<IRepositoryAnalyzer>().ToArray()));
+        builder.Services.AddScoped<RepositoryAnalysisProcessor>();
+        builder.Services.AddOptions<RepositoryAnalysisWorkerOptions>()
+            .BindConfiguration(RepositoryAnalysisWorkerOptions.SectionName);
+        builder.Services.AddHostedService<RepositoryAnalysisWorker>();
         builder.Services.AddSingleton<IGitHubWebhookSignatureValidator>(
             new GitHubWebhookSignatureValidator(builder.Configuration["GitHub:WebhookSecret"]));
         builder.Services.AddSingleton(TimeProvider.System);

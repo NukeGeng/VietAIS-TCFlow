@@ -339,6 +339,63 @@ public sealed class GitHubIntegrationTests
                 TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task Initial_scan_worker_reports_unsupported_repository_without_creating_tasks()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        await using var app = await BuildApplicationAsync(
+            postgres.GetConnectionString(),
+            enableAnalysisWorker: true);
+        var ownerId = Guid.NewGuid();
+        var outsiderId = Guid.NewGuid();
+        var project = await CreateProjectAsync(app.Services, ownerId);
+        await ConnectRepositoryAsync(app.Services, ownerId, project.Id);
+        ConnectedGitHubRepository portfolio;
+        RepositoryAnalysisRequest requested;
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<ISender>();
+            portfolio = await mediator.Send(
+                new ConnectGitHubRepositoryCommand(ownerId, project.Id, 101, 304),
+                TestContext.Current.CancellationToken);
+            requested = await mediator.Send(
+                new TriggerInitialRepositoryScanCommand(
+                    ownerId,
+                    project.Id,
+                    portfolio.Repository.Id),
+                TestContext.Current.CancellationToken);
+        }
+
+        var completed = await WaitForAnalysisAsync(app.Services, requested.Id);
+
+        Assert.Equal(RepositoryAnalysisRunStatus.Unsupported, completed.Run!.Status);
+        Assert.Equal("portfolio-commit", completed.Run.SourceRevision);
+        Assert.Contains("TypeScript", completed.Run.Technologies);
+        Assert.Equal(0, completed.Run.ArtifactCount);
+        Assert.Equal(0, completed.Run.GeneratedTaskCount);
+        Assert.Contains(completed.Run.Diagnostics, diagnostic => diagnostic.Code == "ANALYSIS001");
+        Assert.Equal(GitHubAnalysisRequestStatus.Ignored, completed.Request.Status);
+
+        using var client = CreateClient(app);
+        var route = $"api/v1/projects/{project.Id}/github/repositories/" +
+            $"{portfolio.Repository.Id}/analyses/{requested.Id}";
+        var routeUri = new Uri(route, UriKind.Relative);
+        var unauthorized = await client.GetAsync(routeUri, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+        client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, outsiderId.ToString());
+        var forbidden = await client.GetAsync(routeUri, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        client.DefaultRequestHeaders.Remove(TestAuthenticationHandler.UserHeader);
+        client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, ownerId.ToString());
+        var authorized = await client.GetAsync(routeUri, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, authorized.StatusCode);
+        var details = await authorized.Content.ReadFromJsonAsync<RepositoryAnalysisDetails>(
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(details);
+        Assert.Equal(RepositoryAnalysisRunStatus.Unsupported, details.Run?.Status);
+    }
+
     private static async Task<Project> CreateProjectAsync(IServiceProvider services, Guid ownerId)
     {
         await using var scope = services.CreateAsyncScope();
@@ -430,11 +487,15 @@ public sealed class GitHubIntegrationTests
         return new HttpClient { BaseAddress = new Uri(address) };
     }
 
-    private static async Task<WebApplication> BuildApplicationAsync(string connectionString)
+    private static async Task<WebApplication> BuildApplicationAsync(
+        string connectionString,
+        bool enableAnalysisWorker = false)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Configuration["DatabaseOptions:ConnectionString"] = connectionString;
         builder.Configuration["GitHub:WebhookSecret"] = WebhookSecret;
+        builder.Configuration["RepositoryAnalysis:Enabled"] = enableAnalysisWorker.ToString();
+        builder.Configuration["RepositoryAnalysis:PollInterval"] = "00:00:00.025";
         builder.RegisterRepositoryIntelligenceServices();
         builder.Services.RemoveAll<IGitHubAppClient>();
         builder.Services.AddSingleton<IGitHubAppClient, FakeGitHubAppClient>();
@@ -486,7 +547,14 @@ public sealed class GitHubIntegrationTests
                 "NukeGeng/VietAIS-TCFlow",
                 Private: true,
                 "main",
-                "https://github.com/NukeGeng/VietAIS-TCFlow")
+                "https://github.com/NukeGeng/VietAIS-TCFlow"),
+            new(
+                304,
+                "Portfolio",
+                "NukeGeng/Portfolio",
+                Private: true,
+                "main",
+                "https://github.com/NukeGeng/Portfolio")
         ];
 
         public Uri CreateInstallationUrl(string state) =>
@@ -515,5 +583,64 @@ public sealed class GitHubIntegrationTests
             long installationId,
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<GitHubRepositorySummary>>(Repositories);
+
+        public Task<GitHubRepositorySnapshot> GetRepositorySnapshotAsync(
+            long installationId,
+            string fullName,
+            string reference,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var snapshot = string.Equals(fullName, "NukeGeng/Portfolio", StringComparison.Ordinal)
+                ? new GitHubRepositorySnapshot(
+                    "portfolio-commit",
+                    [
+                        new GitHubRepositorySnapshotFile(
+                            "package.json",
+                            "{\"dependencies\":{\"next\":\"latest\",\"react\":\"latest\"}}"),
+                        new GitHubRepositorySnapshotFile(
+                            "src/app/page.tsx",
+                            "export default function Page() { return <main>Portfolio</main>; }")
+                    ])
+                : new GitHubRepositorySnapshot(
+                    "vue-commit",
+                    [
+                        new GitHubRepositorySnapshotFile(
+                            "package.json",
+                            "{\"dependencies\":{\"vue\":\"latest\"}}"),
+                        new GitHubRepositorySnapshotFile(
+                            "src/App.vue",
+                            "<template><main>TCFlow</main></template>")
+                    ]);
+            return Task.FromResult(snapshot);
+        }
+    }
+
+    private static async Task<RepositoryAnalysisDetails> WaitForAnalysisAsync(
+        IServiceProvider services,
+        Guid requestId)
+    {
+        for (var attempt = 0; attempt < 200; attempt++)
+        {
+            await using var scope = services.CreateAsyncScope();
+            var session = scope.ServiceProvider.GetRequiredService<IQuerySession>();
+            var request = await session.LoadAsync<RepositoryAnalysisRequest>(
+                requestId,
+                TestContext.Current.CancellationToken);
+            var run = await session.LoadAsync<RepositoryAnalysisRun>(
+                requestId,
+                TestContext.Current.CancellationToken);
+            if (request is not null && run?.Status is
+                RepositoryAnalysisRunStatus.Completed or
+                RepositoryAnalysisRunStatus.Unsupported or
+                RepositoryAnalysisRunStatus.Failed)
+            {
+                return new RepositoryAnalysisDetails(request, run);
+            }
+
+            await Task.Delay(25, TestContext.Current.CancellationToken);
+        }
+
+        throw new TimeoutException("Repository analysis did not reach a terminal status.");
     }
 }

@@ -36,6 +36,14 @@ public enum GitHubAnalysisRequestStatus
     Ignored
 }
 
+public enum RepositoryAnalysisRunStatus
+{
+    Processing,
+    Completed,
+    Unsupported,
+    Failed
+}
+
 public enum GitHubChangedFileStatus
 {
     Added,
@@ -115,6 +123,36 @@ public sealed record RepositoryAnalysisRequest(
     DateTimeOffset RequestedAt,
     string RequestedByType,
     Guid? RequestedBy);
+
+public sealed record RepositoryAnalysisDiagnostic(
+    string Code,
+    string Message,
+    string EvidenceLevel,
+    string? Path);
+
+public sealed record RepositoryAnalysisRun(
+    Guid Id,
+    Guid ProjectId,
+    Guid RepositoryId,
+    RepositoryAnalysisRunStatus Status,
+    int Attempt,
+    string? SourceRevision,
+    IReadOnlyList<string> Technologies,
+    int ArtifactCount,
+    int DependencyCount,
+    int ContractCount,
+    int MismatchCount,
+    int GeneratedTaskCount,
+    IReadOnlyList<RepositoryAnalysisDiagnostic> Diagnostics,
+    string? ErrorCode,
+    string? ErrorMessage,
+    DateTimeOffset StartedAt,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? CompletedAt);
+
+public sealed record RepositoryAnalysisDetails(
+    RepositoryAnalysisRequest Request,
+    RepositoryAnalysisRun? Run);
 
 public sealed record ConnectedGitHubRepository(
     Management.ProjectRepository Repository,

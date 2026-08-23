@@ -31,6 +31,12 @@ public interface IGitHubAppClient
     Task<IReadOnlyList<GitHubRepositorySummary>> GetInstallationRepositoriesAsync(
         long installationId,
         CancellationToken cancellationToken);
+
+    Task<GitHubRepositorySnapshot> GetRepositorySnapshotAsync(
+        long installationId,
+        string fullName,
+        string reference,
+        CancellationToken cancellationToken);
 }
 
 public sealed record GitHubRemoteInstallation(
@@ -45,13 +51,38 @@ public sealed record GitHubVerifiedConnection(
     GitHubRemoteInstallation Installation,
     IReadOnlyList<GitHubRepositorySummary> Repositories);
 
+public sealed record GitHubRepositorySnapshotFile(
+    string Path,
+    string Content);
+
+public sealed record GitHubRepositorySnapshot(
+    string Revision,
+    IReadOnlyList<GitHubRepositorySnapshotFile> Files);
+
 internal sealed class GitHubAppClient(
     HttpClient httpClient,
     IOptions<GitHubAppOptions> options,
     TimeProvider timeProvider) : IGitHubAppClient
 {
     private const int PageSize = 100;
+    private const int MaximumSnapshotFiles = 20_000;
+    private const int MaximumBlobBytes = 1_000_000;
+    private const long MaximumSnapshotBytes = 50_000_000;
+    private const int MaximumConcurrentBlobRequests = 8;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly HashSet<string> SnapshotExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".cs",
+        ".csproj",
+        ".json",
+        ".js",
+        ".jsx",
+        ".props",
+        ".targets",
+        ".ts",
+        ".tsx",
+        ".vue"
+    };
     private readonly GitHubAppOptions _options = options.Value;
 
     public Uri CreateInstallationUrl(string state)
@@ -124,6 +155,95 @@ internal sealed class GitHubAppClient(
         ValidateInstallationId(installationId);
         var token = await CreateInstallationTokenAsync(installationId, cancellationToken);
         return await GetRepositoriesAsync("installation/repositories", token, cancellationToken);
+    }
+
+    public async Task<GitHubRepositorySnapshot> GetRepositorySnapshotAsync(
+        long installationId,
+        string fullName,
+        string reference,
+        CancellationToken cancellationToken)
+    {
+        EnsureConfigured();
+        ValidateInstallationId(installationId);
+        var repositoryPath = NormalizeRepositoryPath(fullName);
+        var normalizedReference = Required(reference, "GitHub repository reference");
+        var token = await CreateInstallationTokenAsync(installationId, cancellationToken);
+        using var commitRequest = CreateApiRequest(
+            HttpMethod.Get,
+            $"repos/{repositoryPath}/commits/{Uri.EscapeDataString(normalizedReference)}",
+            token);
+        var commit = await SendAsync<CommitResponse>(commitRequest, cancellationToken);
+        if (string.IsNullOrWhiteSpace(commit.Sha) || string.IsNullOrWhiteSpace(commit.Commit?.Tree?.Sha))
+        {
+            throw new GitHubAppRequestException("GitHub commit metadata is incomplete.");
+        }
+
+        using var treeRequest = CreateApiRequest(
+            HttpMethod.Get,
+            $"repos/{repositoryPath}/git/trees/{Uri.EscapeDataString(commit.Commit.Tree.Sha)}?recursive=1",
+            token);
+        var tree = await SendAsync<TreeResponse>(treeRequest, cancellationToken);
+        if (tree.Truncated)
+        {
+            throw new GitHubAppRequestException(
+                "GitHub repository tree is too large for a complete deterministic scan.");
+        }
+
+        var blobs = tree.Tree
+            .Where(item =>
+                string.Equals(item.Type, "blob", StringComparison.Ordinal) &&
+                item.Size is >= 0 and <= MaximumBlobBytes &&
+                IsSnapshotFile(item.Path))
+            .OrderBy(item => item.Path, StringComparer.Ordinal)
+            .ToArray();
+        if (blobs.Length > MaximumSnapshotFiles || blobs.Sum(item => item.Size ?? 0) > MaximumSnapshotBytes)
+        {
+            throw new GitHubAppRequestException(
+                "GitHub repository exceeds the configured initial-analysis snapshot limits.");
+        }
+
+        var files = new GitHubRepositorySnapshotFile[blobs.Length];
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, blobs.Length),
+            new ParallelOptions
+            {
+                MaxDegreeOfParallelism = MaximumConcurrentBlobRequests,
+                CancellationToken = cancellationToken
+            },
+            async (index, tokenCancellation) =>
+            {
+                var blob = blobs[index];
+                using var blobRequest = CreateApiRequest(
+                    HttpMethod.Get,
+                    $"repos/{repositoryPath}/git/blobs/{Uri.EscapeDataString(blob.Sha)}",
+                    token);
+                var content = await SendAsync<BlobResponse>(blobRequest, tokenCancellation);
+                if (!string.Equals(content.Encoding, "base64", StringComparison.OrdinalIgnoreCase) ||
+                    string.IsNullOrWhiteSpace(content.Content))
+                {
+                    throw new GitHubAppRequestException(
+                        $"GitHub blob '{blob.Path}' does not contain base64 text content.");
+                }
+
+                byte[] decoded;
+                try
+                {
+                    decoded = Convert.FromBase64String(
+                        content.Content.Replace("\n", string.Empty, StringComparison.Ordinal));
+                }
+                catch (FormatException exception)
+                {
+                    throw new GitHubAppRequestException(
+                        $"GitHub blob '{blob.Path}' contains invalid base64 content.",
+                        exception);
+                }
+
+                files[index] = new GitHubRepositorySnapshotFile(
+                    blob.Path,
+                    Encoding.UTF8.GetString(decoded));
+            });
+
+        return new GitHubRepositorySnapshot(commit.Sha, files);
     }
 
     private async Task<string> ExchangeUserCodeAsync(
@@ -329,6 +449,29 @@ internal sealed class GitHubAppClient(
         }
     }
 
+    private static string NormalizeRepositoryPath(string fullName)
+    {
+        var value = Required(fullName, "GitHub repository full name");
+        var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || Array.Exists(parts, part => part.Any(character =>
+                !(char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.'))))
+        {
+            throw new ProjectManagementValidationException(
+                "GitHub repository full name must use a safe owner/repository format.");
+        }
+
+        return $"{Uri.EscapeDataString(parts[0])}/{Uri.EscapeDataString(parts[1])}";
+    }
+
+    private static bool IsSnapshotFile(string path) =>
+        !string.IsNullOrWhiteSpace(path) &&
+        SnapshotExtensions.Contains(Path.GetExtension(path));
+
+    private static string Required(string? value, string label) =>
+        string.IsNullOrWhiteSpace(value)
+            ? throw new ProjectManagementValidationException($"{label} is required.")
+            : value.Trim();
+
     private static Uri BuildUri(
         string baseUrl,
         string path,
@@ -383,6 +526,18 @@ internal sealed class GitHubAppClient(
         bool Private,
         [property: JsonPropertyName("default_branch")] string DefaultBranch,
         [property: JsonPropertyName("html_url")] string HtmlUrl);
+
+    private sealed record CommitResponse(string Sha, CommitDetailsResponse? Commit);
+
+    private sealed record CommitDetailsResponse(TreeReferenceResponse? Tree);
+
+    private sealed record TreeReferenceResponse(string Sha);
+
+    private sealed record TreeResponse(bool Truncated, List<TreeItemResponse> Tree);
+
+    private sealed record TreeItemResponse(string Path, string Type, string Sha, long? Size);
+
+    private sealed record BlobResponse(string Content, string Encoding);
 }
 
 public sealed class GitHubAppConfigurationException : FshException
@@ -397,5 +552,14 @@ public sealed class GitHubAppConfigurationException : FshException
     }
 }
 
-public sealed class GitHubAppRequestException(string message)
-    : FshException(message, [], HttpStatusCode.BadGateway);
+public sealed class GitHubAppRequestException : FshException
+{
+    public GitHubAppRequestException(string message, Exception? innerException = null)
+        : base(message, [], HttpStatusCode.BadGateway)
+    {
+        if (innerException is not null)
+        {
+            Data[nameof(innerException)] = innerException.GetType().Name;
+        }
+    }
+}

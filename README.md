@@ -35,6 +35,7 @@ Suspending a project removes its project-scoped effective grants until a System
 Admin activates it again. Each lifecycle change records the System Admin actor,
 target, before state, and after state in the Marten audit store. User activation
 and suspension remains protected by `Permissions.Users.Update`.
+Assigning platform roles to a user requires `Permissions.UserRoles.Update`.
 
 ## GitHub App for private repositories
 

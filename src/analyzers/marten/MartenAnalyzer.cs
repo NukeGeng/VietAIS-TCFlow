@@ -3,12 +3,23 @@ using VietAIS.TCFlow.Analyzers.Core;
 
 namespace VietAIS.TCFlow.Analyzers.Marten;
 
-public sealed class MartenAnalyzer : IRepositoryAnalyzer
+public sealed class MartenAnalyzer : IRepositoryAnalyzer, IRepositoryAnalyzerApplicability
 {
     public string Name => "marten-v1";
 
     public bool Supports(RepositoryFile file) =>
         string.Equals(Path.GetExtension(file.RelativePath), ".cs", StringComparison.OrdinalIgnoreCase);
+
+    public bool SupportsRepository(IReadOnlyCollection<RepositoryFile> files)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+        return files.Any(file =>
+            file.Content.Contains("PackageReference Include=\"Marten\"", StringComparison.OrdinalIgnoreCase) ||
+            file.Content.Contains("using Marten", StringComparison.Ordinal) ||
+            file.Content.Contains("AddMarten(", StringComparison.Ordinal) ||
+            file.Content.Contains("IQuerySession", StringComparison.Ordinal) ||
+            file.Content.Contains("IDocumentSession", StringComparison.Ordinal));
+    }
 
     public async Task<AnalysisResult> AnalyzeAsync(
         IReadOnlyCollection<RepositoryFile> files,

@@ -9,14 +9,24 @@ public sealed class RepositoryKnowledgeGraphAssembler
 
     public RepositoryKnowledgeGraph Build(
         string repositoryId,
-        IReadOnlyCollection<AnalysisResult> analyses)
+        IReadOnlyCollection<AnalysisResult> analyses) => Build(repositoryId, analyses, 1);
+
+    public RepositoryKnowledgeGraph Build(
+        string repositoryId,
+        IReadOnlyCollection<AnalysisResult> analyses,
+        long revision)
     {
         ValidateRepositoryId(repositoryId);
         ArgumentNullException.ThrowIfNull(analyses);
+        if (revision < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(revision), "Knowledge revision must be positive.");
+        }
+
         var records = new KnowledgeRecords();
         AddAnalyses(records, analyses);
         AddDerivedContractRecords(records);
-        return records.Build(repositoryId, 1);
+        return records.Build(repositoryId, revision);
     }
 
     public RepositoryKnowledgeGraph ApplyIncremental(

@@ -384,6 +384,8 @@ internal sealed class RepositoryTaskProjector(
         }
 
         var changeIds = workItem.SourceChangeIds.ToHashSet(StringComparer.Ordinal);
+        var aiPolicy = await session.LoadAsync<ApiAiPolicy>(projectId, cancellationToken)
+            ?? throw new InvalidOperationException("Project AI permission policy was not found.");
         var revision = workItem.GraphRevision.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (Guid.TryParse(workItem.RequestId, out var requestId))
         {
@@ -407,6 +409,7 @@ internal sealed class RepositoryTaskProjector(
                 workItem,
                 graph,
                 sourceTask,
+                aiPolicy,
                 cancellationToken);
         }
 
@@ -421,6 +424,7 @@ internal sealed class RepositoryTaskProjector(
         DeepReasoningWorkItem workItem,
         RepositoryKnowledgeGraph graph,
         AnalyzerTask sourceTask,
+        ApiAiPolicy aiPolicy,
         CancellationToken cancellationToken)
     {
         var sourceChangeIds = sourceTask.SourceChangeIds
@@ -445,37 +449,6 @@ internal sealed class RepositoryTaskProjector(
         }
 
         var sourceStatus = MapStatus(sourceTask.Status);
-        if (existing is not null &&
-            existing.Status != TaskLifecycleStatus.Suggested &&
-            projection?.SourceStatus == AnalyzerTaskStatus.Suggested &&
-            sourceTask.Status is AnalyzerTaskStatus.Suggested or AnalyzerTaskStatus.Cancelled)
-        {
-            StoreEvidence(projectId, taskId, sourceChangeIds, artifactIds, impactIds, graph, sourceTask);
-            session.Store(new RepositoryTaskProjection(
-                sourceTask.Id,
-                projectId,
-                repositoryId,
-                taskId,
-                sourceTask.Version,
-                sourceTask.Status,
-                timeProvider.GetUtcNow()));
-            session.Store(AuditRecordFactory.Create(
-                projectId,
-                aiActorId,
-                "ai",
-                ProjectPermissionCodes.AiTaskSuggest,
-                nameof(EngineeringTask),
-                taskId.ToString(),
-                existing,
-                new
-                {
-                    Suggestion = sourceTask,
-                    Reason = "Human-promoted task retained; source update remains a suggestion."
-                },
-                timeProvider));
-            return;
-        }
-
         var projectedStatus = existing is not null &&
             sourceStatus == TaskLifecycleStatus.Suggested &&
             existing.Status != TaskLifecycleStatus.Suggested
@@ -513,15 +486,37 @@ internal sealed class RepositoryTaskProjector(
             existing is null ? 1 : existing.CurrentVersion + 1,
             existing?.AiVerification ?? AiVerificationStatus.NotRun,
             existing?.HumanApproval ?? HumanApprovalStatus.Pending);
+        var requiredPermission = RequiredProjectionPermission(existing, projected);
+        if (!aiPolicy.Allows(requiredPermission))
+        {
+            if (!aiPolicy.Allows(ProjectPermissionCodes.AiTaskSuggest))
+            {
+                throw new InvalidOperationException(
+                    $"AI policy does not allow projected task action '{requiredPermission}'.");
+            }
+
+            StoreEvidence(projectId, taskId, sourceChangeIds, artifactIds, impactIds, graph, sourceTask);
+            StoreProjection(projectId, repositoryId, taskId, sourceTask);
+            session.Store(AuditRecordFactory.Create(
+                projectId,
+                aiActorId,
+                "ai",
+                ProjectPermissionCodes.AiTaskSuggest,
+                nameof(EngineeringTask),
+                taskId.ToString(),
+                existing,
+                new
+                {
+                    Suggestion = projected,
+                    RequiredPermission = requiredPermission,
+                    Reason = "Existing task retained because the AI policy only allows a suggestion."
+                },
+                timeProvider));
+            return;
+        }
+
         StoreEvidence(projectId, taskId, sourceChangeIds, artifactIds, impactIds, graph, sourceTask);
-        session.Store(new RepositoryTaskProjection(
-            sourceTask.Id,
-            projectId,
-            repositoryId,
-            taskId,
-            sourceTask.Version,
-            sourceTask.Status,
-            timeProvider.GetUtcNow()));
+        StoreProjection(projectId, repositoryId, taskId, sourceTask);
         if (existing is null)
         {
             session.Store(projected);
@@ -535,9 +530,7 @@ internal sealed class RepositoryTaskProjector(
                 projectId,
                 aiActorId,
                 "ai",
-                projected.Status == TaskLifecycleStatus.Suggested
-                    ? ProjectPermissionCodes.AiTaskSuggest
-                    : ProjectPermissionCodes.AiTaskCreate,
+                requiredPermission,
                 nameof(EngineeringTask),
                 projected.Id.ToString(),
                 null,
@@ -546,11 +539,6 @@ internal sealed class RepositoryTaskProjector(
             return;
         }
 
-        var action = projected.Status == TaskLifecycleStatus.Cancelled
-            ? ProjectPermissionCodes.AiTaskClose
-            : projected.Status == TaskLifecycleStatus.Suggested && existing.Status == TaskLifecycleStatus.Suggested
-                ? ProjectPermissionCodes.AiTaskSuggest
-                : ProjectPermissionCodes.AiTaskUpdate;
         ApiTaskMutation.Store(
             session,
             existing,
@@ -558,8 +546,48 @@ internal sealed class RepositoryTaskProjector(
             aiActorId,
             TaskActorType.Ai,
             "source-aware AI task reconciled",
-            action,
+            requiredPermission,
             timeProvider);
+    }
+
+    private void StoreProjection(
+        Guid projectId,
+        Guid repositoryId,
+        Guid taskId,
+        AnalyzerTask sourceTask) => session.Store(new RepositoryTaskProjection(
+        sourceTask.Id,
+        projectId,
+        repositoryId,
+        taskId,
+        sourceTask.Version,
+        sourceTask.Status,
+        timeProvider.GetUtcNow()));
+
+    private static string RequiredProjectionPermission(
+        EngineeringTask? existing,
+        EngineeringTask projected)
+    {
+        if (existing is null)
+        {
+            return projected.Status == TaskLifecycleStatus.Suggested
+                ? ProjectPermissionCodes.AiTaskSuggest
+                : ProjectPermissionCodes.AiTaskCreate;
+        }
+
+        if (existing.Status == TaskLifecycleStatus.Suggested)
+        {
+            return projected.Status switch
+            {
+                TaskLifecycleStatus.Suggested or TaskLifecycleStatus.Cancelled =>
+                    ProjectPermissionCodes.AiTaskSuggest,
+                TaskLifecycleStatus.Upcoming => ProjectPermissionCodes.AiTaskCreate,
+                _ => ProjectPermissionCodes.AiTaskUpdate
+            };
+        }
+
+        return projected.Status == TaskLifecycleStatus.Cancelled
+            ? ProjectPermissionCodes.AiTaskClose
+            : ProjectPermissionCodes.AiTaskUpdate;
     }
 
     private void StoreSourceDocuments(

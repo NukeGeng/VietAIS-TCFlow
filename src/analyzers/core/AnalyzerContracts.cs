@@ -193,6 +193,11 @@ public interface IRepositoryAnalyzer
         CancellationToken cancellationToken = default);
 }
 
+public interface IRepositoryAnalyzerApplicability
+{
+    bool SupportsRepository(IReadOnlyCollection<RepositoryFile> files);
+}
+
 public static class AnalysisJson
 {
     public static JsonSerializerOptions Options { get; } = CreateOptions();

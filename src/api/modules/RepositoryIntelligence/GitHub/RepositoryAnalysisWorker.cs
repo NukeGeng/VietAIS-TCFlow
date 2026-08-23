@@ -153,6 +153,8 @@ internal sealed class RepositoryAnalysisWorker(
             0,
             0,
             0,
+            0,
+            0,
             [],
             null,
             null,
@@ -187,11 +189,12 @@ internal sealed class RepositoryAnalysisWorker(
             throw new InvalidOperationException("Claimed repository analysis state was not found.");
         }
 
-        var unsupported = processing.Analysis.Status == InitialRepositoryAnalysisStatus.Unsupported;
+        var unsupported = processing.Outcome == RepositoryAnalysisProcessingOutcome.Unsupported;
+        var ignored = processing.Outcome == RepositoryAnalysisProcessingOutcome.Ignored;
         var now = timeProvider.GetUtcNow();
         var completedRequest = request with
         {
-            Status = unsupported
+            Status = unsupported || ignored
                 ? GitHubAnalysisRequestStatus.Ignored
                 : GitHubAnalysisRequestStatus.Completed
         };
@@ -200,18 +203,16 @@ internal sealed class RepositoryAnalysisWorker(
             Status = unsupported
                 ? RepositoryAnalysisRunStatus.Unsupported
                 : RepositoryAnalysisRunStatus.Completed,
-            SourceRevision = processing.Analysis.SourceRevision,
-            Technologies = processing.Analysis.Technologies
-                .Select(technology => technology.Technology.ToString())
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)
-                .ToArray(),
-            ArtifactCount = processing.Analysis.Graph.Artifacts.Count,
-            DependencyCount = processing.Analysis.Graph.Dependencies.Count,
-            ContractCount = processing.Analysis.Graph.Contracts.Count,
-            MismatchCount = processing.Analysis.Graph.ContractMismatches.Count,
+            SourceRevision = processing.SourceRevision,
+            Technologies = processing.Technologies,
+            ArtifactCount = processing.Graph.Artifacts.Count,
+            DependencyCount = processing.Graph.Dependencies.Count,
+            ContractCount = processing.Graph.Contracts.Count,
+            MismatchCount = processing.Graph.ContractMismatches.Count,
+            ChangeCount = processing.Graph.Changes.Count,
+            ImpactCount = processing.Graph.Impacts.Count,
             GeneratedTaskCount = processing.GeneratedTaskCount,
-            Diagnostics = processing.Analysis.Diagnostics.Select(diagnostic =>
+            Diagnostics = processing.Diagnostics.Select(diagnostic =>
                     new RepositoryAnalysisDiagnostic(
                         diagnostic.Code,
                         diagnostic.Message,
@@ -223,11 +224,21 @@ internal sealed class RepositoryAnalysisWorker(
             UpdatedAt = now,
             CompletedAt = now
         };
+        var auditAction = "repository.analysis.completed";
+        if (unsupported)
+        {
+            auditAction = "repository.analysis.unsupported";
+        }
+        else if (ignored)
+        {
+            auditAction = "repository.analysis.ignored";
+        }
+
         var audit = AuditRecordFactory.Create(
             request.ProjectId,
             SystemActorId,
             "system",
-            unsupported ? "repository.analysis.unsupported" : "repository.analysis.completed",
+            auditAction,
             nameof(RepositoryAnalysisRequest),
             request.Id.ToString(),
             request,

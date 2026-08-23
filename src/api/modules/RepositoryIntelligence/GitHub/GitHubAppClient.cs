@@ -74,11 +74,17 @@ internal sealed class GitHubAppClient(
     {
         ".cs",
         ".csproj",
+        ".css",
+        ".less",
+        ".md",
         ".json",
         ".js",
         ".jsx",
         ".props",
+        ".sass",
+        ".scss",
         ".targets",
+        ".txt",
         ".ts",
         ".tsx",
         ".vue"

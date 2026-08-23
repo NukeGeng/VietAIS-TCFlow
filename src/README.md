@@ -181,12 +181,19 @@ key, so retrying or concurrently delivering the same event does not create
 duplicate analysis requests. Repository selection, scan requests, and accepted
 webhook deliveries are audited without including raw payloads or secrets.
 
-The hosted initial-scan worker claims pending requests with optimistic
-concurrency, obtains a short-lived installation token, reads one immutable
-commit/tree snapshot, and persists the analyzer knowledge graph and convention
-profile. Tokens and source contents are not stored in analysis status or audit
-documents. A supported Vue, ASP.NET Core, or Marten repository completes with
-fact counts and diagnostics. Other stacks, including Next.js/React in V1,
-finish as `Unsupported` with `ANALYSIS001` and zero generated tasks rather than
-remaining pending or producing invented work. Processing leases allow a
-crashed worker attempt to be retried.
+The hosted analysis worker claims pending requests with optimistic concurrency.
+Initial scans obtain a short-lived installation token, read one immutable
+commit/tree snapshot, and persist the analyzer knowledge graph and convention
+profile. Incremental push requests load the immutable before/after revisions
+for the declared changed paths; pull-request and merge requests discover their
+changed paths by comparing those revisions. Meaningful source changes update
+the existing graph and report cumulative `changeCount` and `impactCount` values.
+Cosmetic or documentation-only changes complete as ignored without invoking AI,
+and delivery identifiers prevent duplicate graph processing.
+
+Tokens and source contents are not stored in analysis status or audit documents.
+A supported Vue, ASP.NET Core, or Marten repository completes with fact counts
+and diagnostics. Other stacks, including Next.js/React in V1, finish as
+`Unsupported` with `ANALYSIS001` and zero generated tasks rather than remaining
+pending or producing invented work. Processing leases allow a crashed worker
+attempt to be retried.

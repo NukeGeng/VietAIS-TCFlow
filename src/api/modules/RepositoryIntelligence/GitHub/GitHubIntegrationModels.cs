@@ -142,6 +142,8 @@ public sealed record RepositoryAnalysisRun(
     int DependencyCount,
     int ContractCount,
     int MismatchCount,
+    int ChangeCount,
+    int ImpactCount,
     int GeneratedTaskCount,
     IReadOnlyList<RepositoryAnalysisDiagnostic> Diagnostics,
     string? ErrorCode,

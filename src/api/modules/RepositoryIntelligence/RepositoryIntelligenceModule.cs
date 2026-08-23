@@ -116,6 +116,13 @@ public static class RepositoryIntelligenceModule
                     .Index(run => run.RepositoryId)
                     .Index(run => run.Status)
                     .Index(run => run.UpdatedAt);
+                options.Schema.For<IncrementalAnalysisDelivery>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(delivery => delivery.Status);
+                options.Schema.For<DeepReasoningWorkItem>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(workItem => workItem.ProjectId)
+                    .Index(workItem => workItem.RepositoryId);
                 KnowledgeGraphStorage.Configure(options);
                 ConventionProfileStorage.Configure(options);
             })
@@ -131,9 +138,18 @@ public static class RepositoryIntelligenceModule
             IRepositoryAnalyzer,
             VietAIS.TCFlow.Analyzers.Marten.MartenAnalyzer>();
         builder.Services.AddScoped<IRepositorySnapshotSource, GitHubRepositorySnapshotSource>();
+        builder.Services.AddScoped<IIncrementalChangeSource, GitHubIncrementalChangeSource>();
+        builder.Services.AddScoped<IIncrementalDeliveryRegistry, MartenIncrementalDeliveryRegistry>();
+        builder.Services.AddScoped<IDeepReasoningQueue, MartenDeepReasoningQueue>();
         builder.Services.AddScoped(serviceProvider => new InitialRepositoryAnalysisService(
             serviceProvider.GetRequiredService<IRepositorySnapshotSource>(),
             serviceProvider.GetServices<IRepositoryAnalyzer>().ToArray()));
+        builder.Services.AddScoped(serviceProvider => new IncrementalMonitoringService(
+            serviceProvider.GetRequiredService<IIncrementalChangeSource>(),
+            serviceProvider.GetRequiredService<IIncrementalDeliveryRegistry>(),
+            serviceProvider.GetRequiredService<IDeepReasoningQueue>(),
+            serviceProvider.GetServices<IRepositoryAnalyzer>().ToArray(),
+            serviceProvider.GetRequiredService<TimeProvider>()));
         builder.Services.AddScoped<RepositoryAnalysisProcessor>();
         builder.Services.AddOptions<RepositoryAnalysisWorkerOptions>()
             .BindConfiguration(RepositoryAnalysisWorkerOptions.SectionName);

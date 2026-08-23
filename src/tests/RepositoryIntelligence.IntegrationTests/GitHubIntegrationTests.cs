@@ -375,7 +375,10 @@ public sealed class GitHubIntegrationTests
         Assert.Equal(0, completed.Run.ArtifactCount);
         Assert.Equal(0, completed.Run.GeneratedTaskCount);
         Assert.Contains(completed.Run.Diagnostics, diagnostic => diagnostic.Code == "ANALYSIS001");
-        Assert.Equal(GitHubAnalysisRequestStatus.Ignored, completed.Request.Status);
+        Assert.True(
+            completed.Request.Status == GitHubAnalysisRequestStatus.Ignored,
+            $"Expected ignored but received {completed.Request.Status}: " +
+            $"{completed.Run?.ErrorCode} {completed.Run?.ErrorMessage}");
 
         using var client = CreateClient(app);
         var route = $"api/v1/projects/{project.Id}/github/repositories/" +
@@ -394,6 +397,178 @@ public sealed class GitHubIntegrationTests
             TestContext.Current.CancellationToken);
         Assert.NotNull(details);
         Assert.Equal(RepositoryAnalysisRunStatus.Unsupported, details.Run?.Status);
+    }
+
+    [Fact]
+    public async Task Incremental_worker_updates_the_graph_for_a_meaningful_push()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        await using var app = await BuildApplicationAsync(
+            postgres.GetConnectionString(),
+            enableAnalysisWorker: true);
+        var ownerId = Guid.NewGuid();
+        var project = await CreateProjectAsync(app.Services, ownerId);
+        var connected = await ConnectRepositoryAsync(app.Services, ownerId, project.Id);
+        RepositoryAnalysisRequest initial;
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            initial = await scope.ServiceProvider.GetRequiredService<ISender>().Send(
+                new TriggerInitialRepositoryScanCommand(
+                    ownerId,
+                    project.Id,
+                    connected.Repository.Id),
+                TestContext.Current.CancellationToken);
+        }
+
+        var initialResult = await WaitForAnalysisAsync(app.Services, initial.Id);
+        Assert.Equal(RepositoryAnalysisRunStatus.Completed, initialResult.Run!.Status);
+
+        var incremental = new RepositoryAnalysisRequest(
+            Guid.NewGuid(),
+            project.Id,
+            connected.Repository.Id,
+            GitHubAnalysisTriggerKind.Push,
+            "incremental-delivery-1",
+            "vue-base",
+            "vue-head",
+            "refs/heads/main",
+            null,
+            FullScan: false,
+            RequiresChangedFileFetch: false,
+            [new GitHubChangedFile("src/App.vue", GitHubChangedFileStatus.Modified)],
+            GitHubAnalysisRequestStatus.Pending,
+            DateTimeOffset.UtcNow,
+            "system",
+            null);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            session.Store(incremental);
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var completed = await WaitForAnalysisAsync(app.Services, incremental.Id);
+
+        Assert.Equal(GitHubAnalysisRequestStatus.Completed, completed.Request.Status);
+        Assert.Equal(RepositoryAnalysisRunStatus.Completed, completed.Run!.Status);
+        Assert.Equal("vue-head", completed.Run.SourceRevision);
+        Assert.True(completed.Run.ArtifactCount > 0);
+        Assert.True(completed.Run.ChangeCount > 0);
+        Assert.True(completed.Run.ImpactCount > 0);
+        Assert.Contains(completed.Run.Diagnostics, diagnostic => diagnostic.Code == "ANALYSIS003");
+    }
+
+    [Fact]
+    public async Task Pull_request_worker_discovers_changed_files_from_immutable_revisions()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        await using var app = await BuildApplicationAsync(
+            postgres.GetConnectionString(),
+            enableAnalysisWorker: true);
+        var ownerId = Guid.NewGuid();
+        var project = await CreateProjectAsync(app.Services, ownerId);
+        var connected = await ConnectRepositoryAsync(app.Services, ownerId, project.Id);
+        await RunInitialAnalysisAsync(app.Services, ownerId, project.Id, connected.Repository.Id);
+        var pullRequest = new RepositoryAnalysisRequest(
+            Guid.NewGuid(),
+            project.Id,
+            connected.Repository.Id,
+            GitHubAnalysisTriggerKind.PullRequest,
+            "pull-request-delivery-1",
+            "vue-base",
+            "vue-head",
+            "main",
+            42,
+            FullScan: false,
+            RequiresChangedFileFetch: true,
+            [],
+            GitHubAnalysisRequestStatus.Pending,
+            DateTimeOffset.UtcNow,
+            "system",
+            null);
+        await StoreAnalysisRequestAsync(app.Services, pullRequest);
+
+        var completed = await WaitForAnalysisAsync(app.Services, pullRequest.Id);
+
+        Assert.Equal(GitHubAnalysisRequestStatus.Completed, completed.Request.Status);
+        Assert.Equal(RepositoryAnalysisRunStatus.Completed, completed.Run!.Status);
+        Assert.Equal("vue-head", completed.Run.SourceRevision);
+        Assert.True(completed.Run.ChangeCount > 0);
+        Assert.True(completed.Run.ImpactCount > 0);
+    }
+
+    [Fact]
+    public async Task Documentation_only_push_is_ignored_without_failing_the_worker()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        await using var app = await BuildApplicationAsync(
+            postgres.GetConnectionString(),
+            enableAnalysisWorker: true);
+        var ownerId = Guid.NewGuid();
+        var project = await CreateProjectAsync(app.Services, ownerId);
+        var connected = await ConnectRepositoryAsync(app.Services, ownerId, project.Id);
+        await RunInitialAnalysisAsync(app.Services, ownerId, project.Id, connected.Repository.Id);
+        var documentation = new RepositoryAnalysisRequest(
+            Guid.NewGuid(),
+            project.Id,
+            connected.Repository.Id,
+            GitHubAnalysisTriggerKind.Push,
+            "documentation-delivery-1",
+            "docs-base",
+            "docs-head",
+            "refs/heads/main",
+            null,
+            FullScan: false,
+            RequiresChangedFileFetch: false,
+            [new GitHubChangedFile("README.md", GitHubChangedFileStatus.Modified)],
+            GitHubAnalysisRequestStatus.Pending,
+            DateTimeOffset.UtcNow,
+            "system",
+            null);
+        await StoreAnalysisRequestAsync(app.Services, documentation);
+
+        var completed = await WaitForAnalysisAsync(app.Services, documentation.Id);
+
+        Assert.True(
+            completed.Request.Status == GitHubAnalysisRequestStatus.Ignored,
+            $"Expected ignored but received {completed.Request.Status}: " +
+            $"{completed.Run?.ErrorCode} {completed.Run?.ErrorMessage}");
+        Assert.Equal(RepositoryAnalysisRunStatus.Completed, completed.Run!.Status);
+        Assert.Null(completed.Run.ErrorCode);
+        Assert.Contains(completed.Run.Diagnostics, diagnostic =>
+            diagnostic.Code == "ANALYSIS003" &&
+            diagnostic.Message.Contains("cosmetic or non-behavioral", StringComparison.Ordinal));
+    }
+
+    private static async Task RunInitialAnalysisAsync(
+        IServiceProvider services,
+        Guid ownerId,
+        Guid projectId,
+        Guid repositoryId)
+    {
+        RepositoryAnalysisRequest initial;
+        await using (var scope = services.CreateAsyncScope())
+        {
+            initial = await scope.ServiceProvider.GetRequiredService<ISender>().Send(
+                new TriggerInitialRepositoryScanCommand(ownerId, projectId, repositoryId),
+                TestContext.Current.CancellationToken);
+        }
+
+        var completed = await WaitForAnalysisAsync(services, initial.Id);
+        Assert.Equal(RepositoryAnalysisRunStatus.Completed, completed.Run!.Status);
+    }
+
+    private static async Task StoreAnalysisRequestAsync(
+        IServiceProvider services,
+        RepositoryAnalysisRequest request)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+        session.Store(request);
+        await session.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     private static async Task<Project> CreateProjectAsync(IServiceProvider services, Guid ownerId)
@@ -602,17 +777,31 @@ public sealed class GitHubIntegrationTests
                             "src/app/page.tsx",
                             "export default function Page() { return <main>Portfolio</main>; }")
                     ])
-                : new GitHubRepositorySnapshot(
-                    "vue-commit",
-                    [
-                        new GitHubRepositorySnapshotFile(
-                            "package.json",
-                            "{\"dependencies\":{\"vue\":\"latest\"}}"),
-                        new GitHubRepositorySnapshotFile(
-                            "src/App.vue",
-                            "<template><main>TCFlow</main></template>")
-                    ]);
+                : VueSnapshot(reference);
             return Task.FromResult(snapshot);
+        }
+
+        private static GitHubRepositorySnapshot VueSnapshot(string reference)
+        {
+            var head = string.Equals(reference, "vue-head", StringComparison.Ordinal);
+            var docsHead = string.Equals(reference, "docs-head", StringComparison.Ordinal);
+            var revision = head || docsHead ? reference : "vue-base";
+            return new GitHubRepositorySnapshot(
+                revision,
+                [
+                    new GitHubRepositorySnapshotFile(
+                        "package.json",
+                        "{\"dependencies\":{\"vue\":\"latest\"}}"),
+                    new GitHubRepositorySnapshotFile(
+                        "README.md",
+                        docsHead ? "# Updated documentation" : "# Documentation"),
+                    new GitHubRepositorySnapshotFile(
+                        "src/App.vue",
+                        head
+                            ? "<script setup lang=\"ts\">defineProps<{ message: string }>()</script>" +
+                                "<template><main>{{ message }}</main></template>"
+                            : "<template><main>TCFlow</main></template>")
+                ]);
         }
     }
 

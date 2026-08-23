@@ -39,7 +39,7 @@ public sealed class SystemAdministrationEndpoints : CarterModule
 
         system.MapGet("permission-definitions", GetPermissionDefinitions)
             .WithName(nameof(GetPermissionDefinitions))
-            .Produces<IReadOnlyList<PermissionDefinition>>()
+            .Produces<IReadOnlyList<SystemPermissionDefinition>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .MapToApiVersion(new ApiVersion(1, 0));

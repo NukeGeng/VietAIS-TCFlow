@@ -28,7 +28,8 @@ from project membership. System Admin access does not grant Project Owner access
 - `PUT /api/v1/system/projects/{projectId}/status` requires `project.suspend`
   and accepts only `Active` or `Suspended`.
 - `GET /api/v1/system/permission-definitions` requires
-  `permission-definition.manage`.
+  `permission-definition.manage` and returns both FullStackHero identity
+  permissions and TCFlow project/system definitions.
 - `GET /api/v1/system/audit` requires `system-audit.view`.
 
 Suspending a project removes its project-scoped effective grants until a System

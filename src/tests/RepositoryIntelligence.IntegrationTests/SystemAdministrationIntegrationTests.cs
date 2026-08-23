@@ -93,7 +93,7 @@ public sealed class SystemAdministrationIntegrationTests
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, definitionsResponse.StatusCode);
         var definitions = await definitionsResponse.Content
-            .ReadFromJsonAsync<PermissionDefinition[]>(TestContext.Current.CancellationToken);
+            .ReadFromJsonAsync<SystemPermissionDefinition[]>(TestContext.Current.CancellationToken);
         Assert.NotNull(definitions);
         Assert.Contains(definitions, definition =>
             definition.Id == SystemPermissionCodes.ProjectInspect &&
@@ -101,6 +101,9 @@ public sealed class SystemAdministrationIntegrationTests
         Assert.Contains(definitions, definition =>
             definition.Id == ProjectPermissionCodes.ProjectView &&
             definition.Scope == PermissionDefinitionScope.Project);
+        Assert.Contains(definitions, definition =>
+            definition.Id == "Permissions.Users.Update" &&
+            definition.Scope == PermissionDefinitionScope.System);
 
         var auditResponse = await client.GetAsync(
             $"api/v1/system/audit?pageNumber=1&pageSize=100&projectId={projectId}",

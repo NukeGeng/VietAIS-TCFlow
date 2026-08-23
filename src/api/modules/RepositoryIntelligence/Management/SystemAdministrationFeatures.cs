@@ -2,11 +2,17 @@ using FSH.Framework.Core.Exceptions;
 using FSH.Framework.Core.Paging;
 using Marten;
 using MediatR;
+using VietAIS.TCFlow.Shared.Authorization;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 
 namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
 
 public sealed record SystemProjectSummary(Project Project, ProjectState State);
+
+public sealed record SystemPermissionDefinition(
+    string Id,
+    string Description,
+    PermissionDefinitionScope Scope);
 
 public sealed record SearchSystemProjectsQuery(
     Guid ActorId,
@@ -22,7 +28,7 @@ public sealed record UpdateProjectLifecycleStatusCommand(
     : IRequest<SystemProjectSummary>;
 
 public sealed record GetSystemPermissionDefinitionsQuery(Guid ActorId)
-    : IRequest<IReadOnlyList<PermissionDefinition>>;
+    : IRequest<IReadOnlyList<SystemPermissionDefinition>>;
 
 public sealed record SearchSystemAuditQuery(
     Guid ActorId,
@@ -131,9 +137,9 @@ public sealed class UpdateProjectLifecycleStatusHandler(
 
 public sealed class GetSystemPermissionDefinitionsHandler(
     ISystemPermissionEvaluator systemPermissions)
-    : IRequestHandler<GetSystemPermissionDefinitionsQuery, IReadOnlyList<PermissionDefinition>>
+    : IRequestHandler<GetSystemPermissionDefinitionsQuery, IReadOnlyList<SystemPermissionDefinition>>
 {
-    public async Task<IReadOnlyList<PermissionDefinition>> Handle(
+    public async Task<IReadOnlyList<SystemPermissionDefinition>> Handle(
         GetSystemPermissionDefinitionsQuery request,
         CancellationToken cancellationToken)
     {
@@ -141,7 +147,19 @@ public sealed class GetSystemPermissionDefinitionsHandler(
             request.ActorId,
             SystemPermissionCodes.PermissionDefinitionManage,
             cancellationToken);
-        return PermissionCatalog.All;
+        return FshPermissions.All
+            .Select(permission => new SystemPermissionDefinition(
+                permission.Name,
+                permission.Description,
+                PermissionDefinitionScope.System))
+            .Concat(PermissionCatalog.All.Select(definition => new SystemPermissionDefinition(
+                definition.Id,
+                definition.Description,
+                definition.Scope)))
+            .DistinctBy(definition => definition.Id, StringComparer.Ordinal)
+            .OrderBy(definition => definition.Scope)
+            .ThenBy(definition => definition.Id, StringComparer.Ordinal)
+            .ToArray();
     }
 }
 

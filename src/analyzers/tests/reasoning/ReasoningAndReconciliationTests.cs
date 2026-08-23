@@ -227,6 +227,19 @@ public sealed class ReasoningAndReconciliationTests
         Assert.Throws<AiPolicyViolationException>(() => AiActionAuthorizer.EnsureAllowed(
             suggestOnly,
             AiActionAuthorizer.RequiredAction(automatic)));
+
+        var promote = service.Reconcile(
+            suggestion with { Disposition = TaskProposalDisposition.Create },
+            [suggestedTask],
+            now.AddMinutes(3));
+        Assert.Equal(AiTaskAction.Create, AiActionAuthorizer.RequiredAction(promote));
+        var createPolicy = Policy(
+            AiTrustLevel.CreateTasks,
+            AiPermissionCodes.AnalysisRun,
+            AiPermissionCodes.TaskSuggest,
+            AiPermissionCodes.TaskCreate);
+        AiActionAuthorizer.EnsureAllowed(createPolicy, AiActionAuthorizer.RequiredAction(promote));
+        Assert.Equal(SourceAwareTaskStatus.Upcoming, Assert.Single(promote.Mutations).After.Status);
     }
 
     [Fact]

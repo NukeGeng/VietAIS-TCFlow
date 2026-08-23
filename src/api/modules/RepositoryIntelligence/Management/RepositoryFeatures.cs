@@ -34,12 +34,30 @@ public sealed record CreateProjectComponentCommand(
     string? RootPath)
     : IRequest<ProjectComponent>;
 
+public sealed record SearchProjectComponentsQuery(
+    Guid ActorId,
+    Guid ProjectId,
+    int PageNumber,
+    int PageSize,
+    string? Keyword,
+    Guid? RepositoryId,
+    ComponentScopeKind? Scope)
+    : IRequest<PagedList<ProjectComponent>>;
+
 public sealed record CreateProjectFeatureCommand(
     Guid ActorId,
     Guid ProjectId,
     string Name,
     string? Description)
     : IRequest<ProjectFeature>;
+
+public sealed record SearchProjectFeaturesQuery(
+    Guid ActorId,
+    Guid ProjectId,
+    int PageNumber,
+    int PageSize,
+    string? Keyword)
+    : IRequest<PagedList<ProjectFeature>>;
 
 public sealed class CreateProjectRepositoryHandler(
     IDocumentSession session,
@@ -248,6 +266,69 @@ public sealed class CreateProjectComponentHandler(
     }
 }
 
+public sealed class SearchProjectComponentsHandler(
+    IQuerySession session,
+    IProjectPermissionEvaluator evaluator)
+    : IRequestHandler<SearchProjectComponentsQuery, PagedList<ProjectComponent>>
+{
+    public async Task<PagedList<ProjectComponent>> Handle(
+        SearchProjectComponentsQuery request,
+        CancellationToken cancellationToken)
+    {
+        var (pageNumber, pageSize) = PageRequest.Validate(request.PageNumber, request.PageSize);
+        var grants = await evaluator.GetProjectPermissionGrantsAsync(
+            request.ActorId,
+            request.ProjectId,
+            cancellationToken);
+        if (!grants.Any(grant => grant.PermissionCode == ProjectPermissionCodes.ComponentView))
+        {
+            throw new ForbiddenException(
+                $"Permission '{ProjectPermissionCodes.ComponentView}' is not granted for this project.");
+        }
+
+        var query = session.Query<ProjectComponent>()
+            .Where(component => component.ProjectId == request.ProjectId);
+        if (request.RepositoryId is not null)
+        {
+            query = query.Where(component => component.RepositoryId == request.RepositoryId);
+        }
+
+        if (request.Scope is not null)
+        {
+            query = query.Where(component => component.Scope == request.Scope);
+        }
+
+        var candidates = await query.OrderBy(component => component.Name).ToListAsync(cancellationToken);
+        var visible = new List<ProjectComponent>();
+        foreach (var component in candidates)
+        {
+            if (!string.IsNullOrWhiteSpace(request.Keyword) &&
+                !component.Name.Contains(request.Keyword.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var effective = await evaluator.GetEffectivePermissionsAsync(
+                request.ActorId,
+                new AuthorizationResourceContext(
+                    request.ProjectId,
+                    component.RepositoryId,
+                    component.Scope),
+                cancellationToken);
+            if (effective.HasPermission(ProjectPermissionCodes.ComponentView))
+            {
+                visible.Add(component);
+            }
+        }
+
+        return new PagedList<ProjectComponent>(
+            visible.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArray(),
+            pageNumber,
+            pageSize,
+            visible.Count);
+    }
+}
+
 public sealed class CreateProjectFeatureHandler(
     IDocumentSession session,
     IProjectPermissionEvaluator evaluator,
@@ -286,5 +367,40 @@ public sealed class CreateProjectFeatureHandler(
         session.Store(audit);
         await session.SaveChangesAsync(cancellationToken);
         return feature;
+    }
+}
+
+public sealed class SearchProjectFeaturesHandler(
+    IQuerySession session,
+    IProjectPermissionEvaluator evaluator)
+    : IRequestHandler<SearchProjectFeaturesQuery, PagedList<ProjectFeature>>
+{
+    public async Task<PagedList<ProjectFeature>> Handle(
+        SearchProjectFeaturesQuery request,
+        CancellationToken cancellationToken)
+    {
+        var (pageNumber, pageSize) = PageRequest.Validate(request.PageNumber, request.PageSize);
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.FeatureView,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+
+        var features = await session.Query<ProjectFeature>()
+            .Where(feature => feature.ProjectId == request.ProjectId)
+            .OrderBy(feature => feature.Name)
+            .ToListAsync(cancellationToken);
+        var filtered = string.IsNullOrWhiteSpace(request.Keyword)
+            ? features
+            : features.Where(feature =>
+                feature.Name.Contains(request.Keyword.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                (feature.Description?.Contains(request.Keyword.Trim(), StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+
+        return new PagedList<ProjectFeature>(
+            filtered.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArray(),
+            pageNumber,
+            pageSize,
+            filtered.Count);
     }
 }

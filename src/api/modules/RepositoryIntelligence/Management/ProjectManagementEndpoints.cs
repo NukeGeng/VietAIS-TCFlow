@@ -111,10 +111,24 @@ public sealed class ProjectManagementEndpoints : CarterModule
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .MapToApiVersion(new ApiVersion(1, 0));
 
+        projects.MapGet("{projectId:guid}/components", SearchComponents)
+            .WithName(nameof(SearchComponents))
+            .Produces<PagedList<ProjectComponent>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
         projects.MapPost("{projectId:guid}/features", CreateFeature)
             .WithName(nameof(CreateFeature))
             .Produces<ProjectFeature>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        projects.MapGet("{projectId:guid}/features", SearchFeatures)
+            .WithName(nameof(SearchFeatures))
+            .Produces<PagedList<ProjectFeature>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .MapToApiVersion(new ApiVersion(1, 0));
@@ -272,6 +286,27 @@ public sealed class ProjectManagementEndpoints : CarterModule
         return Results.Created($"projects/{projectId}/components/{component.Id}", component);
     }
 
+    private static async Task<IResult> SearchComponents(
+        Guid projectId,
+        int pageNumber,
+        int pageSize,
+        string? keyword,
+        Guid? repositoryId,
+        ComponentScopeKind? scope,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new SearchProjectComponentsQuery(
+                GetActorId(httpContext),
+                projectId,
+                pageNumber,
+                pageSize,
+                keyword,
+                repositoryId,
+                scope),
+            cancellationToken));
+
     private static async Task<IResult> CreateFeature(
         Guid projectId,
         CreateProjectFeatureRequest request,
@@ -288,6 +323,23 @@ public sealed class ProjectManagementEndpoints : CarterModule
             cancellationToken);
         return Results.Created($"projects/{projectId}/features/{feature.Id}", feature);
     }
+
+    private static async Task<IResult> SearchFeatures(
+        Guid projectId,
+        int pageNumber,
+        int pageSize,
+        string? keyword,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new SearchProjectFeaturesQuery(
+                GetActorId(httpContext),
+                projectId,
+                pageNumber,
+                pageSize,
+                keyword),
+            cancellationToken));
 
     private static async Task<IResult> CreateTask(
         Guid projectId,

@@ -7,9 +7,16 @@ import { externalNavigation } from '../services/external-navigation'
 import { gitHubConnectionSession } from '../services/github-connection-session'
 import { tcflowApi } from '../services/tcflow-api'
 import { useWorkspaceStore } from '../stores/workspace'
+import AnalysisView from '../views/AnalysisView.vue'
 import GitHubCallbackView from '../views/GitHubCallbackView.vue'
 import RepositoriesView from '../views/RepositoriesView.vue'
-import { RepositoryLifecycleStatus, RepositoryProviderKind } from '../types/contracts'
+import {
+  GitHubAnalysisRequestStatus,
+  GitHubAnalysisTriggerKind,
+  RepositoryAnalysisRunStatus,
+  RepositoryLifecycleStatus,
+  RepositoryProviderKind,
+} from '../types/contracts'
 
 const projectId = '20000000-0000-0000-0000-000000000001'
 const actorId = '30000000-0000-0000-0000-000000000001'
@@ -169,5 +176,102 @@ describe('GitHub App connection', () => {
     await flushPromises()
 
     expect(connect).toHaveBeenCalledWith(projectId, 101, 303)
+  })
+
+  it('shows an unsupported repository analysis instead of implying that analysis never ran', async () => {
+    authenticate()
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const workspace = useWorkspaceStore()
+    workspace.projects = [
+      { id: projectId, name: 'Test', primaryOwnerId: actorId, createdAt: future },
+    ]
+    workspace.selectProject(projectId)
+    workspace.effectivePermissions = {
+      projectId,
+      userId: actorId,
+      grants: [
+        {
+          permissionCode: 'source.analyze',
+          roleId: '50000000-0000-0000-0000-000000000001',
+          roleName: 'Owner',
+          resourceScope: 1,
+          componentScopes: [],
+        },
+      ],
+    }
+    const repositoryId = '60000000-0000-0000-0000-000000000002'
+    workspace.repositories = [
+      {
+        id: repositoryId,
+        projectId,
+        name: 'NukeGeng/Portfolio',
+        provider: RepositoryProviderKind.GitHub,
+        remoteUrl: 'https://github.com/NukeGeng/Portfolio',
+        defaultBranch: 'main',
+        status: RepositoryLifecycleStatus.Active,
+        createdAt: future,
+        createdBy: actorId,
+      },
+    ]
+    workspace.repositoriesState = { status: 'ready' }
+    workspace.tasksState = { status: 'empty' }
+    vi.spyOn(workspace, 'loadRepositories').mockResolvedValue()
+    vi.spyOn(workspace, 'loadTasks').mockResolvedValue()
+    vi.spyOn(tcflowApi, 'latestRepositoryAnalysis').mockResolvedValue({
+      request: {
+        id: '80000000-0000-0000-0000-000000000001',
+        projectId,
+        repositoryId,
+        trigger: GitHubAnalysisTriggerKind.InitialScan,
+        reference: 'refs/heads/main',
+        fullScan: true,
+        requiresChangedFileFetch: false,
+        changedFiles: [],
+        status: GitHubAnalysisRequestStatus.Ignored,
+        requestedAt: future,
+        requestedByType: 'User',
+        requestedBy: actorId,
+      },
+      run: {
+        id: '80000000-0000-0000-0000-000000000001',
+        projectId,
+        repositoryId,
+        status: RepositoryAnalysisRunStatus.Unsupported,
+        attempt: 1,
+        sourceRevision: '988facfcf7837a4e043e3901219e2a788e0220bc',
+        technologies: ['TypeScript'],
+        artifactCount: 0,
+        dependencyCount: 0,
+        contractCount: 0,
+        mismatchCount: 0,
+        generatedTaskCount: 0,
+        diagnostics: [
+          {
+            code: 'ANALYSIS001',
+            message:
+              'The repository contains no source facts supported by the configured analyzers.',
+            evidenceLevel: 'Confirmed',
+          },
+        ],
+        startedAt: future,
+        updatedAt: future,
+        completedAt: future,
+      },
+    })
+    const router = createAppRouter()
+    await router.push(`/projects/${projectId}/analysis`)
+    await router.isReady()
+
+    const wrapper = mount(AnalysisView, { global: { plugins: [pinia, router] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('NukeGeng/Portfolio')
+    expect(wrapper.text()).toContain('Unsupported')
+    expect(wrapper.text()).toContain('TypeScript')
+    expect(wrapper.text()).toContain('ANALYSIS001')
+    expect(wrapper.text()).toContain('No task was created')
+    expect(wrapper.text()).toContain('No analyzed task evidence')
+    wrapper.unmount()
   })
 })

@@ -122,6 +122,80 @@ export interface ConnectedGitHubRepository {
   }
 }
 
+export enum GitHubAnalysisTriggerKind {
+  InitialScan = 0,
+  Push = 1,
+  PullRequest = 2,
+  Merge = 3,
+}
+
+export enum GitHubAnalysisRequestStatus {
+  Pending = 0,
+  Processing = 1,
+  Completed = 2,
+  Failed = 3,
+  Ignored = 4,
+}
+
+export enum RepositoryAnalysisRunStatus {
+  Processing = 0,
+  Completed = 1,
+  Unsupported = 2,
+  Failed = 3,
+}
+
+export interface RepositoryAnalysisRequest {
+  id: string
+  projectId: string
+  repositoryId: string
+  trigger: GitHubAnalysisTriggerKind
+  deliveryId?: string
+  baseRevision?: string
+  headRevision?: string
+  reference?: string
+  pullRequestNumber?: number
+  fullScan: boolean
+  requiresChangedFileFetch: boolean
+  changedFiles: Array<{ path: string; status: number }>
+  status: GitHubAnalysisRequestStatus
+  requestedAt: string
+  requestedByType: string
+  requestedBy?: string
+}
+
+export interface RepositoryAnalysisDiagnostic {
+  code: string
+  message: string
+  evidenceLevel: string
+  path?: string
+}
+
+export interface RepositoryAnalysisRun {
+  id: string
+  projectId: string
+  repositoryId: string
+  status: RepositoryAnalysisRunStatus
+  attempt: number
+  sourceRevision?: string
+  technologies: string[]
+  artifactCount: number
+  dependencyCount: number
+  contractCount: number
+  mismatchCount: number
+  generatedTaskCount: number
+  diagnostics: RepositoryAnalysisDiagnostic[]
+  errorCode?: string
+  errorMessage?: string
+  startedAt: string
+  updatedAt: string
+  completedAt?: string
+}
+
+export interface RepositoryAnalysisDetails {
+  request: RepositoryAnalysisRequest
+  run?: RepositoryAnalysisRun
+}
+
 export enum ComponentScopeKind {
   Frontend = 0,
   Backend = 1,

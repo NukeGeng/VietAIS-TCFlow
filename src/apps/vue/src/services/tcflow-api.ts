@@ -17,6 +17,8 @@ import type {
   ProjectFeature,
   ProjectRepository,
   ProjectRole,
+  RepositoryAnalysisDetails,
+  RepositoryAnalysisRequest,
   TaskEvidence,
   TaskReview,
   TaskVersion,
@@ -236,10 +238,32 @@ export const tcflowApi = {
     )
   },
 
-  triggerInitialGitHubScan(projectId: string, repositoryId: string): Promise<unknown> {
-    return apiRequest(
+  triggerInitialGitHubScan(
+    projectId: string,
+    repositoryId: string,
+  ): Promise<RepositoryAnalysisRequest> {
+    return apiRequest<RepositoryAnalysisRequest>(
       `/api/v1/projects/${projectId}/github/repositories/${repositoryId}/initial-scan`,
       { method: 'POST' },
+    )
+  },
+
+  latestRepositoryAnalysis(
+    projectId: string,
+    repositoryId: string,
+  ): Promise<RepositoryAnalysisDetails> {
+    return apiRequest<RepositoryAnalysisDetails>(
+      `/api/v1/projects/${projectId}/github/repositories/${repositoryId}/analyses/latest`,
+    )
+  },
+
+  repositoryAnalysis(
+    projectId: string,
+    repositoryId: string,
+    analysisRequestId: string,
+  ): Promise<RepositoryAnalysisDetails> {
+    return apiRequest<RepositoryAnalysisDetails>(
+      `/api/v1/projects/${projectId}/github/repositories/${repositoryId}/analyses/${analysisRequestId}`,
     )
   },
 

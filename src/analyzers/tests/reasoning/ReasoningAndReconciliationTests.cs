@@ -184,6 +184,96 @@ public sealed class ReasoningAndReconciliationTests
     }
 
     [Fact]
+    public void SuggestOnlyPolicyAuthorizesSuggestionLifecycleButNotAutomaticTaskCreation()
+    {
+        var service = new TaskReconciliationService();
+        var now = DateTimeOffset.Parse("2026-08-23T00:00:00Z");
+        var suggestion = Proposal(
+            "suggestion",
+            0.9m,
+            EvidenceLevel.Inferred,
+            TaskProposalDisposition.Suggested);
+        var suggestOnly = Policy(
+            AiTrustLevel.SuggestOnly,
+            AiPermissionCodes.AnalysisRun,
+            AiPermissionCodes.TaskSuggest);
+        var createSuggestion = service.Reconcile(suggestion, [], now);
+
+        Assert.Equal(AiTaskAction.Suggest, AiActionAuthorizer.RequiredAction(createSuggestion));
+        AiActionAuthorizer.EnsureAllowed(
+            suggestOnly,
+            AiActionAuthorizer.RequiredAction(createSuggestion));
+        var suggestedTask = Assert.Single(createSuggestion.Mutations).After;
+        Assert.Equal(SourceAwareTaskStatus.Suggested, suggestedTask.Status);
+
+        var cancelSuggestion = service.Reconcile(
+            suggestion with { ChangeState = SourceChangeState.Reverted },
+            [suggestedTask],
+            now.AddMinutes(1));
+        Assert.Equal(AiTaskAction.Suggest, AiActionAuthorizer.RequiredAction(cancelSuggestion));
+        var cancelledTask = Assert.Single(cancelSuggestion.Mutations).After;
+        var reopenSuggestion = service.Reconcile(
+            suggestion,
+            [cancelledTask],
+            now.AddMinutes(2));
+        Assert.Equal(SourceAwareTaskStatus.Suggested, Assert.Single(reopenSuggestion.Mutations).After.Status);
+        Assert.Equal(AiTaskAction.Suggest, AiActionAuthorizer.RequiredAction(reopenSuggestion));
+
+        var automatic = service.Reconcile(
+            suggestion with { Disposition = TaskProposalDisposition.Create },
+            [],
+            now);
+        Assert.Equal(AiTaskAction.Create, AiActionAuthorizer.RequiredAction(automatic));
+        Assert.Throws<AiPolicyViolationException>(() => AiActionAuthorizer.EnsureAllowed(
+            suggestOnly,
+            AiActionAuthorizer.RequiredAction(automatic)));
+    }
+
+    [Fact]
+    public async Task MartenPersistsSuggestedTaskWithSuggestOnlyPolicyAndSuggestionAudit()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        using var store = DocumentStore.For(options =>
+        {
+            options.Connection(postgres.GetConnectionString());
+            options.DatabaseSchemaName = "suggestion_policy_test";
+            TaskReconciliationStorage.Configure(options);
+        });
+        await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync();
+        var proposal = Proposal(
+            "suggested-persistence",
+            0.9m,
+            EvidenceLevel.Inferred,
+            TaskProposalDisposition.Suggested);
+        var decision = new TaskReconciliationService().Reconcile(
+            proposal,
+            [],
+            DateTimeOffset.UtcNow);
+        var policy = Policy(
+            AiTrustLevel.SuggestOnly,
+            AiPermissionCodes.AnalysisRun,
+            AiPermissionCodes.TaskSuggest);
+
+        await using (var session = store.LightweightSession())
+        {
+            await new MartenTaskReconciliationWriter(session, TimeProvider.System).ApplyAsync(
+                decision,
+                policy,
+                "ai:codex",
+                TestContext.Current.CancellationToken);
+        }
+
+        await using var query = store.QuerySession();
+        var task = Assert.Single(await query.Query<SourceAwareEngineeringTask>()
+            .ToListAsync(TestContext.Current.CancellationToken));
+        var audit = Assert.Single(await query.Query<AiActionAudit>()
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(SourceAwareTaskStatus.Suggested, task.Status);
+        Assert.Equal(AiPermissionCodes.TaskSuggest, audit.Action);
+    }
+
+    [Fact]
     public async Task ReconciliationCoversCanonicalCreateUpdateMergeCloseReopenAndIgnoreCases()
     {
         var expected = JsonSerializer.Deserialize<ExpectedReconciliationActions>(

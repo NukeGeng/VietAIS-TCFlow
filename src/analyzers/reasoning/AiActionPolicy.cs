@@ -37,6 +37,38 @@ public static class AiActionAuthorizer
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unknown AI action.")
     };
 
+    public static AiTaskAction RequiredAction(TaskReconciliationDecision decision)
+    {
+        ArgumentNullException.ThrowIfNull(decision);
+        if (decision.Action == TaskReconciliationAction.Ignore)
+        {
+            return AiTaskAction.Ignore;
+        }
+
+        if (decision.Mutations.Count > 0 && decision.Mutations.All(IsSuggestionLifecycleMutation))
+        {
+            return AiTaskAction.Suggest;
+        }
+
+        return decision.Action switch
+        {
+            TaskReconciliationAction.Create => AiTaskAction.Create,
+            TaskReconciliationAction.Update => AiTaskAction.Update,
+            TaskReconciliationAction.Merge => AiTaskAction.Merge,
+            TaskReconciliationAction.Close => AiTaskAction.Close,
+            TaskReconciliationAction.Reopen => AiTaskAction.Reopen,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(decision),
+                decision.Action,
+                "Unknown reconciliation action.")
+        };
+    }
+
+    private static bool IsSuggestionLifecycleMutation(TaskMutation mutation) =>
+        (mutation.Before is null || mutation.Before.Status is
+            SourceAwareTaskStatus.Suggested or SourceAwareTaskStatus.Cancelled) &&
+        mutation.After.Status is SourceAwareTaskStatus.Suggested or SourceAwareTaskStatus.Cancelled;
+
     public static IReadOnlyList<string> TrustPermissions(AiTrustLevel trustLevel) => trustLevel switch
     {
         AiTrustLevel.SuggestOnly =>

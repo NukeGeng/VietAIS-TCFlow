@@ -57,6 +57,16 @@ dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:bootstrap-
 dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-webhook-secret" "<github-app-webhook-secret>"
 ```
 
+Codex reasoning is disabled by default. To enable the managed Codex App Server
+worker locally, point Aspire at an authenticated `codex` executable. The worker
+uses the CLI's existing managed account session; no API key or ChatGPT credential
+is stored by TCFlow.
+
+```bash
+dotnet user-secrets --project aspire/Host/Host.csproj set "RepositoryReasoning:Enabled" "true"
+dotnet user-secrets --project aspire/Host/Host.csproj set "RepositoryReasoning:ExecutablePath" "/absolute/path/to/codex"
+```
+
 ## Run locally
 
 ```bash
@@ -190,6 +200,13 @@ changed paths by comparing those revisions. Meaningful source changes update
 the existing graph and report cumulative `changeCount` and `impactCount` values.
 Cosmetic or documentation-only changes complete as ignored without invoking AI,
 and delivery identifiers prevent duplicate graph processing.
+
+Contract-impacting changes enter `AwaitingReasoning`. The reasoning worker uses
+targeted graph context, project authority, detected conventions, and the project
+AI permission policy. It persists retryable jobs with processing leases and
+finishes the analysis only after task reconciliation. `SuggestOnly` projects a
+source-traceable task in `Suggested`; `CreateTasks` may project eligible tasks in
+`Upcoming`. AI task mutations and reasoning completion/failure are audited.
 
 Tokens and source contents are not stored in analysis status or audit documents.
 A supported Vue, ASP.NET Core, or Marten repository completes with fact counts

@@ -33,7 +33,8 @@ public enum GitHubAnalysisRequestStatus
     Processing,
     Completed,
     Failed,
-    Ignored
+    Ignored,
+    AwaitingReasoning
 }
 
 public enum RepositoryAnalysisRunStatus
@@ -41,7 +42,8 @@ public enum RepositoryAnalysisRunStatus
     Processing,
     Completed,
     Unsupported,
-    Failed
+    Failed,
+    AwaitingReasoning
 }
 
 public enum GitHubChangedFileStatus

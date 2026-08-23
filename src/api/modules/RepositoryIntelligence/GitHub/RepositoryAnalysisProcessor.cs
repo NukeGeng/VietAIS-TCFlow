@@ -195,7 +195,8 @@ internal enum RepositoryAnalysisProcessingOutcome
 {
     Completed,
     Unsupported,
-    Ignored
+    Ignored,
+    AwaitingReasoning
 }
 
 internal sealed record RepositoryAnalysisProcessingResult(
@@ -317,9 +318,14 @@ internal sealed class RepositoryAnalysisProcessor(
             result.Reason,
             result.DeepReasoning is null ? EvidenceLevel.Confirmed : EvidenceLevel.Inferred);
         return new RepositoryAnalysisProcessingResult(
-            result.Status is IncrementalMonitoringStatus.Ignored or IncrementalMonitoringStatus.Duplicate
-                ? RepositoryAnalysisProcessingOutcome.Ignored
-                : RepositoryAnalysisProcessingOutcome.Completed,
+            result.Status switch
+            {
+                IncrementalMonitoringStatus.Ignored or IncrementalMonitoringStatus.Duplicate =>
+                    RepositoryAnalysisProcessingOutcome.Ignored,
+                IncrementalMonitoringStatus.DeepReasoningQueued =>
+                    RepositoryAnalysisProcessingOutcome.AwaitingReasoning,
+                _ => RepositoryAnalysisProcessingOutcome.Completed
+            },
             workItem.HeadRevision ?? currentGraph.RepositoryId,
             Technologies(result.Graph),
             result.Graph,

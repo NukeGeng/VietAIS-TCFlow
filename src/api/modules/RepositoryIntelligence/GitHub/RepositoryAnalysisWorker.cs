@@ -191,18 +191,23 @@ internal sealed class RepositoryAnalysisWorker(
 
         var unsupported = processing.Outcome == RepositoryAnalysisProcessingOutcome.Unsupported;
         var ignored = processing.Outcome == RepositoryAnalysisProcessingOutcome.Ignored;
+        var awaitingReasoning = processing.Outcome == RepositoryAnalysisProcessingOutcome.AwaitingReasoning;
         var now = timeProvider.GetUtcNow();
         var completedRequest = request with
         {
-            Status = unsupported || ignored
-                ? GitHubAnalysisRequestStatus.Ignored
-                : GitHubAnalysisRequestStatus.Completed
+            Status = awaitingReasoning
+                ? GitHubAnalysisRequestStatus.AwaitingReasoning
+                : unsupported || ignored
+                    ? GitHubAnalysisRequestStatus.Ignored
+                    : GitHubAnalysisRequestStatus.Completed
         };
         var completedRun = run with
         {
-            Status = unsupported
-                ? RepositoryAnalysisRunStatus.Unsupported
-                : RepositoryAnalysisRunStatus.Completed,
+            Status = awaitingReasoning
+                ? RepositoryAnalysisRunStatus.AwaitingReasoning
+                : unsupported
+                    ? RepositoryAnalysisRunStatus.Unsupported
+                    : RepositoryAnalysisRunStatus.Completed,
             SourceRevision = processing.SourceRevision,
             Technologies = processing.Technologies,
             ArtifactCount = processing.Graph.Artifacts.Count,
@@ -222,7 +227,7 @@ internal sealed class RepositoryAnalysisWorker(
             ErrorCode = null,
             ErrorMessage = null,
             UpdatedAt = now,
-            CompletedAt = now
+            CompletedAt = awaitingReasoning ? null : now
         };
         var auditAction = "repository.analysis.completed";
         if (unsupported)
@@ -232,6 +237,10 @@ internal sealed class RepositoryAnalysisWorker(
         else if (ignored)
         {
             auditAction = "repository.analysis.ignored";
+        }
+        else if (awaitingReasoning)
+        {
+            auditAction = "repository.analysis.reasoning.queued";
         }
 
         var audit = AuditRecordFactory.Create(

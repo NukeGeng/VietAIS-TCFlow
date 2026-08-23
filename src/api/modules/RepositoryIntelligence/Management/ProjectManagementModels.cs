@@ -54,7 +54,8 @@ public enum TaskLifecycleStatus
     Completed,
     Blocked,
     Rejected,
-    Cancelled
+    Cancelled,
+    Suggested
 }
 
 public enum TaskPriority

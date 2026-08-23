@@ -15,6 +15,12 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
+using VietAIS.TCFlow.Analyzers.Contracts;
+using VietAIS.TCFlow.Analyzers.Core;
+using VietAIS.TCFlow.Analyzers.Governance;
+using VietAIS.TCFlow.Analyzers.Knowledge;
+using VietAIS.TCFlow.Analyzers.Monitoring;
+using VietAIS.TCFlow.Analyzers.Reasoning;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.GitHub;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
@@ -543,6 +549,317 @@ public sealed class GitHubIntegrationTests
             diagnostic.Message.Contains("cosmetic or non-behavioral", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task Deep_reasoning_projects_a_source_aware_suggestion_with_trace_and_audit()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        await using var app = await BuildApplicationAsync(
+            postgres.GetConnectionString(),
+            enableReasoningWorker: true);
+        var ownerId = Guid.NewGuid();
+        var project = await CreateProjectAsync(app.Services, ownerId);
+        var connected = await ConnectRepositoryAsync(app.Services, ownerId, project.Id);
+        var requestId = Guid.NewGuid();
+        var graph = ReasoningGraph(connected.Repository.Id);
+        var workItem = new DeepReasoningWorkItem(
+            "reasoning-job-1",
+            requestId.ToString(),
+            project.Id.ToString(),
+            connected.Repository.Id.ToString(),
+            "reasoning-correlation-1",
+            graph.Revision,
+            ["change-1"],
+            ["mismatch-1"],
+            [],
+            DateTimeOffset.UtcNow);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            await new MartenKnowledgeGraphWriter(session, TimeProvider.System).SaveAsync(
+                graph,
+                TestContext.Current.CancellationToken);
+            await new MartenConventionProfileWriter(session, TimeProvider.System).SaveAsync(
+                new RepositoryConventionProfile(
+                    connected.Repository.Id.ToString(),
+                    graph.Revision,
+                    VietAIS.TCFlow.Analyzers.Governance.ConventionProfileStatus.Confirmed,
+                    []),
+                TestContext.Current.CancellationToken);
+            session.Store(new RepositoryAnalysisRequest(
+                requestId,
+                project.Id,
+                connected.Repository.Id,
+                GitHubAnalysisTriggerKind.Push,
+                "reasoning-delivery-1",
+                "base-revision",
+                "head-revision",
+                "refs/heads/main",
+                null,
+                FullScan: false,
+                RequiresChangedFileFetch: false,
+                [new GitHubChangedFile("src/CreateProduct.vue", GitHubChangedFileStatus.Modified)],
+                GitHubAnalysisRequestStatus.AwaitingReasoning,
+                DateTimeOffset.UtcNow,
+                "system",
+                null));
+            session.Store(new RepositoryAnalysisRun(
+                requestId,
+                project.Id,
+                connected.Repository.Id,
+                RepositoryAnalysisRunStatus.AwaitingReasoning,
+                Attempt: 1,
+                "head-revision",
+                ["Vue", "AspNet", "Marten"],
+                ArtifactCount: 1,
+                DependencyCount: 0,
+                ContractCount: 2,
+                MismatchCount: 1,
+                ChangeCount: 1,
+                ImpactCount: 1,
+                GeneratedTaskCount: 0,
+                [],
+                ErrorCode: null,
+                ErrorMessage: null,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow,
+                CompletedAt: null));
+            await scope.ServiceProvider.GetRequiredService<IDeepReasoningQueue>()
+                .EnqueueAsync(workItem, TestContext.Current.CancellationToken);
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var completed = await WaitForAnalysisAsync(app.Services, requestId);
+
+        Assert.Equal(GitHubAnalysisRequestStatus.Completed, completed.Request.Status);
+        Assert.Equal(RepositoryAnalysisRunStatus.Completed, completed.Run!.Status);
+        Assert.Equal(1, completed.Run.GeneratedTaskCount);
+        Assert.Contains(completed.Run.Diagnostics, diagnostic => diagnostic.Code == "ANALYSIS005");
+        await using var verificationScope = app.Services.CreateAsyncScope();
+        var query = verificationScope.ServiceProvider.GetRequiredService<IQuerySession>();
+        var task = Assert.Single(await query.Query<EngineeringTask>()
+            .Where(task => task.ProjectId == project.Id)
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(TaskLifecycleStatus.Suggested, task.Status);
+        Assert.Equal(TaskActorType.Ai, task.CreatedByType);
+        Assert.NotNull(task.SourceTrace.SourceChangeId);
+        Assert.NotEmpty(task.SourceTrace.ArtifactIds);
+        Assert.NotEmpty(task.SourceTrace.EvidenceIds);
+        Assert.NotEmpty(task.SourceTrace.ImpactIds);
+        Assert.Single(await query.Query<VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management.SourceChange>()
+            .Where(change => change.ProjectId == project.Id)
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Single(await query.Query<SourceArtifact>()
+            .Where(artifact => artifact.ProjectId == project.Id)
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Single(await query.Query<SourceImpact>()
+            .Where(impact => impact.ProjectId == project.Id)
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Single(await query.Query<TaskEvidence>()
+            .Where(evidence => evidence.TaskId == task.Id)
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Contains(await query.Query<AuditRecord>()
+                .Where(audit => audit.ProjectId == project.Id)
+                .ToListAsync(TestContext.Current.CancellationToken),
+            audit => audit.Action == "repository.analysis.reasoning.completed");
+        Assert.Contains(await query.Query<AiActionAudit>()
+                .Where(audit => audit.ProjectId == project.Id.ToString())
+                .ToListAsync(TestContext.Current.CancellationToken),
+            audit => audit.Action == AiPermissionCodes.TaskSuggest);
+
+        await using (var promotionScope = app.Services.CreateAsyncScope())
+        {
+            var session = promotionScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var current = await session.LoadAsync<EngineeringTask>(
+                task.Id,
+                TestContext.Current.CancellationToken);
+            Assert.NotNull(current);
+            session.Store(current with
+            {
+                Status = TaskLifecycleStatus.Upcoming,
+                CurrentVersion = current.CurrentVersion + 1,
+                UpdatedAt = DateTimeOffset.UtcNow
+            });
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var secondRequestId = Guid.NewGuid();
+        var secondWorkItem = workItem with
+        {
+            Id = "reasoning-job-2",
+            RequestId = secondRequestId.ToString(),
+            CorrelationId = "reasoning-correlation-2",
+            QueuedAt = DateTimeOffset.UtcNow
+        };
+        await using (var secondScope = app.Services.CreateAsyncScope())
+        {
+            var session = secondScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            session.Store(new RepositoryAnalysisRequest(
+                secondRequestId,
+                project.Id,
+                connected.Repository.Id,
+                GitHubAnalysisTriggerKind.Push,
+                "reasoning-delivery-2",
+                "head-revision",
+                "second-head-revision",
+                "refs/heads/main",
+                null,
+                FullScan: false,
+                RequiresChangedFileFetch: false,
+                [new GitHubChangedFile("src/CreateProduct.vue", GitHubChangedFileStatus.Modified)],
+                GitHubAnalysisRequestStatus.AwaitingReasoning,
+                DateTimeOffset.UtcNow,
+                "system",
+                null));
+            session.Store(new RepositoryAnalysisRun(
+                secondRequestId,
+                project.Id,
+                connected.Repository.Id,
+                RepositoryAnalysisRunStatus.AwaitingReasoning,
+                Attempt: 1,
+                "second-head-revision",
+                ["Vue", "AspNet", "Marten"],
+                ArtifactCount: 1,
+                DependencyCount: 0,
+                ContractCount: 2,
+                MismatchCount: 1,
+                ChangeCount: 1,
+                ImpactCount: 1,
+                GeneratedTaskCount: 0,
+                [],
+                ErrorCode: null,
+                ErrorMessage: null,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow,
+                CompletedAt: null));
+            await secondScope.ServiceProvider.GetRequiredService<IDeepReasoningQueue>()
+                .EnqueueAsync(secondWorkItem, TestContext.Current.CancellationToken);
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var secondCompleted = await WaitForAnalysisAsync(app.Services, secondRequestId);
+        Assert.Equal(RepositoryAnalysisRunStatus.Completed, secondCompleted.Run!.Status);
+        await using var secondVerificationScope = app.Services.CreateAsyncScope();
+        var secondQuery = secondVerificationScope.ServiceProvider.GetRequiredService<IQuerySession>();
+        var promoted = await secondQuery.LoadAsync<EngineeringTask>(task.Id, TestContext.Current.CancellationToken);
+        Assert.NotNull(promoted);
+        Assert.Equal(TaskLifecycleStatus.Upcoming, promoted.Status);
+        Assert.Equal(task.BusinessRules, promoted.BusinessRules);
+        var sourceAware = Assert.Single(await secondQuery.Query<SourceAwareEngineeringTask>()
+            .Where(item => item.ProjectId == project.Id.ToString())
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(2, sourceAware.Version);
+        Assert.Contains("Persist categoryId consistently.", sourceAware.Requirements);
+    }
+
+    private static RepositoryKnowledgeGraph ReasoningGraph(Guid repositoryId)
+    {
+        var location = new SourceLocation("src/CreateProduct.vue", 1, 5, "submit");
+        var evidence = new Evidence(
+            "evidence-1",
+            "The frontend sends categoryId.",
+            EvidenceLevel.Confirmed,
+            location,
+            "integration-fixture",
+            1m);
+        var artifact = new Artifact(
+            "artifact-1",
+            ArtifactKind.ApiCall,
+            "Vue",
+            "POST /api/products",
+            location.Path,
+            EvidenceLevel.Confirmed,
+            [evidence.Id],
+            new Dictionary<string, string>());
+        var frontend = new Contract(
+            "frontend-contract",
+            ContractDirection.FrontendExpected,
+            "POST",
+            "/api/products",
+            EvidenceLevel.Confirmed,
+            [new ContractField("categoryId", "string", true, EvidenceLevel.Confirmed, location)],
+            [],
+            [],
+            HasPagination: false,
+            [],
+            [evidence.Id]);
+        var backend = new Contract(
+            "backend-contract",
+            ContractDirection.BackendActual,
+            "POST",
+            "/api/products",
+            EvidenceLevel.Confirmed,
+            [],
+            [],
+            [],
+            HasPagination: false,
+            [],
+            [evidence.Id]);
+        var pair = new ContractPair(
+            "pair-1",
+            frontend.Id,
+            backend.Id,
+            [backend.Id],
+            ContractPairStatus.Matched,
+            EvidenceLevel.Confirmed,
+            1m,
+            "Contracts share method and route.",
+            [evidence.Id]);
+        var mismatch = new ContractMismatch(
+            "mismatch-1",
+            pair.Id,
+            ContractMismatchKind.RequestFieldMissingBackend,
+            "categoryId",
+            "required string",
+            "missing",
+            EvidenceLevel.Confirmed,
+            1m,
+            "The frontend field is absent from the backend request.",
+            [evidence.Id],
+            [location]);
+        var change = new VietAIS.TCFlow.Analyzers.Core.SourceChange(
+            "change-1",
+            location.Path,
+            ChangeKind.Modified,
+            "before",
+            "after",
+            IsMeaningful: true,
+            "Frontend request contract changed.");
+        var impact = new Impact(
+            "impact-1",
+            change.Id,
+            artifact.Id,
+            ImpactSeverity.High,
+            "The API request contract is affected.",
+            0.95m,
+            EvidenceLevel.Inferred,
+            [evidence.Id]);
+        var records = new[]
+        {
+            evidence.Id,
+            artifact.Id,
+            frontend.Id,
+            backend.Id,
+            pair.Id,
+            mismatch.Id,
+            change.Id,
+            impact.Id
+        }.ToDictionary(id => id, _ => "integration-fixture", StringComparer.Ordinal);
+        return new RepositoryKnowledgeGraph(
+            repositoryId.ToString(),
+            Revision: 1,
+            [artifact],
+            [],
+            [evidence],
+            [],
+            [frontend, backend],
+            [change],
+            [impact],
+            [pair],
+            [mismatch],
+            records);
+    }
+
     private static async Task RunInitialAnalysisAsync(
         IServiceProvider services,
         Guid ownerId,
@@ -664,16 +981,25 @@ public sealed class GitHubIntegrationTests
 
     private static async Task<WebApplication> BuildApplicationAsync(
         string connectionString,
-        bool enableAnalysisWorker = false)
+        bool enableAnalysisWorker = false,
+        bool enableReasoningWorker = false)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Configuration["DatabaseOptions:ConnectionString"] = connectionString;
         builder.Configuration["GitHub:WebhookSecret"] = WebhookSecret;
         builder.Configuration["RepositoryAnalysis:Enabled"] = enableAnalysisWorker.ToString();
         builder.Configuration["RepositoryAnalysis:PollInterval"] = "00:00:00.025";
+        builder.Configuration["RepositoryReasoning:Enabled"] = enableReasoningWorker.ToString();
+        builder.Configuration["RepositoryReasoning:PollInterval"] = "00:00:00.025";
+        builder.Configuration["RepositoryReasoning:ProcessingLease"] = "00:00:05";
         builder.RegisterRepositoryIntelligenceServices();
         builder.Services.RemoveAll<IGitHubAppClient>();
         builder.Services.AddSingleton<IGitHubAppClient, FakeGitHubAppClient>();
+        if (enableReasoningWorker)
+        {
+            builder.Services.RemoveAll<IAiReasoningProvider>();
+            builder.Services.AddSingleton<IAiReasoningProvider, FakeReasoningProvider>();
+        }
         builder.Services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssemblyContaining<RegisterGitHubInstallationCommand>());
         builder.Services.AddCarter(configurator: configuration =>
@@ -802,6 +1128,38 @@ public sealed class GitHubIntegrationTests
                                 "<template><main>{{ message }}</main></template>"
                             : "<template><main>TCFlow</main></template>")
                 ]);
+        }
+    }
+
+    private sealed class FakeReasoningProvider : IAiReasoningProvider
+    {
+        private int _calls;
+
+        public Task<AiImpactReasoningResult> AnalyzeImpactAsync(
+            AiReasoningContext context,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var call = Interlocked.Increment(ref _calls);
+            var artifact = context.GraphContext.Artifacts.Single();
+            var evidence = context.GraphContext.Evidence.Single();
+            return Task.FromResult(new AiImpactReasoningResult(
+                "The backend request must align with the authoritative source contract.",
+                ImpactSeverity.High,
+                EvidenceLevel.Inferred,
+                0.95m,
+                [evidence.Id],
+                [new AiTaskReasoningResult(
+                    "Accept categoryId in the backend request",
+                    "Align the backend request with confirmed frontend evidence.",
+                    PlanTargetComponent.Backend,
+                    EvidenceLevel.Inferred,
+                    0.95m,
+                    [artifact.Id],
+                    [evidence.Id],
+                    [call == 1
+                        ? "Accept and validate categoryId."
+                        : "Persist categoryId consistently."])]));
         }
     }
 

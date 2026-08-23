@@ -3,6 +3,7 @@ using Marten;
 using Microsoft.Extensions.Options;
 using VietAIS.TCFlow.Analyzers.Core;
 using VietAIS.TCFlow.Analyzers.Monitoring;
+using VietAIS.TCFlow.Analyzers.Reasoning;
 
 namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.GitHub;
 
@@ -15,6 +16,36 @@ internal enum IncrementalDeliveryStatus
 internal sealed record IncrementalAnalysisDelivery(
     string Id,
     IncrementalDeliveryStatus Status,
+    DateTimeOffset UpdatedAt);
+
+internal enum RepositoryReasoningJobStatus
+{
+    Pending,
+    Processing,
+    Completed,
+    Failed
+}
+
+internal sealed record RepositoryReasoningJob(
+    string Id,
+    DeepReasoningWorkItem WorkItem,
+    RepositoryReasoningJobStatus Status,
+    int Attempt,
+    DateTimeOffset NextAttemptAt,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? CompletedAt,
+    int AiRequestCount,
+    int ReconciledTaskCount,
+    string? ErrorCode,
+    string? ErrorMessage);
+
+internal sealed record RepositoryTaskProjection(
+    string Id,
+    Guid ProjectId,
+    Guid RepositoryId,
+    Guid EngineeringTaskId,
+    int SourceVersion,
+    SourceAwareTaskStatus SourceStatus,
     DateTimeOffset UpdatedAt);
 
 internal sealed class NoAnalyzableRepositoryChangesException(string message)
@@ -103,7 +134,18 @@ internal sealed class MartenDeepReasoningQueue(IDocumentSession session) : IDeep
     {
         ArgumentNullException.ThrowIfNull(workItem);
         cancellationToken.ThrowIfCancellationRequested();
-        session.Store(workItem);
+        session.Insert(new RepositoryReasoningJob(
+            workItem.Id,
+            workItem,
+            RepositoryReasoningJobStatus.Pending,
+            Attempt: 0,
+            workItem.QueuedAt,
+            workItem.QueuedAt,
+            CompletedAt: null,
+            AiRequestCount: 0,
+            ReconciledTaskCount: 0,
+            ErrorCode: null,
+            ErrorMessage: null));
         return ValueTask.CompletedTask;
     }
 }

@@ -5,6 +5,7 @@ using VietAIS.TCFlow.Analyzers.AspNet;
 using VietAIS.TCFlow.Analyzers.Governance;
 using VietAIS.TCFlow.Analyzers.Knowledge;
 using VietAIS.TCFlow.Analyzers.Monitoring;
+using VietAIS.TCFlow.Analyzers.Reasoning;
 using VietAIS.TCFlow.Analyzers.Vue;
 using IRepositoryAnalyzer = VietAIS.TCFlow.Analyzers.Core.IRepositoryAnalyzer;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
@@ -119,12 +120,18 @@ public static class RepositoryIntelligenceModule
                 options.Schema.For<IncrementalAnalysisDelivery>()
                     .UseOptimisticConcurrency(true)
                     .Index(delivery => delivery.Status);
-                options.Schema.For<DeepReasoningWorkItem>()
+                options.Schema.For<RepositoryReasoningJob>()
                     .UseOptimisticConcurrency(true)
-                    .Index(workItem => workItem.ProjectId)
-                    .Index(workItem => workItem.RepositoryId);
+                    .Index(job => job.Status)
+                    .Index(job => job.NextAttemptAt);
+                options.Schema.For<RepositoryTaskProjection>()
+                    .UseOptimisticConcurrency(true)
+                    .UniqueIndex(projection => projection.EngineeringTaskId)
+                    .Index(projection => projection.ProjectId)
+                    .Index(projection => projection.RepositoryId);
                 KnowledgeGraphStorage.Configure(options);
                 ConventionProfileStorage.Configure(options);
+                TaskReconciliationStorage.Configure(options);
             })
             .UseLightweightSessions();
 
@@ -154,6 +161,23 @@ public static class RepositoryIntelligenceModule
         builder.Services.AddOptions<RepositoryAnalysisWorkerOptions>()
             .BindConfiguration(RepositoryAnalysisWorkerOptions.SectionName);
         builder.Services.AddHostedService<RepositoryAnalysisWorker>();
+        builder.Services.AddOptions<RepositoryReasoningWorkerOptions>()
+            .BindConfiguration(RepositoryReasoningWorkerOptions.SectionName);
+        var contentRoot = builder.Environment.ContentRootPath;
+        builder.Services.AddSingleton<ICodexAppServerClient>(serviceProvider =>
+        {
+            var configured = serviceProvider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<RepositoryReasoningWorkerOptions>>().Value;
+            var workingDirectory = Path.IsPathRooted(configured.WorkingDirectory)
+                ? configured.WorkingDirectory
+                : Path.GetFullPath(configured.WorkingDirectory, contentRoot);
+            return new CodexAppServerProcessClient(new CodexAppServerOptions(
+                configured.ExecutablePath,
+                workingDirectory,
+                configured.Model));
+        });
+        builder.Services.AddSingleton<IAiReasoningProvider, CodexAppServerReasoningProvider>();
+        builder.Services.AddHostedService<RepositoryDeepReasoningWorker>();
         builder.Services.AddSingleton<IGitHubWebhookSignatureValidator>(
             new GitHubWebhookSignatureValidator(builder.Configuration["GitHub:WebhookSecret"]));
         builder.Services.AddSingleton(TimeProvider.System);

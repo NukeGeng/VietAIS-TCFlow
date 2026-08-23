@@ -19,6 +19,9 @@ namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.IntegrationTests;
 public sealed class ProjectManagementIntegrationTests
 {
     [Theory]
+    [InlineData(TaskLifecycleStatus.Suggested, TaskLifecycleStatus.Upcoming)]
+    [InlineData(TaskLifecycleStatus.Suggested, TaskLifecycleStatus.Rejected)]
+    [InlineData(TaskLifecycleStatus.Suggested, TaskLifecycleStatus.Cancelled)]
     [InlineData(TaskLifecycleStatus.Upcoming, TaskLifecycleStatus.InProgress)]
     [InlineData(TaskLifecycleStatus.Upcoming, TaskLifecycleStatus.Cancelled)]
     [InlineData(TaskLifecycleStatus.InProgress, TaskLifecycleStatus.ReadyForReview)]
@@ -39,6 +42,7 @@ public sealed class ProjectManagementIntegrationTests
     }
 
     [Theory]
+    [InlineData(TaskLifecycleStatus.Suggested, TaskLifecycleStatus.InProgress)]
     [InlineData(TaskLifecycleStatus.Upcoming, TaskLifecycleStatus.Completed)]
     [InlineData(TaskLifecycleStatus.Blocked, TaskLifecycleStatus.Completed)]
     [InlineData(TaskLifecycleStatus.Completed, TaskLifecycleStatus.InProgress)]

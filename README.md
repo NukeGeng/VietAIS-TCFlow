@@ -36,6 +36,8 @@ Admin activates it again. Each lifecycle change records the System Admin actor,
 target, before state, and after state in the Marten audit store. User activation
 and suspension remains protected by `Permissions.Users.Update`.
 Assigning platform roles to a user requires `Permissions.UserRoles.Update`.
+Built-in `Admin` and `Basic` roles cannot be renamed, deleted, or have their
+permission claims changed.
 
 ## GitHub App for private repositories
 

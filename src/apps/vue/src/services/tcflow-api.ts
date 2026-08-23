@@ -1,7 +1,12 @@
 import { apiRequest, queryString } from './http'
 import type {
   AuditRecord,
+  AiPermissionPolicy,
   AiTrustLevel,
+  AuthorityPolicy,
+  AuthorityRule,
+  ConventionProfile,
+  ConventionProfileStatus,
   EffectivePermissionResult,
   EngineeringTask,
   EngineeringTaskDetails,
@@ -14,7 +19,9 @@ import type {
   PagedList,
   PermissionDefinition,
   Project,
+  ProjectComponent,
   ProjectFeature,
+  ProjectMembership,
   ProjectRepository,
   ProjectRole,
   TaskEvidence,
@@ -108,10 +115,37 @@ export const tcflowApi = {
     )
   },
 
+  roles(projectId: string): Promise<ProjectRole[]> {
+    return apiRequest<ProjectRole[]>(`/api/v1/projects/${projectId}/roles`)
+  },
+
   createRole(projectId: string, name: string): Promise<ProjectRole> {
     return apiRequest<ProjectRole>(`/api/v1/projects/${projectId}/roles`, {
       method: 'POST',
       body: JSON.stringify({ name }),
+    })
+  },
+
+  deleteRole(projectId: string, roleId: string): Promise<void> {
+    return apiRequest<void>(`/api/v1/projects/${projectId}/roles/${roleId}`, {
+      method: 'DELETE',
+    })
+  },
+
+  members(projectId: string): Promise<ProjectMembership[]> {
+    return apiRequest<ProjectMembership[]>(`/api/v1/projects/${projectId}/members`)
+  },
+
+  addMember(projectId: string, userId: string): Promise<ProjectMembership> {
+    return apiRequest<ProjectMembership>(`/api/v1/projects/${projectId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    })
+  },
+
+  removeMember(projectId: string, userId: string): Promise<void> {
+    return apiRequest<void>(`/api/v1/projects/${projectId}/members/${userId}`, {
+      method: 'DELETE',
     })
   },
 
@@ -142,10 +176,46 @@ export const tcflowApi = {
     projectId: string,
     trustLevel: AiTrustLevel,
     allowedPermissions: string[],
-  ): Promise<unknown> {
-    return apiRequest(`/api/v1/projects/${projectId}/ai-policy`, {
+  ): Promise<AiPermissionPolicy> {
+    return apiRequest<AiPermissionPolicy>(`/api/v1/projects/${projectId}/ai-policy`, {
       method: 'PUT',
       body: JSON.stringify({ trustLevel, allowedPermissions }),
+    })
+  },
+
+  aiPolicy(projectId: string): Promise<AiPermissionPolicy> {
+    return apiRequest<AiPermissionPolicy>(`/api/v1/projects/${projectId}/ai-policy`)
+  },
+
+  authorityPolicy(projectId: string): Promise<AuthorityPolicy> {
+    return apiRequest<AuthorityPolicy>(`/api/v1/projects/${projectId}/authority-policy`)
+  },
+
+  updateAuthorityPolicy(projectId: string, rules: AuthorityRule[]): Promise<AuthorityPolicy> {
+    return apiRequest<AuthorityPolicy>(`/api/v1/projects/${projectId}/authority-policy`, {
+      method: 'PUT',
+      body: JSON.stringify({ rules }),
+    })
+  },
+
+  conventionProfile(projectId: string): Promise<ConventionProfile> {
+    return apiRequest<ConventionProfile>(`/api/v1/projects/${projectId}/convention-profile`)
+  },
+
+  updateConventionProfile(
+    projectId: string,
+    input: {
+      status: ConventionProfileStatus
+      architectures: string[]
+      apiStyles: string[]
+      persistencePatterns: string[]
+      validationPatterns: string[]
+      dtoPatterns: string[]
+    },
+  ): Promise<ConventionProfile> {
+    return apiRequest<ConventionProfile>(`/api/v1/projects/${projectId}/convention-profile`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
     })
   },
 
@@ -247,6 +317,33 @@ export const tcflowApi = {
     return apiRequest<ProjectFeature>(`/api/v1/projects/${projectId}/features`, {
       method: 'POST',
       body: JSON.stringify({ name, description }),
+    })
+  },
+
+  features(projectId: string, keyword?: string): Promise<PagedList<ProjectFeature>> {
+    return apiRequest<PagedList<ProjectFeature>>(
+      `/api/v1/projects/${projectId}/features${queryString({ pageNumber: 1, pageSize: 100, keyword })}`,
+    )
+  },
+
+  components(projectId: string, repositoryId?: string): Promise<PagedList<ProjectComponent>> {
+    return apiRequest<PagedList<ProjectComponent>>(
+      `/api/v1/projects/${projectId}/components${queryString({ pageNumber: 1, pageSize: 100, repositoryId })}`,
+    )
+  },
+
+  createComponent(
+    projectId: string,
+    input: {
+      repositoryId: string
+      name: string
+      scope: number
+      rootPath?: string
+    },
+  ): Promise<ProjectComponent> {
+    return apiRequest<ProjectComponent>(`/api/v1/projects/${projectId}/components`, {
+      method: 'POST',
+      body: JSON.stringify(input),
     })
   },
 

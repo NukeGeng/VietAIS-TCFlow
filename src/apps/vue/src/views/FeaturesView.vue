@@ -6,7 +6,7 @@ import ResourceState from '../components/ResourceState.vue'
 import { useWorkspaceStore } from '../stores/workspace'
 
 const workspace = useWorkspaceStore()
-const { tasks, tasksState, transientFeatures, selectedProject } = storeToRefs(workspace)
+const { tasks, features, featuresState, selectedProject } = storeToRefs(workspace)
 const name = ref('')
 const description = ref('')
 const formError = ref('')
@@ -30,7 +30,7 @@ async function createFeature(): Promise<void> {
   }
 }
 
-workspace.loadTasks()
+Promise.all([workspace.loadTasks(), workspace.loadFeatures()])
 </script>
 
 <template>
@@ -44,34 +44,20 @@ workspace.loadTasks()
   <div class="content-split">
     <section class="panel">
       <ResourceState
-        :state="tasksState"
-        empty-title="No feature-linked tasks"
-        empty-message="Create a feature, then link tasks through the verified task contract."
-        @retry="workspace.loadTasks()"
+        :state="featuresState"
+        empty-title="No features"
+        empty-message="Create a feature to group source-aware delivery work."
+        @retry="workspace.loadFeatures()"
       >
         <div class="feature-grid">
-          <article v-for="feature in transientFeatures" :key="feature.id">
-            <span class="eyebrow">New feature</span>
+          <article v-for="feature in features" :key="feature.id">
+            <span class="eyebrow">Persisted capability</span>
             <h2>{{ feature.name }}</h2>
             <p>{{ feature.description || 'No description.' }}</p>
-            <code>{{ feature.id }}</code>
+            <small>
+              {{ taskFeatures.find((item) => item.id === feature.id)?.count || 0 }} linked tasks
+            </small>
           </article>
-          <article v-for="feature in taskFeatures" :key="feature.id">
-            <span class="eyebrow">Confirmed task link</span>
-            <h2>{{ feature.count }} linked {{ feature.count === 1 ? 'task' : 'tasks' }}</h2>
-            <p>The current P3 read contract exposes this feature identity through its tasks.</p>
-            <code>{{ feature.id }}</code>
-          </article>
-        </div>
-        <div v-if="!transientFeatures.length && !taskFeatures.length" class="state-panel">
-          <span class="state-icon">0</span>
-          <div>
-            <strong>No visible features</strong>
-            <p>
-              P3 has a create contract but no standalone feature-list contract; this view
-              conservatively derives confirmed links from tasks.
-            </p>
-          </div>
         </div>
       </ResourceState>
     </section>

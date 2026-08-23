@@ -40,6 +40,45 @@ export interface Project {
   createdAt: string
 }
 
+export enum ProjectLifecycleStatus {
+  Active = 0,
+  Suspended = 1,
+  Archived = 2,
+}
+
+export interface ProjectState {
+  id: string
+  projectId: string
+  status: ProjectLifecycleStatus
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface SystemProjectSummary {
+  project: Project
+  state: ProjectState
+}
+
+export interface SystemPermissionDefinition {
+  id: string
+  description: string
+  scope: number
+}
+
+export interface SystemRole {
+  id: string
+  name: string
+  description?: string
+  permissions?: string[]
+}
+
+export interface UserRoleDetail {
+  roleId?: string
+  roleName?: string
+  description?: string
+  enabled: boolean
+}
+
 export enum RepositoryProviderKind {
   Local = 0,
   GitHub = 1,

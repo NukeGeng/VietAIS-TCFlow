@@ -14,14 +14,19 @@ import type {
   PagedList,
   PermissionDefinition,
   Project,
+  ProjectLifecycleStatus,
   ProjectFeature,
   ProjectRepository,
   ProjectRole,
+  SystemPermissionDefinition,
+  SystemProjectSummary,
+  SystemRole,
   TaskEvidence,
   TaskReview,
   TaskVersion,
   TokenResponse,
   UserProfile,
+  UserRoleDetail,
 } from '../types/contracts'
 import type {
   RepositoryProviderKind,
@@ -77,6 +82,76 @@ export const tcflowApi = {
 
   users(): Promise<UserProfile[]> {
     return apiRequest<UserProfile[]>('/api/users/')
+  },
+
+  toggleUserStatus(userId: string, activateUser: boolean): Promise<void> {
+    return apiRequest<void>(`/api/users/${userId}/toggle-status`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, activateUser }),
+    })
+  },
+
+  systemRoles(): Promise<SystemRole[]> {
+    return apiRequest<SystemRole[]>('/api/roles/')
+  },
+
+  createSystemRole(name: string, description?: string): Promise<SystemRole> {
+    return apiRequest<SystemRole>('/api/roles/', {
+      method: 'POST',
+      body: JSON.stringify({ id: crypto.randomUUID(), name, description }),
+    })
+  },
+
+  deleteSystemRole(roleId: string): Promise<void> {
+    return apiRequest<void>(`/api/roles/${roleId}`, { method: 'DELETE' })
+  },
+
+  systemRole(roleId: string): Promise<SystemRole> {
+    return apiRequest<SystemRole>(`/api/roles/${roleId}/permissions`)
+  },
+
+  updateSystemRolePermissions(roleId: string, permissions: string[]): Promise<string> {
+    return apiRequest<string>(`/api/roles/${roleId}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify({ roleId, permissions }),
+    })
+  },
+
+  userRoles(userId: string): Promise<UserRoleDetail[]> {
+    return apiRequest<UserRoleDetail[]>(`/api/users/${userId}/roles`)
+  },
+
+  assignUserRoles(userId: string, userRoles: UserRoleDetail[]): Promise<string> {
+    return apiRequest<string>(`/api/users/${userId}/roles`, {
+      method: 'POST',
+      body: JSON.stringify({ userRoles }),
+    })
+  },
+
+  systemProjects(keyword?: string): Promise<PagedList<SystemProjectSummary>> {
+    return apiRequest<PagedList<SystemProjectSummary>>(
+      `/api/v1/system/projects${queryString({ pageNumber: 1, pageSize: 100, keyword })}`,
+    )
+  },
+
+  updateSystemProjectStatus(
+    projectId: string,
+    status: ProjectLifecycleStatus,
+  ): Promise<SystemProjectSummary> {
+    return apiRequest<SystemProjectSummary>(`/api/v1/system/projects/${projectId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    })
+  },
+
+  systemPermissionDefinitions(): Promise<SystemPermissionDefinition[]> {
+    return apiRequest<SystemPermissionDefinition[]>('/api/v1/system/permission-definitions')
+  },
+
+  systemAudit(projectId?: string, action?: string): Promise<PagedList<AuditRecord>> {
+    return apiRequest<PagedList<AuditRecord>>(
+      `/api/v1/system/audit${queryString({ pageNumber: 1, pageSize: 100, projectId, action })}`,
+    )
   },
 
   projects(keyword?: string): Promise<PagedList<Project>> {

@@ -245,6 +245,8 @@ describe('GitHub App connection', () => {
         dependencyCount: 0,
         contractCount: 0,
         mismatchCount: 0,
+        changeCount: 0,
+        impactCount: 0,
         generatedTaskCount: 0,
         diagnostics: [
           {

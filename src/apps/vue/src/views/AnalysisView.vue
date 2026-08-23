@@ -40,6 +40,11 @@ const evidenceCount = computed(() =>
 
 function statusLabel(details: RepositoryAnalysisDetails | null): string {
   if (!details) return 'Not requested'
+  if (
+    details.request.status === GitHubAnalysisRequestStatus.AwaitingReasoning ||
+    details.run?.status === RepositoryAnalysisRunStatus.AwaitingReasoning
+  )
+    return 'Awaiting reasoning'
   if (!details.run) return GitHubAnalysisRequestStatus[details.request.status]
   return RepositoryAnalysisRunStatus[details.run.status]
 }
@@ -56,7 +61,9 @@ function isInProgress(details: RepositoryAnalysisDetails | null): boolean {
   return (
     details?.request.status === GitHubAnalysisRequestStatus.Pending ||
     details?.request.status === GitHubAnalysisRequestStatus.Processing ||
-    details?.run?.status === RepositoryAnalysisRunStatus.Processing
+    details?.request.status === GitHubAnalysisRequestStatus.AwaitingReasoning ||
+    details?.run?.status === RepositoryAnalysisRunStatus.Processing ||
+    details?.run?.status === RepositoryAnalysisRunStatus.AwaitingReasoning
   )
 }
 
@@ -178,7 +185,13 @@ onUnmounted(() => {
               ><strong>{{ analyses[repository.id]!.run!.contractCount }}</strong>
             </article>
             <article>
-              <span>Tasks created</span
+              <span>Changes</span><strong>{{ analyses[repository.id]!.run!.changeCount }}</strong>
+            </article>
+            <article>
+              <span>Impacts</span><strong>{{ analyses[repository.id]!.run!.impactCount }}</strong>
+            </article>
+            <article>
+              <span>Tasks reconciled</span
               ><strong>{{ analyses[repository.id]!.run!.generatedTaskCount }}</strong>
             </article>
           </div>
@@ -193,7 +206,25 @@ onUnmounted(() => {
             </template>
           </p>
           <div
-            v-if="analyses[repository.id]!.run!.status === RepositoryAnalysisRunStatus.Unsupported"
+            v-if="
+              analyses[repository.id]!.run!.status ===
+              RepositoryAnalysisRunStatus.AwaitingReasoning
+            "
+            class="state-panel analysis-message"
+          >
+            <span class="loader" aria-hidden="true"></span>
+            <div>
+              <strong>Targeted AI reasoning is running</strong>
+              <p>
+                Static source facts are ready. TCFlow is applying project authority, conventions,
+                and AI permissions before reconciling tasks.
+              </p>
+            </div>
+          </div>
+          <div
+            v-else-if="
+              analyses[repository.id]!.run!.status === RepositoryAnalysisRunStatus.Unsupported
+            "
             class="state-panel state-panel--warning analysis-message"
           >
             <span class="state-icon" aria-hidden="true">!</span>

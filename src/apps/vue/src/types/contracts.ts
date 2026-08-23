@@ -135,6 +135,7 @@ export enum GitHubAnalysisRequestStatus {
   Completed = 2,
   Failed = 3,
   Ignored = 4,
+  AwaitingReasoning = 5,
 }
 
 export enum RepositoryAnalysisRunStatus {
@@ -142,6 +143,7 @@ export enum RepositoryAnalysisRunStatus {
   Completed = 1,
   Unsupported = 2,
   Failed = 3,
+  AwaitingReasoning = 4,
 }
 
 export interface RepositoryAnalysisRequest {
@@ -182,6 +184,8 @@ export interface RepositoryAnalysisRun {
   dependencyCount: number
   contractCount: number
   mismatchCount: number
+  changeCount: number
+  impactCount: number
   generatedTaskCount: number
   diagnostics: RepositoryAnalysisDiagnostic[]
   errorCode?: string
@@ -224,6 +228,7 @@ export enum TaskLifecycleStatus {
   Blocked = 4,
   Rejected = 5,
   Cancelled = 6,
+  Suggested = 7,
 }
 
 export enum TaskPriority {
@@ -441,6 +446,7 @@ export const taskStatusLabel: Record<TaskLifecycleStatus, string> = {
   [TaskLifecycleStatus.Blocked]: 'Blocked',
   [TaskLifecycleStatus.Rejected]: 'Rejected',
   [TaskLifecycleStatus.Cancelled]: 'Cancelled',
+  [TaskLifecycleStatus.Suggested]: 'Suggested',
 }
 
 export const taskPriorityLabel: Record<TaskPriority, string> = {

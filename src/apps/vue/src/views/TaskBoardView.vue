@@ -23,9 +23,16 @@ const priority = ref(TaskPriority.Medium)
 const showCreate = ref(false)
 const actionError = ref('')
 
-const statuses = Object.values(TaskLifecycleStatus).filter(
-  (value): value is TaskLifecycleStatus => typeof value === 'number',
-)
+const statuses: TaskLifecycleStatus[] = [
+  TaskLifecycleStatus.Suggested,
+  TaskLifecycleStatus.Upcoming,
+  TaskLifecycleStatus.InProgress,
+  TaskLifecycleStatus.ReadyForReview,
+  TaskLifecycleStatus.Blocked,
+  TaskLifecycleStatus.Rejected,
+  TaskLifecycleStatus.Completed,
+  TaskLifecycleStatus.Cancelled,
+]
 const columns = computed(() =>
   statuses.map((status) => ({
     status,
@@ -34,6 +41,11 @@ const columns = computed(() =>
 )
 
 const transitions: Partial<Record<TaskLifecycleStatus, TaskLifecycleStatus[]>> = {
+  [TaskLifecycleStatus.Suggested]: [
+    TaskLifecycleStatus.Upcoming,
+    TaskLifecycleStatus.Rejected,
+    TaskLifecycleStatus.Cancelled,
+  ],
   [TaskLifecycleStatus.Upcoming]: [TaskLifecycleStatus.InProgress, TaskLifecycleStatus.Cancelled],
   [TaskLifecycleStatus.InProgress]: [
     TaskLifecycleStatus.ReadyForReview,
@@ -49,14 +61,16 @@ const transitions: Partial<Record<TaskLifecycleStatus, TaskLifecycleStatus[]>> =
   [TaskLifecycleStatus.Rejected]: [TaskLifecycleStatus.InProgress, TaskLifecycleStatus.Cancelled],
 }
 
-function transitionPermission(status: TaskLifecycleStatus): string {
+function transitionPermission(task: EngineeringTask, status: TaskLifecycleStatus): string {
+  if (task.status === TaskLifecycleStatus.Suggested && status === TaskLifecycleStatus.Upcoming)
+    return 'task.create'
   if (status === TaskLifecycleStatus.Completed) return 'task.approve'
   if (status === TaskLifecycleStatus.Rejected) return 'task.reject'
   return 'task.status.update'
 }
 
 function transitionUnavailableReason(task: EngineeringTask, status: TaskLifecycleStatus): string {
-  const permission = transitionPermission(status)
+  const permission = transitionPermission(task, status)
   if (!workspace.hasPermission(permission)) return `Requires ${permission}`
   if (
     status === TaskLifecycleStatus.Completed &&
@@ -112,7 +126,7 @@ Promise.all([workspace.loadTasks(), workspace.loadRepositories()])
     <div>
       <span class="eyebrow">{{ selectedProject?.name }}</span>
       <h1>Task board</h1>
-      <p>Lifecycle state is reloaded from the backend after every transition.</p>
+      <p>Review AI suggestions, accept verified work, and manage the human task lifecycle.</p>
     </div>
     <button
       v-if="workspace.hasPermission('task.create')"

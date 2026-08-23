@@ -1146,6 +1146,10 @@ code {
   background: #8b9891;
 }
 
+.status-7 {
+  background: #6c63b5;
+}
+
 .status-1,
 .status-2 {
   background: #e0a72a;
@@ -1249,6 +1253,11 @@ code {
 .task-status--completed {
   color: #426218;
   background: #e3f5be;
+}
+
+.task-status--suggested {
+  color: #51478f;
+  background: #eeebff;
 }
 
 .task-status--blocked,

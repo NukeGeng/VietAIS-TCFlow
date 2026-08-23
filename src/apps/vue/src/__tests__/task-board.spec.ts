@@ -44,6 +44,33 @@ describe('task board review boundary', () => {
     const enabled = wrapper.findAll('button').find((button) => button.text() === 'Completed')
     expect(enabled?.attributes('disabled')).toBeUndefined()
   })
+
+  it('requires task.create to accept an AI suggestion', async () => {
+    setActivePinia(createPinia())
+    const workspace = useWorkspaceStore()
+    const task = taskFixture({ status: TaskLifecycleStatus.Suggested })
+    workspace.selectProject(task.projectId)
+    workspace.tasks = [task]
+    workspace.tasksState = { status: 'ready' }
+    workspace.effectivePermissions = {
+      projectId: task.projectId,
+      userId: task.createdBy,
+      grants: [grant('task.view'), grant('task.status.update')],
+    }
+    vi.spyOn(workspace, 'loadTasks').mockResolvedValue()
+    vi.spyOn(workspace, 'loadRepositories').mockResolvedValue()
+
+    const wrapper = mount(TaskBoardView, {
+      global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
+    })
+    const accept = wrapper.findAll('button').find((button) => button.text() === 'Upcoming')
+    expect(accept?.attributes('disabled')).toBeDefined()
+    expect(accept?.attributes('title')).toBe('Requires task.create')
+
+    workspace.effectivePermissions.grants.push(grant('task.create'))
+    await nextTick()
+    expect(accept?.attributes('disabled')).toBeUndefined()
+  })
 })
 
 function grant(permissionCode: string): PermissionGrantTrace {

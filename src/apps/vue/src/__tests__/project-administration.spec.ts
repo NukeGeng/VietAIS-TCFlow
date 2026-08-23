@@ -34,6 +34,9 @@ describe('project administration', () => {
         grant('role.view'),
         grant('member.view'),
         grant('component.view'),
+        grant('component.update'),
+        grant('component.delete'),
+        grant('project.update'),
         grant('authority.view'),
         grant('convention.view'),
         grant('ai.policy.update'),
@@ -111,6 +114,9 @@ describe('project administration', () => {
     expect(wrapper.text()).toContain(ownerId)
     expect(wrapper.text()).toContain('Repository API')
     expect(wrapper.text()).toContain('SuggestOnly')
+    expect(wrapper.text()).toContain('Rename project')
+    expect(wrapper.text()).toContain('Edit')
+    expect(wrapper.text()).toContain('Delete')
     expect(wrapper.findAll('input').some((input) => input.element.value === 'Marten')).toBe(true)
   })
 })

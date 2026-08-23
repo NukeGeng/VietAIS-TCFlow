@@ -53,6 +53,20 @@ describe('App', () => {
           resourceScope: 1,
           componentScopes: [],
         },
+        {
+          permissionCode: 'feature.view',
+          roleId: '40000000-0000-0000-0000-000000000001',
+          roleName: 'Reader',
+          resourceScope: 1,
+          componentScopes: [],
+        },
+        {
+          permissionCode: 'component.view',
+          roleId: '40000000-0000-0000-0000-000000000001',
+          roleName: 'Reader',
+          resourceScope: 1,
+          componentScopes: [],
+        },
       ],
     }
     vi.spyOn(workspace, 'loadPermissions').mockResolvedValue()
@@ -66,6 +80,8 @@ describe('App', () => {
 
     expect(wrapper.get('nav').text()).toContain('Repositories')
     expect(wrapper.find('nav a[href$="/repositories"]').exists()).toBe(true)
+    expect(wrapper.find('nav a[href$="/features"]').exists()).toBe(true)
+    expect(wrapper.find('nav a[href$="/admin"]').exists()).toBe(true)
     expect(wrapper.get('.nav-disabled').text()).toContain('Analysis')
     expect(wrapper.get('.nav-disabled').text()).toContain('analysis.view')
   })

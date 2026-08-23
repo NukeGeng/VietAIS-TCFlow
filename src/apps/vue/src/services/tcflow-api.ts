@@ -103,6 +103,13 @@ export const tcflowApi = {
     return apiRequest<Project>(`/api/v1/projects/${projectId}`)
   },
 
+  updateProject(projectId: string, name: string): Promise<Project> {
+    return apiRequest<Project>(`/api/v1/projects/${projectId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    })
+  },
+
   effectivePermissions(projectId: string, userId: string): Promise<EffectivePermissionResult> {
     return apiRequest<EffectivePermissionResult>(
       `/api/v1/projects/${projectId}/members/${userId}/effective-permissions`,
@@ -252,6 +259,30 @@ export const tcflowApi = {
     })
   },
 
+  updateRepository(
+    projectId: string,
+    repositoryId: string,
+    input: {
+      name: string
+      localPath?: string
+      remoteUrl?: string
+      defaultBranch: string
+      status: ProjectRepository['status']
+    },
+  ): Promise<ProjectRepository> {
+    return apiRequest<ProjectRepository>(
+      `/api/v1/projects/${projectId}/repositories/${repositoryId}`,
+      { method: 'PUT', body: JSON.stringify(input) },
+    )
+  },
+
+  disableRepository(projectId: string, repositoryId: string): Promise<ProjectRepository> {
+    return apiRequest<ProjectRepository>(
+      `/api/v1/projects/${projectId}/repositories/${repositoryId}`,
+      { method: 'DELETE' },
+    )
+  },
+
   startGitHubConnection(projectId: string): Promise<GitHubInstallationStart> {
     return apiRequest<GitHubInstallationStart>(`/api/v1/projects/${projectId}/github/connections`, {
       method: 'POST',
@@ -320,6 +351,24 @@ export const tcflowApi = {
     })
   },
 
+  updateFeature(
+    projectId: string,
+    featureId: string,
+    name: string,
+    description?: string,
+  ): Promise<ProjectFeature> {
+    return apiRequest<ProjectFeature>(`/api/v1/projects/${projectId}/features/${featureId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, description }),
+    })
+  },
+
+  deleteFeature(projectId: string, featureId: string): Promise<void> {
+    return apiRequest<void>(`/api/v1/projects/${projectId}/features/${featureId}`, {
+      method: 'DELETE',
+    })
+  },
+
   features(projectId: string, keyword?: string): Promise<PagedList<ProjectFeature>> {
     return apiRequest<PagedList<ProjectFeature>>(
       `/api/v1/projects/${projectId}/features${queryString({ pageNumber: 1, pageSize: 100, keyword })}`,
@@ -344,6 +393,23 @@ export const tcflowApi = {
     return apiRequest<ProjectComponent>(`/api/v1/projects/${projectId}/components`, {
       method: 'POST',
       body: JSON.stringify(input),
+    })
+  },
+
+  updateComponent(
+    projectId: string,
+    componentId: string,
+    input: { name: string; scope: number; rootPath?: string },
+  ): Promise<ProjectComponent> {
+    return apiRequest<ProjectComponent>(`/api/v1/projects/${projectId}/components/${componentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+  },
+
+  deleteComponent(projectId: string, componentId: string): Promise<void> {
+    return apiRequest<void>(`/api/v1/projects/${projectId}/components/${componentId}`, {
+      method: 'DELETE',
     })
   },
 

@@ -132,6 +132,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return response.project
   }
 
+  async function updateProject(name: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    const project = await tcflowApi.updateProject(selectedProjectId.value, name)
+    projects.value = projects.value.map((item) => (item.id === project.id ? project : item))
+    await loadAdministration()
+  }
+
   async function loadPermissions(userId: string): Promise<void> {
     if (!selectedProjectId.value) return
     permissionsState.value = { status: 'loading' }
@@ -171,6 +178,27 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }): Promise<void> {
     if (!selectedProjectId.value) return
     await tcflowApi.createRepository(selectedProjectId.value, input)
+    await loadRepositories()
+  }
+
+  async function updateRepository(
+    repositoryId: string,
+    input: {
+      name: string
+      localPath?: string
+      remoteUrl?: string
+      defaultBranch: string
+      status: ProjectRepository['status']
+    },
+  ): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.updateRepository(selectedProjectId.value, repositoryId, input)
+    await loadRepositories()
+  }
+
+  async function disableRepository(repositoryId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.disableRepository(selectedProjectId.value, repositoryId)
     await loadRepositories()
   }
 
@@ -248,6 +276,22 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function createFeature(name: string, description?: string): Promise<void> {
     if (!selectedProjectId.value) return
     await tcflowApi.createFeature(selectedProjectId.value, name, description)
+    await loadFeatures()
+  }
+
+  async function updateFeature(
+    featureId: string,
+    name: string,
+    description?: string,
+  ): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.updateFeature(selectedProjectId.value, featureId, name, description)
+    await loadFeatures()
+  }
+
+  async function deleteFeature(featureId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.deleteFeature(selectedProjectId.value, featureId)
     await loadFeatures()
   }
 
@@ -398,6 +442,21 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     await loadAdministration()
   }
 
+  async function updateComponent(
+    componentId: string,
+    input: { name: string; scope: number; rootPath?: string },
+  ): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.updateComponent(selectedProjectId.value, componentId, input)
+    await loadAdministration()
+  }
+
+  async function deleteComponent(componentId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.deleteComponent(selectedProjectId.value, componentId)
+    await loadAdministration()
+  }
+
   async function transferOwnership(newOwnerId: string): Promise<void> {
     if (!selectedProjectId.value) return
     const project = await tcflowApi.transferOwnership(selectedProjectId.value, newOwnerId)
@@ -445,9 +504,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     selectProject,
     loadProjects,
     createProject,
+    updateProject,
     loadPermissions,
     loadRepositories,
     createRepository,
+    updateRepository,
+    disableRepository,
     loadTasks,
     createTask,
     transitionTask,
@@ -456,6 +518,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     assignTask,
     addEvidence,
     createFeature,
+    updateFeature,
+    deleteFeature,
     loadFeatures,
     loadAdministration,
     createRole,
@@ -468,6 +532,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     updateAuthorityPolicy,
     updateConventionProfile,
     createComponent,
+    updateComponent,
+    deleteComponent,
     transferOwnership,
     defaults: { RepositoryProviderKind, TaskPriority },
   }

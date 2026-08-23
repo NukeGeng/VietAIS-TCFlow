@@ -10,6 +10,7 @@ import {
   AuthoritySourceKind,
   ComponentScopeKind,
   ConventionProfileStatus,
+  type ProjectComponent,
   type ProjectRole,
 } from '../types/contracts'
 
@@ -47,6 +48,11 @@ const componentRepositoryId = ref('')
 const componentName = ref('')
 const componentRootPath = ref('')
 const componentScope = ref(ComponentScopeKind.Backend)
+const projectName = ref('')
+const editingComponentId = ref('')
+const editingComponentName = ref('')
+const editingComponentRootPath = ref('')
+const editingComponentScope = ref(ComponentScopeKind.Backend)
 const aiTrustLevel = ref(AiTrustLevel.SuggestOnly)
 const aiPermissions = ref<string[]>(['ai.analysis.run', 'ai.task.suggest'])
 const authoritySelections = ref<Record<number, AuthoritySourceKind>>({
@@ -154,6 +160,13 @@ function roleGrant(permissionCode: string): RoleGrantDraft {
 
 watch([selectedRoleId, projectRoles, permissionDefinitions], resetRoleGrantDrafts, { deep: true })
 watch(
+  selectedProject,
+  (project) => {
+    projectName.value = project?.name ?? ''
+  },
+  { immediate: true },
+)
+watch(
   aiPolicy,
   (policy) => {
     if (!policy) return
@@ -203,6 +216,34 @@ async function createRole(): Promise<void> {
   }, 'Role created and available after reload.')
 }
 
+function startComponentEdit(component: ProjectComponent): void {
+  formError.value = ''
+  successMessage.value = ''
+  editingComponentId.value = component.id
+  editingComponentName.value = component.name
+  editingComponentRootPath.value = component.rootPath ?? ''
+  editingComponentScope.value = component.scope
+}
+
+async function saveComponent(): Promise<void> {
+  await run(async () => {
+    await workspace.updateComponent(editingComponentId.value, {
+      name: editingComponentName.value,
+      scope: editingComponentScope.value,
+      rootPath: editingComponentRootPath.value || undefined,
+    })
+    editingComponentId.value = ''
+  }, 'Component updated and audited.')
+}
+
+async function deleteComponent(component: ProjectComponent): Promise<void> {
+  if (!window.confirm(`Delete ${component.name}? Referenced components cannot be deleted.`)) return
+  await run(
+    () => workspace.deleteComponent(component.id),
+    'Component deleted and audit history preserved.',
+  )
+}
+
 async function saveRolePermissions(): Promise<void> {
   const permissions: ProjectRole['permissions'] = permissionDefinitions.value.flatMap(
     (definition) => {
@@ -242,6 +283,21 @@ Promise.all([workspace.loadAdministration(), workspace.loadRepositories()])
 
   <div v-if="formError" class="inline-alert" role="alert">{{ formError }}</div>
   <div v-if="successMessage" class="success-alert" role="status">{{ successMessage }}</div>
+
+  <PermissionNotice
+    :allowed="workspace.hasPermission('project.update')"
+    permission="project.update"
+  >
+    <form
+      class="form-card lifecycle-project-form"
+      @submit.prevent="run(() => workspace.updateProject(projectName), 'Project name updated.')"
+    >
+      <label
+        >Project name<input v-model="projectName" minlength="2" maxlength="150" required
+      /></label>
+      <button class="secondary-button" type="submit">Rename project</button>
+    </form>
+  </PermissionNotice>
 
   <ResourceState :state="administrationState" @retry="workspace.loadAdministration()">
     <div class="admin-grid">
@@ -494,15 +550,52 @@ Promise.all([workspace.loadAdministration(), workspace.loadRepositories()])
             <article v-for="component in components" :key="component.id">
               <code>{{ ComponentScopeKind[component.scope] }}</code
               ><span>{{ component.name }}</span
-              ><small
-                >{{
-                  repositories.find((repository) => repository.id === component.repositoryId)
-                    ?.name || component.repositoryId
-                }}
-                · {{ component.rootPath || 'repository root' }}</small
-              >
+              ><span>
+                <small
+                  >{{
+                    repositories.find((repository) => repository.id === component.repositoryId)
+                      ?.name || component.repositoryId
+                  }}
+                  · {{ component.rootPath || 'repository root' }}</small
+                >
+                <span class="lifecycle-actions">
+                  <button
+                    v-if="workspace.hasPermission('component.update')"
+                    class="secondary-button"
+                    type="button"
+                    @click="startComponentEdit(component)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    v-if="workspace.hasPermission('component.delete')"
+                    class="danger-button"
+                    type="button"
+                    @click="deleteComponent(component)"
+                  >
+                    Delete
+                  </button>
+                </span>
+              </span>
             </article>
           </div>
+          <form v-if="editingComponentId" class="resource-editor" @submit.prevent="saveComponent">
+            <label>Name<input v-model="editingComponentName" required maxlength="150" /></label>
+            <label
+              >Scope<select v-model="editingComponentScope">
+                <option v-for="scope in componentOptions" :key="scope" :value="scope">
+                  {{ ComponentScopeKind[scope] }}
+                </option>
+              </select></label
+            >
+            <label>Root path<input v-model="editingComponentRootPath" /></label>
+            <span class="lifecycle-actions">
+              <button class="primary-button" type="submit">Save component</button>
+              <button class="secondary-button" type="button" @click="editingComponentId = ''">
+                Cancel
+              </button>
+            </span>
+          </form>
         </section>
       </PermissionNotice>
 

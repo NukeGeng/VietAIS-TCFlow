@@ -8,6 +8,8 @@ import {
   AuthoritySourceKind,
   ComponentScopeKind,
   ConventionProfileStatus,
+  RepositoryLifecycleStatus,
+  RepositoryProviderKind,
   TaskLifecycleStatus,
 } from '../types/contracts'
 import { page, taskFixture } from './fixtures'
@@ -170,5 +172,130 @@ describe('workspace store', () => {
     expect(tcflowApi.features).toHaveBeenCalledWith(projectId, undefined)
     expect(workspace.features).toEqual([feature])
     expect(workspace.featuresState.status).toBe('ready')
+  })
+
+  it('persists project resource lifecycle mutations and reloads backend state', async () => {
+    setActivePinia(createPinia())
+    const projectId = '20000000-0000-0000-0000-000000000001'
+    const actorId = '30000000-0000-0000-0000-000000000001'
+    const now = '2026-08-23T00:00:00Z'
+    const project = { id: projectId, name: 'TCFlow', primaryOwnerId: actorId, createdAt: now }
+    const repository = {
+      id: '40000000-0000-0000-0000-000000000001',
+      projectId,
+      name: 'Backend',
+      provider: RepositoryProviderKind.Local,
+      localPath: '/workspace/backend',
+      defaultBranch: 'main',
+      status: RepositoryLifecycleStatus.Active,
+      createdAt: now,
+      createdBy: actorId,
+    }
+    const updatedRepository = { ...repository, name: 'Backend API', defaultBranch: 'develop' }
+    const disabledRepository = {
+      ...updatedRepository,
+      status: RepositoryLifecycleStatus.Disabled,
+    }
+    const feature = {
+      id: '50000000-0000-0000-0000-000000000001',
+      projectId,
+      name: 'Analysis',
+      createdAt: now,
+      createdBy: actorId,
+    }
+    const updatedFeature = { ...feature, name: 'Repository analysis' }
+    const component = {
+      id: '60000000-0000-0000-0000-000000000001',
+      projectId,
+      repositoryId: repository.id,
+      name: 'API',
+      scope: ComponentScopeKind.Backend,
+      rootPath: 'src/api',
+      createdAt: now,
+      createdBy: actorId,
+    }
+    const updatedComponent = { ...component, name: 'Repository API' }
+    vi.spyOn(tcflowApi, 'updateProject').mockResolvedValue({ ...project, name: 'TCFlow Planner' })
+    const updateRepository = vi
+      .spyOn(tcflowApi, 'updateRepository')
+      .mockResolvedValue(updatedRepository)
+    const disableRepository = vi
+      .spyOn(tcflowApi, 'disableRepository')
+      .mockResolvedValue(disabledRepository)
+    vi.spyOn(tcflowApi, 'repositories')
+      .mockResolvedValueOnce(page([updatedRepository]))
+      .mockResolvedValueOnce(page([disabledRepository]))
+    const updateFeature = vi.spyOn(tcflowApi, 'updateFeature').mockResolvedValue(updatedFeature)
+    const deleteFeature = vi.spyOn(tcflowApi, 'deleteFeature').mockResolvedValue()
+    vi.spyOn(tcflowApi, 'features')
+      .mockResolvedValueOnce(page([updatedFeature]))
+      .mockResolvedValueOnce(page([]))
+    const updateComponent = vi
+      .spyOn(tcflowApi, 'updateComponent')
+      .mockResolvedValue(updatedComponent)
+    const deleteComponent = vi.spyOn(tcflowApi, 'deleteComponent').mockResolvedValue()
+    vi.spyOn(tcflowApi, 'components')
+      .mockResolvedValueOnce(page([component]))
+      .mockResolvedValueOnce(page([updatedComponent]))
+      .mockResolvedValueOnce(page([]))
+
+    const workspace = useWorkspaceStore()
+    workspace.projects = [project]
+    workspace.selectProject(projectId)
+    workspace.effectivePermissions = {
+      projectId,
+      userId: actorId,
+      grants: [
+        {
+          permissionCode: 'component.view',
+          roleId: '70000000-0000-0000-0000-000000000001',
+          roleName: 'Owner',
+          resourceScope: 1,
+          componentScopes: [],
+        },
+      ],
+    }
+
+    await workspace.updateProject('TCFlow Planner')
+    await workspace.updateRepository(repository.id, {
+      name: updatedRepository.name,
+      localPath: updatedRepository.localPath,
+      defaultBranch: updatedRepository.defaultBranch,
+      status: updatedRepository.status,
+    })
+    await workspace.disableRepository(repository.id)
+    await workspace.updateFeature(feature.id, updatedFeature.name)
+    await workspace.deleteFeature(feature.id)
+    await workspace.updateComponent(component.id, {
+      name: updatedComponent.name,
+      scope: updatedComponent.scope,
+      rootPath: updatedComponent.rootPath,
+    })
+    await workspace.deleteComponent(component.id)
+
+    expect(workspace.projects[0]?.name).toBe('TCFlow Planner')
+    expect(updateRepository).toHaveBeenCalledWith(projectId, repository.id, {
+      name: updatedRepository.name,
+      localPath: updatedRepository.localPath,
+      defaultBranch: updatedRepository.defaultBranch,
+      status: updatedRepository.status,
+    })
+    expect(disableRepository).toHaveBeenCalledWith(projectId, repository.id)
+    expect(workspace.repositories[0]?.status).toBe(RepositoryLifecycleStatus.Disabled)
+    expect(updateFeature).toHaveBeenCalledWith(
+      projectId,
+      feature.id,
+      updatedFeature.name,
+      undefined,
+    )
+    expect(deleteFeature).toHaveBeenCalledWith(projectId, feature.id)
+    expect(workspace.features).toEqual([])
+    expect(updateComponent).toHaveBeenCalledWith(projectId, component.id, {
+      name: updatedComponent.name,
+      scope: updatedComponent.scope,
+      rootPath: updatedComponent.rootPath,
+    })
+    expect(deleteComponent).toHaveBeenCalledWith(projectId, component.id)
+    expect(workspace.components).toEqual([])
   })
 })

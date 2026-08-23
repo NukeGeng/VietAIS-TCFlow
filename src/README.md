@@ -104,6 +104,7 @@ The version 1 endpoints are:
 | `DELETE` | `/api/v1/projects/{projectId}/members/{memberId}` | `member.remove`; primary owner excluded |
 | `GET` | `/api/v1/projects/{projectId}/members/{memberId}/effective-permissions` | `role.view` |
 | `PUT` | `/api/v1/projects/{projectId}/ai-policy` | `ai.policy.update` |
+| `GET` | `/api/v1/projects/{projectId}/ai-policy` | `ai.policy.update` |
 | `GET` | `/api/v1/projects/{projectId}/authority-policy` | `authority.view` |
 | `PUT` | `/api/v1/projects/{projectId}/authority-policy` | `authority.update` |
 | `GET` | `/api/v1/projects/{projectId}/convention-profile` | `convention.view` |

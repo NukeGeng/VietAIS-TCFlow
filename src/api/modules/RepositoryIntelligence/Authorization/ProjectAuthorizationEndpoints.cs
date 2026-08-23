@@ -113,6 +113,14 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .MapToApiVersion(new ApiVersion(1, 0));
 
+        projects.MapGet("ai-policy", GetAiPolicy)
+            .WithName(nameof(GetAiPolicy))
+            .Produces<AiPermissionPolicy>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
         projects.MapPost("ownership-transfers", TransferOwnership)
             .WithName(nameof(TransferOwnership))
             .Produces<Project>()
@@ -267,6 +275,15 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
                 projectId,
                 request.TrustLevel,
                 request.AllowedPermissions),
+            cancellationToken));
+
+    private static async Task<IResult> GetAiPolicy(
+        Guid projectId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new GetAiPermissionPolicyQuery(GetActorId(httpContext), projectId),
             cancellationToken));
 
     private static async Task<IResult> TransferOwnership(

@@ -146,6 +146,12 @@ public sealed class ProjectAdministrationIntegrationTests
             TestContext.Current.CancellationToken);
         var onlyRole = Assert.Single(rolesAfterReload!);
         Assert.True(onlyRole.IsOwner);
+        var aiPolicy = await client.GetFromJsonAsync<AiPermissionPolicy>(
+            $"api/v1/projects/{project.Id}/ai-policy",
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(aiPolicy);
+        Assert.Equal(AiTrustLevel.SuggestOnly, aiPolicy.TrustLevel);
+        Assert.Contains(ProjectPermissionCodes.AiTaskSuggest, aiPolicy.AllowedPermissions);
 
         var components = await client.GetFromJsonAsync<PagedList<ProjectComponent>>(
             $"api/v1/projects/{project.Id}/components?pageNumber=1&pageSize=20&repositoryId={repository.Id}",

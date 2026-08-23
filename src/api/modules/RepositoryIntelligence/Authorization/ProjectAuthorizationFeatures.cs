@@ -57,6 +57,9 @@ public sealed record UpdateAiPermissionPolicyCommand(
     string[] AllowedPermissions)
     : IRequest<AiPermissionPolicy>;
 
+public sealed record GetAiPermissionPolicyQuery(Guid ActorId, Guid ProjectId)
+    : IRequest<AiPermissionPolicy>;
+
 public sealed record TransferProjectOwnershipCommand(
     Guid ActorId,
     Guid ProjectId,
@@ -569,6 +572,26 @@ public sealed class UpdateAiPermissionPolicyHandler(
         session.Store(audit);
         await session.SaveChangesAsync(cancellationToken);
         return updated;
+    }
+}
+
+public sealed class GetAiPermissionPolicyHandler(
+    IQuerySession session,
+    IProjectPermissionEvaluator evaluator)
+    : IRequestHandler<GetAiPermissionPolicyQuery, AiPermissionPolicy>
+{
+    public async Task<AiPermissionPolicy> Handle(
+        GetAiPermissionPolicyQuery request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.AiPolicyUpdate,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+
+        return await session.LoadAsync<AiPermissionPolicy>(request.ProjectId, cancellationToken)
+            ?? throw new NotFoundException("AI permission policy not found.");
     }
 }
 

@@ -25,6 +25,23 @@ public sealed record SearchProjectRepositoriesQuery(
     RepositoryLifecycleStatus? Status)
     : IRequest<PagedList<ProjectRepository>>;
 
+public sealed record UpdateProjectRepositoryCommand(
+    Guid ActorId,
+    Guid ProjectId,
+    Guid RepositoryId,
+    string Name,
+    string? LocalPath,
+    string? RemoteUrl,
+    string DefaultBranch,
+    RepositoryLifecycleStatus Status)
+    : IRequest<ProjectRepository>;
+
+public sealed record DisableProjectRepositoryCommand(
+    Guid ActorId,
+    Guid ProjectId,
+    Guid RepositoryId)
+    : IRequest<ProjectRepository>;
+
 public sealed record CreateProjectComponentCommand(
     Guid ActorId,
     Guid ProjectId,
@@ -33,6 +50,21 @@ public sealed record CreateProjectComponentCommand(
     ComponentScopeKind Scope,
     string? RootPath)
     : IRequest<ProjectComponent>;
+
+public sealed record UpdateProjectComponentCommand(
+    Guid ActorId,
+    Guid ProjectId,
+    Guid ComponentId,
+    string Name,
+    ComponentScopeKind Scope,
+    string? RootPath)
+    : IRequest<ProjectComponent>;
+
+public sealed record DeleteProjectComponentCommand(
+    Guid ActorId,
+    Guid ProjectId,
+    Guid ComponentId)
+    : IRequest;
 
 public sealed record SearchProjectComponentsQuery(
     Guid ActorId,
@@ -50,6 +82,20 @@ public sealed record CreateProjectFeatureCommand(
     string Name,
     string? Description)
     : IRequest<ProjectFeature>;
+
+public sealed record UpdateProjectFeatureCommand(
+    Guid ActorId,
+    Guid ProjectId,
+    Guid FeatureId,
+    string Name,
+    string? Description)
+    : IRequest<ProjectFeature>;
+
+public sealed record DeleteProjectFeatureCommand(
+    Guid ActorId,
+    Guid ProjectId,
+    Guid FeatureId)
+    : IRequest;
 
 public sealed record SearchProjectFeaturesQuery(
     Guid ActorId,
@@ -117,7 +163,7 @@ public sealed class CreateProjectRepositoryHandler(
         return repository;
     }
 
-    private static void ValidateLocation(
+    internal static void ValidateLocation(
         RepositoryProviderKind provider,
         string? localPath,
         string? remoteUrl)
@@ -155,8 +201,171 @@ public sealed class CreateProjectRepositoryHandler(
         return normalized;
     }
 
-    private static string? Normalize(string? value) =>
+    internal static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
+
+public sealed class UpdateProjectRepositoryHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<UpdateProjectRepositoryCommand, ProjectRepository>
+{
+    public async Task<ProjectRepository> Handle(
+        UpdateProjectRepositoryCommand request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.RepositoryUpdate,
+            new AuthorizationResourceContext(request.ProjectId, request.RepositoryId),
+            cancellationToken);
+        var current = await FindRepository(session, request.ProjectId, request.RepositoryId, cancellationToken);
+        if (!Enum.IsDefined(request.Status))
+        {
+            throw new ProjectManagementValidationException("Repository status is invalid.");
+        }
+
+        if (request.Status == RepositoryLifecycleStatus.Disabled &&
+            current.Status != RepositoryLifecycleStatus.Disabled)
+        {
+            throw new ProjectManagementValidationException(
+                "Use the repository delete operation to disable a repository.");
+        }
+
+        if (current.Status == RepositoryLifecycleStatus.Disabled &&
+            request.Status != RepositoryLifecycleStatus.Disabled)
+        {
+            throw new ProjectManagementValidationException(
+                "A disabled repository cannot be reactivated through the update operation.");
+        }
+
+        var name = CreateProjectRepositoryHandler.ValidateName(request.Name, "Repository");
+        var branch = CreateProjectRepositoryHandler.ValidateName(request.DefaultBranch, "Default branch");
+        CreateProjectRepositoryHandler.ValidateLocation(
+            current.Provider,
+            request.LocalPath,
+            request.RemoteUrl);
+        var duplicate = await session.Query<ProjectRepository>().AnyAsync(
+            repository => repository.ProjectId == request.ProjectId &&
+                repository.Id != request.RepositoryId &&
+                repository.Name == name,
+            cancellationToken);
+        if (duplicate)
+        {
+            throw new ProjectManagementValidationException(
+                "A repository with the same name already exists in this project.");
+        }
+
+        var updated = current with
+        {
+            Name = name,
+            LocalPath = CreateProjectRepositoryHandler.Normalize(request.LocalPath),
+            RemoteUrl = CreateProjectRepositoryHandler.Normalize(request.RemoteUrl),
+            DefaultBranch = branch,
+            Status = request.Status
+        };
+        StoreMutation(session, request.ActorId, request.ProjectId, "repository.update", current, updated, timeProvider);
+        await session.SaveChangesAsync(cancellationToken);
+        return updated;
+    }
+
+    internal static async Task<ProjectRepository> FindRepository(
+        IQuerySession session,
+        Guid projectId,
+        Guid repositoryId,
+        CancellationToken cancellationToken)
+    {
+        var repository = await session.LoadAsync<ProjectRepository>(repositoryId, cancellationToken);
+        return repository is not null && repository.ProjectId == projectId
+            ? repository
+            : throw new NotFoundException("Project repository not found.");
+    }
+
+    internal static void StoreMutation<T>(
+        IDocumentSession session,
+        Guid actorId,
+        Guid projectId,
+        string action,
+        T current,
+        T updated,
+        TimeProvider timeProvider)
+        where T : class
+    {
+        switch (updated)
+        {
+            case ProjectRepository repository:
+                session.Store(repository);
+                break;
+            case ProjectComponent component:
+                session.Store(component);
+                break;
+            case ProjectFeature feature:
+                session.Store(feature);
+                break;
+            default:
+                throw new InvalidOperationException("Unsupported resource mutation type.");
+        }
+
+        session.Store(AuditRecordFactory.Create(
+            projectId,
+            actorId,
+            "user",
+            action,
+            typeof(T).Name,
+            GetId(updated),
+            current,
+            updated,
+            timeProvider));
+    }
+
+    private static string GetId<T>(T value) =>
+        value switch
+        {
+            ProjectRepository repository => repository.Id.ToString(),
+            ProjectComponent component => component.Id.ToString(),
+            ProjectFeature feature => feature.Id.ToString(),
+            _ => throw new InvalidOperationException("Unsupported resource mutation type.")
+        };
+}
+
+public sealed class DisableProjectRepositoryHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<DisableProjectRepositoryCommand, ProjectRepository>
+{
+    public async Task<ProjectRepository> Handle(
+        DisableProjectRepositoryCommand request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.RepositoryDelete,
+            new AuthorizationResourceContext(request.ProjectId, request.RepositoryId),
+            cancellationToken);
+        var current = await UpdateProjectRepositoryHandler.FindRepository(
+            session,
+            request.ProjectId,
+            request.RepositoryId,
+            cancellationToken);
+        if (current.Status == RepositoryLifecycleStatus.Disabled)
+        {
+            return current;
+        }
+
+        var updated = current with { Status = RepositoryLifecycleStatus.Disabled };
+        UpdateProjectRepositoryHandler.StoreMutation(
+            session,
+            request.ActorId,
+            request.ProjectId,
+            "repository.disable",
+            current,
+            updated,
+            timeProvider);
+        await session.SaveChangesAsync(cancellationToken);
+        return updated;
+    }
 }
 
 public sealed class SearchProjectRepositoriesHandler(
@@ -367,6 +576,222 @@ public sealed class CreateProjectFeatureHandler(
         session.Store(audit);
         await session.SaveChangesAsync(cancellationToken);
         return feature;
+    }
+}
+
+public sealed class UpdateProjectComponentHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<UpdateProjectComponentCommand, ProjectComponent>
+{
+    public async Task<ProjectComponent> Handle(
+        UpdateProjectComponentCommand request,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionExistsAsync(
+            evaluator,
+            request.ActorId,
+            request.ProjectId,
+            ProjectPermissionCodes.ComponentUpdate,
+            cancellationToken);
+        var current = await FindComponent(session, request.ProjectId, request.ComponentId, cancellationToken);
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.ComponentUpdate,
+            new AuthorizationResourceContext(request.ProjectId, current.RepositoryId, current.Scope),
+            cancellationToken);
+        if (current.Scope != request.Scope)
+        {
+            await evaluator.EnsureAuthorizedAsync(
+                request.ActorId,
+                ProjectPermissionCodes.ComponentUpdate,
+                new AuthorizationResourceContext(request.ProjectId, current.RepositoryId, request.Scope),
+                cancellationToken);
+        }
+
+        var updated = current with
+        {
+            Name = CreateProjectRepositoryHandler.ValidateName(request.Name, "Component name"),
+            Scope = request.Scope,
+            RootPath = CreateProjectRepositoryHandler.Normalize(request.RootPath)
+        };
+        UpdateProjectRepositoryHandler.StoreMutation(
+            session,
+            request.ActorId,
+            request.ProjectId,
+            "component.update",
+            current,
+            updated,
+            timeProvider);
+        await session.SaveChangesAsync(cancellationToken);
+        return updated;
+    }
+
+    internal static async Task<ProjectComponent> FindComponent(
+        IQuerySession session,
+        Guid projectId,
+        Guid componentId,
+        CancellationToken cancellationToken)
+    {
+        var component = await session.LoadAsync<ProjectComponent>(componentId, cancellationToken);
+        return component is not null && component.ProjectId == projectId
+            ? component
+            : throw new NotFoundException("Project component not found.");
+    }
+
+    internal static async Task EnsurePermissionExistsAsync(
+        IProjectPermissionEvaluator evaluator,
+        Guid actorId,
+        Guid projectId,
+        string permissionCode,
+        CancellationToken cancellationToken)
+    {
+        var grants = await evaluator.GetProjectPermissionGrantsAsync(actorId, projectId, cancellationToken);
+        if (!grants.Any(grant => grant.PermissionCode == permissionCode))
+        {
+            throw new ForbiddenException(
+                $"Permission '{permissionCode}' is not granted for the requested project scope.");
+        }
+    }
+}
+
+public sealed class DeleteProjectComponentHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<DeleteProjectComponentCommand>
+{
+    public async Task Handle(DeleteProjectComponentCommand request, CancellationToken cancellationToken)
+    {
+        await UpdateProjectComponentHandler.EnsurePermissionExistsAsync(
+            evaluator,
+            request.ActorId,
+            request.ProjectId,
+            ProjectPermissionCodes.ComponentDelete,
+            cancellationToken);
+        var component = await UpdateProjectComponentHandler.FindComponent(
+            session,
+            request.ProjectId,
+            request.ComponentId,
+            cancellationToken);
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.ComponentDelete,
+            new AuthorizationResourceContext(request.ProjectId, component.RepositoryId, component.Scope),
+            cancellationToken);
+        var referencedByTask = await session.Query<EngineeringTask>().AnyAsync(
+            task => task.ProjectId == request.ProjectId && task.ComponentId == request.ComponentId,
+            cancellationToken);
+        var referencedByArtifact = await session.Query<SourceArtifact>().AnyAsync(
+            artifact => artifact.ProjectId == request.ProjectId &&
+                artifact.ComponentId == request.ComponentId,
+            cancellationToken);
+        if (referencedByTask || referencedByArtifact)
+        {
+            throw new ProjectManagementValidationException(
+                "A component referenced by engineering tasks or source artifacts cannot be deleted.");
+        }
+
+        session.Delete<ProjectComponent>(request.ComponentId);
+        session.Store(AuditRecordFactory.Create(
+            request.ProjectId,
+            request.ActorId,
+            "user",
+            "component.delete",
+            nameof(ProjectComponent),
+            request.ComponentId.ToString(),
+            component,
+            null,
+            timeProvider));
+        await session.SaveChangesAsync(cancellationToken);
+    }
+}
+
+public sealed class UpdateProjectFeatureHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<UpdateProjectFeatureCommand, ProjectFeature>
+{
+    public async Task<ProjectFeature> Handle(
+        UpdateProjectFeatureCommand request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.FeatureUpdate,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+        var current = await FindFeature(session, request.ProjectId, request.FeatureId, cancellationToken);
+        var updated = current with
+        {
+            Name = CreateProjectRepositoryHandler.ValidateName(request.Name, "Feature name"),
+            Description = CreateProjectRepositoryHandler.Normalize(request.Description)
+        };
+        UpdateProjectRepositoryHandler.StoreMutation(
+            session,
+            request.ActorId,
+            request.ProjectId,
+            "feature.update",
+            current,
+            updated,
+            timeProvider);
+        await session.SaveChangesAsync(cancellationToken);
+        return updated;
+    }
+
+    internal static async Task<ProjectFeature> FindFeature(
+        IQuerySession session,
+        Guid projectId,
+        Guid featureId,
+        CancellationToken cancellationToken)
+    {
+        var feature = await session.LoadAsync<ProjectFeature>(featureId, cancellationToken);
+        return feature is not null && feature.ProjectId == projectId
+            ? feature
+            : throw new NotFoundException("Project feature not found.");
+    }
+}
+
+public sealed class DeleteProjectFeatureHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<DeleteProjectFeatureCommand>
+{
+    public async Task Handle(DeleteProjectFeatureCommand request, CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.FeatureDelete,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+        var feature = await UpdateProjectFeatureHandler.FindFeature(
+            session,
+            request.ProjectId,
+            request.FeatureId,
+            cancellationToken);
+        if (await session.Query<EngineeringTask>().AnyAsync(
+            task => task.ProjectId == request.ProjectId && task.FeatureId == request.FeatureId,
+            cancellationToken))
+        {
+            throw new ProjectManagementValidationException(
+                "A feature referenced by engineering tasks cannot be deleted.");
+        }
+
+        session.Delete<ProjectFeature>(request.FeatureId);
+        session.Store(AuditRecordFactory.Create(
+            request.ProjectId,
+            request.ActorId,
+            "user",
+            "feature.delete",
+            nameof(ProjectFeature),
+            request.FeatureId.ToString(),
+            feature,
+            null,
+            timeProvider));
+        await session.SaveChangesAsync(cancellationToken);
     }
 }
 

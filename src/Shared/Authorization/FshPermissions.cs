@@ -57,6 +57,38 @@ public static class FshPermissions
 
         //audit
         new("View Audit Trails", FshActions.View, FshResources.AuditTrails),
+
+        //TCFlow platform administration
+        new(
+            "Manage TCFlow Users",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.UserManage),
+        new(
+            "Inspect TCFlow Projects",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.ProjectInspect),
+        new(
+            "Suspend TCFlow Projects",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.ProjectSuspend),
+        new(
+            "Manage TCFlow Permission Definitions",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.PermissionDefinitionManage),
+        new(
+            "View TCFlow System Audit",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.SystemAuditView),
     ];
 
     public static IReadOnlyList<FshPermission> All { get; } = new ReadOnlyCollection<FshPermission>(AllPermissions);
@@ -65,11 +97,26 @@ public static class FshPermissions
     public static IReadOnlyList<FshPermission> Basic { get; } = new ReadOnlyCollection<FshPermission>(AllPermissions.Where(p => p.IsBasic).ToArray());
 }
 
-public record FshPermission(string Description, string Action, string Resource, bool IsBasic = false, bool IsRoot = false)
+public record FshPermission(
+    string Description,
+    string Action,
+    string Resource,
+    bool IsBasic = false,
+    bool IsRoot = false,
+    string? NameOverride = null)
 {
-    public string Name => NameFor(Action, Resource);
+    public string Name => NameOverride ?? NameFor(Action, Resource);
     public static string NameFor(string action, string resource)
     {
         return $"Permissions.{resource}.{action}";
     }
+}
+
+public static class TcFlowSystemPermissions
+{
+    public const string UserManage = "user.manage";
+    public const string ProjectInspect = "project.inspect";
+    public const string ProjectSuspend = "project.suspend";
+    public const string PermissionDefinitionManage = "permission-definition.manage";
+    public const string SystemAuditView = "system-audit.view";
 }

@@ -19,6 +19,23 @@ The integrated baseline includes the FullStackHero backend, PostgreSQL, Redis,
 Marten document persistence, the Vue product workspace, and one .NET Aspire
 AppHost for local orchestration.
 
+## System administration contracts
+
+The root-tenant `Admin` role receives TCFlow's system permissions independently
+from project membership. System Admin access does not grant Project Owner access.
+
+- `GET /api/v1/system/projects` requires `project.inspect`.
+- `PUT /api/v1/system/projects/{projectId}/status` requires `project.suspend`
+  and accepts only `Active` or `Suspended`.
+- `GET /api/v1/system/permission-definitions` requires
+  `permission-definition.manage`.
+- `GET /api/v1/system/audit` requires `system-audit.view`.
+
+Suspending a project removes its project-scoped effective grants until a System
+Admin activates it again. Each lifecycle change records the System Admin actor,
+target, before state, and after state in the Marten audit store. User activation
+and suspension remains protected by `Permissions.Users.Update`.
+
 ## GitHub App for private repositories
 
 Create a GitHub App owned by the account or organization that will install it.

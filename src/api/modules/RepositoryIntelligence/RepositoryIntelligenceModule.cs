@@ -108,6 +108,7 @@ public static class RepositoryIntelligenceModule
             .UseLightweightSessions();
 
         builder.Services.AddScoped<IProjectPermissionEvaluator, ProjectPermissionEvaluator>();
+        builder.Services.AddScoped<ISystemPermissionEvaluator, SystemPermissionEvaluator>();
         builder.Services.AddOptions<GitHubAppOptions>()
             .BindConfiguration(GitHubAppOptions.SectionName);
         builder.Services.AddHttpClient<IGitHubAppClient, GitHubAppClient>();

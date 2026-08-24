@@ -57,6 +57,26 @@ public sealed class CreateProjectRepositoryHandler(
             new AuthorizationResourceContext(request.ProjectId),
             cancellationToken);
 
+        var platformPolicy = await session.LoadAsync<PlatformPolicy>(
+            SystemConfigurationIds.PlatformPolicy,
+            cancellationToken) ?? SystemConfigurationDefaults.Policy(timeProvider.GetUtcNow());
+        if (!platformPolicy.RepositoryConnectionsEnabled)
+        {
+            throw new ProjectManagementValidationException(
+                "Repository connections are disabled by the platform policy.");
+        }
+
+        var repositoryCount = await session.Query<ProjectRepository>()
+            .CountAsync(
+                repository => repository.ProjectId == request.ProjectId &&
+                    repository.Status != RepositoryLifecycleStatus.Disabled,
+                cancellationToken);
+        if (repositoryCount >= platformPolicy.MaximumRepositoriesPerProject)
+        {
+            throw new ProjectManagementValidationException(
+                $"The platform policy allows at most {platformPolicy.MaximumRepositoriesPerProject} repositories per project.");
+        }
+
         var name = ValidateName(request.Name, "Repository");
         var branch = ValidateName(request.DefaultBranch, "Default branch");
         ValidateLocation(request.Provider, request.LocalPath, request.RemoteUrl);

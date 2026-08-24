@@ -37,6 +37,15 @@ public sealed class CreateProjectHandler(
         CreateProjectCommand request,
         CancellationToken cancellationToken)
     {
+        var platformPolicy = await session.LoadAsync<PlatformPolicy>(
+            SystemConfigurationIds.PlatformPolicy,
+            cancellationToken) ?? SystemConfigurationDefaults.Policy(timeProvider.GetUtcNow());
+        if (!platformPolicy.ProjectCreationEnabled)
+        {
+            throw new ProjectManagementValidationException(
+                "Project creation is disabled by the platform policy.");
+        }
+
         if (request.ActorId == Guid.Empty)
         {
             throw new ProjectManagementValidationException("Project owner identity is required.");

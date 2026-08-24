@@ -65,4 +65,8 @@ public static class SystemPermissionCodes
     public const string ProjectSuspend = TcFlowSystemPermissions.ProjectSuspend;
     public const string PermissionDefinitionManage = TcFlowSystemPermissions.PermissionDefinitionManage;
     public const string SystemAuditView = TcFlowSystemPermissions.SystemAuditView;
+    public const string AiProviderManage = TcFlowSystemPermissions.AiProviderManage;
+    public const string SystemSettingsManage = TcFlowSystemPermissions.SystemSettingsManage;
+    public const string PlatformPolicyManage = TcFlowSystemPermissions.PlatformPolicyManage;
+    public const string PlatformUsageView = TcFlowSystemPermissions.PlatformUsageView;
 }

@@ -31,6 +31,13 @@ from project membership. System Admin access does not grant Project Owner access
   `permission-definition.manage` and returns both FullStackHero identity
   permissions and TCFlow project/system definitions.
 - `GET /api/v1/system/audit` requires `system-audit.view`.
+- `GET/PUT /api/v1/system/ai-providers` requires `ai-provider.manage`; the
+  contract stores only Codex availability, display name, and optional model,
+  never account credentials.
+- `GET/PUT /api/v1/system/settings` requires `system-settings.manage`.
+- `GET/PUT /api/v1/system/policies` requires `platform-policy.manage`.
+- `GET /api/v1/system/usage` requires `platform-usage.view` and reports
+  persisted project, repository, task, AI-task, and audit counts.
 
 Suspending a project removes its project-scoped effective grants until a System
 Admin activates it again. Each lifecycle change records the System Admin actor,
@@ -39,6 +46,12 @@ and suspension remains protected by `Permissions.Users.Update`.
 Assigning platform roles to a user requires `Permissions.UserRoles.Update`.
 Built-in `Admin` and `Basic` roles cannot be renamed, deleted, or have their
 permission claims changed.
+
+Global settings, AI provider configuration, and platform policies are
+optimistically-concurrent Marten documents. Their successful mutations record
+system-wide audit entries with no project scope. Platform policy disables are
+enforced by backend project/repository creation handlers, including the
+configured repository-per-project limit.
 
 ## GitHub App for private repositories
 

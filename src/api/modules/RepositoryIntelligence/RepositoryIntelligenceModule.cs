@@ -41,6 +41,12 @@ public static class RepositoryIntelligenceModule
                     .Index(record => record.ProjectId);
                 options.Schema.For<ProjectState>()
                     .UseOptimisticConcurrency(true);
+                options.Schema.For<GlobalAiProviderConfiguration>()
+                    .UseOptimisticConcurrency(true);
+                options.Schema.For<GlobalSystemSettings>()
+                    .UseOptimisticConcurrency(true);
+                options.Schema.For<PlatformPolicy>()
+                    .UseOptimisticConcurrency(true);
                 options.Schema.For<AuthorityPolicy>()
                     .UseOptimisticConcurrency(true);
                 options.Schema.For<ConventionProfile>()

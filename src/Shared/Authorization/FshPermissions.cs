@@ -89,6 +89,30 @@ public static class FshPermissions
             string.Empty,
             IsRoot: true,
             NameOverride: TcFlowSystemPermissions.SystemAuditView),
+        new(
+            "Manage TCFlow AI Providers",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.AiProviderManage),
+        new(
+            "Manage TCFlow System Settings",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.SystemSettingsManage),
+        new(
+            "Manage TCFlow Platform Policies",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.PlatformPolicyManage),
+        new(
+            "View TCFlow Platform Usage",
+            string.Empty,
+            string.Empty,
+            IsRoot: true,
+            NameOverride: TcFlowSystemPermissions.PlatformUsageView),
     ];
 
     public static IReadOnlyList<FshPermission> All { get; } = new ReadOnlyCollection<FshPermission>(AllPermissions);
@@ -119,4 +143,8 @@ public static class TcFlowSystemPermissions
     public const string ProjectSuspend = "project.suspend";
     public const string PermissionDefinitionManage = "permission-definition.manage";
     public const string SystemAuditView = "system-audit.view";
+    public const string AiProviderManage = "ai-provider.manage";
+    public const string SystemSettingsManage = "system-settings.manage";
+    public const string PlatformPolicyManage = "platform-policy.manage";
+    public const string PlatformUsageView = "platform-usage.view";
 }

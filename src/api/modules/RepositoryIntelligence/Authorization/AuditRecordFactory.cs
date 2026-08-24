@@ -7,7 +7,7 @@ internal static class AuditRecordFactory
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
 
     public static AuditRecord Create(
-        Guid projectId,
+        Guid? projectId,
         Guid actorId,
         string actorType,
         string action,

@@ -65,6 +65,49 @@ export interface SystemPermissionDefinition {
   scope: number
 }
 
+export enum GlobalAiProviderKind {
+  CodexAppServer = 0,
+}
+
+export interface GlobalAiProviderConfiguration {
+  id: string
+  kind: GlobalAiProviderKind
+  displayName: string
+  isEnabled: boolean
+  model?: string
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface GlobalSystemSettings {
+  id: string
+  platformName: string
+  defaultTimeZone: string
+  supportUrl?: string
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface PlatformPolicy {
+  id: string
+  projectCreationEnabled: boolean
+  repositoryConnectionsEnabled: boolean
+  maximumRepositoriesPerProject: number
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface SystemUsageSummary {
+  projects: number
+  activeProjects: number
+  suspendedProjects: number
+  repositories: number
+  activeRepositories: number
+  tasks: number
+  aiGeneratedTasks: number
+  auditRecords: number
+}
+
 export interface SystemRole {
   id: string
   name: string

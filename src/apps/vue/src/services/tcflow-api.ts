@@ -11,6 +11,8 @@ import type {
   GitHubConnectionResult,
   GitHubInstallationStart,
   GitHubRepositorySummary,
+  GlobalAiProviderConfiguration,
+  GlobalSystemSettings,
   PagedList,
   PermissionDefinition,
   Project,
@@ -18,9 +20,11 @@ import type {
   ProjectFeature,
   ProjectRepository,
   ProjectRole,
+  PlatformPolicy,
   SystemPermissionDefinition,
   SystemProjectSummary,
   SystemRole,
+  SystemUsageSummary,
   TaskEvidence,
   TaskReview,
   TaskVersion,
@@ -152,6 +156,57 @@ export const tcflowApi = {
     return apiRequest<PagedList<AuditRecord>>(
       `/api/v1/system/audit${queryString({ pageNumber: 1, pageSize: 100, projectId, action })}`,
     )
+  },
+
+  systemAiProviders(): Promise<GlobalAiProviderConfiguration[]> {
+    return apiRequest<GlobalAiProviderConfiguration[]>('/api/v1/system/ai-providers')
+  },
+
+  updateSystemAiProvider(
+    provider: GlobalAiProviderConfiguration,
+  ): Promise<GlobalAiProviderConfiguration> {
+    return apiRequest<GlobalAiProviderConfiguration>(`/api/v1/system/ai-providers/${provider.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        displayName: provider.displayName,
+        isEnabled: provider.isEnabled,
+        model: provider.model || null,
+      }),
+    })
+  },
+
+  globalSystemSettings(): Promise<GlobalSystemSettings> {
+    return apiRequest<GlobalSystemSettings>('/api/v1/system/settings')
+  },
+
+  updateGlobalSystemSettings(settings: GlobalSystemSettings): Promise<GlobalSystemSettings> {
+    return apiRequest<GlobalSystemSettings>('/api/v1/system/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        platformName: settings.platformName,
+        defaultTimeZone: settings.defaultTimeZone,
+        supportUrl: settings.supportUrl || null,
+      }),
+    })
+  },
+
+  platformPolicy(): Promise<PlatformPolicy> {
+    return apiRequest<PlatformPolicy>('/api/v1/system/policies')
+  },
+
+  updatePlatformPolicy(policy: PlatformPolicy): Promise<PlatformPolicy> {
+    return apiRequest<PlatformPolicy>('/api/v1/system/policies', {
+      method: 'PUT',
+      body: JSON.stringify({
+        projectCreationEnabled: policy.projectCreationEnabled,
+        repositoryConnectionsEnabled: policy.repositoryConnectionsEnabled,
+        maximumRepositoriesPerProject: policy.maximumRepositoriesPerProject,
+      }),
+    })
+  },
+
+  systemUsage(): Promise<SystemUsageSummary> {
+    return apiRequest<SystemUsageSummary>('/api/v1/system/usage')
   },
 
   projects(keyword?: string): Promise<PagedList<Project>> {

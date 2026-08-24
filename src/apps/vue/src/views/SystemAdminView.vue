@@ -7,10 +7,14 @@ import { useSessionStore } from '../stores/session'
 import {
   ProjectLifecycleStatus,
   type AuditRecord,
+  type GlobalAiProviderConfiguration,
+  type GlobalSystemSettings,
+  type PlatformPolicy,
   type ResourceState as State,
   type SystemPermissionDefinition,
   type SystemProjectSummary,
   type SystemRole,
+  type SystemUsageSummary,
   type UserProfile,
   type UserRoleDetail,
 } from '../types/contracts'
@@ -22,6 +26,10 @@ const roles = ref<SystemRole[]>([])
 const permissionDefinitions = ref<SystemPermissionDefinition[]>([])
 const audit = ref<AuditRecord[]>([])
 const userRoles = ref<UserRoleDetail[]>([])
+const aiProviders = ref<GlobalAiProviderConfiguration[]>([])
+const globalSettings = ref<GlobalSystemSettings>()
+const platformPolicy = ref<PlatformPolicy>()
+const usage = ref<SystemUsageSummary>()
 
 const usersState = ref<State>({ status: 'idle' })
 const projectsState = ref<State>({ status: 'idle' })
@@ -29,6 +37,10 @@ const rolesState = ref<State>({ status: 'idle' })
 const definitionsState = ref<State>({ status: 'idle' })
 const auditState = ref<State>({ status: 'idle' })
 const userRolesState = ref<State>({ status: 'idle' })
+const aiProvidersState = ref<State>({ status: 'idle' })
+const settingsState = ref<State>({ status: 'idle' })
+const policyState = ref<State>({ status: 'idle' })
+const usageState = ref<State>({ status: 'idle' })
 
 const selectedUserId = ref('')
 const selectedRoleId = ref('')
@@ -128,6 +140,62 @@ async function loadAudit(): Promise<void> {
   }
 }
 
+async function loadAiProviders(): Promise<void> {
+  if (!session.hasSystemPermission('ai-provider.manage')) {
+    aiProvidersState.value = forbidden('ai-provider.manage')
+    return
+  }
+  aiProvidersState.value = { status: 'loading' }
+  try {
+    aiProviders.value = await tcflowApi.systemAiProviders()
+    aiProvidersState.value = { status: aiProviders.value.length ? 'ready' : 'empty' }
+  } catch (error) {
+    aiProvidersState.value = errorState(error, 'Unable to load global AI providers.')
+  }
+}
+
+async function loadGlobalSettings(): Promise<void> {
+  if (!session.hasSystemPermission('system-settings.manage')) {
+    settingsState.value = forbidden('system-settings.manage')
+    return
+  }
+  settingsState.value = { status: 'loading' }
+  try {
+    globalSettings.value = await tcflowApi.globalSystemSettings()
+    settingsState.value = { status: 'ready' }
+  } catch (error) {
+    settingsState.value = errorState(error, 'Unable to load global settings.')
+  }
+}
+
+async function loadPlatformPolicy(): Promise<void> {
+  if (!session.hasSystemPermission('platform-policy.manage')) {
+    policyState.value = forbidden('platform-policy.manage')
+    return
+  }
+  policyState.value = { status: 'loading' }
+  try {
+    platformPolicy.value = await tcflowApi.platformPolicy()
+    policyState.value = { status: 'ready' }
+  } catch (error) {
+    policyState.value = errorState(error, 'Unable to load platform policies.')
+  }
+}
+
+async function loadUsage(): Promise<void> {
+  if (!session.hasSystemPermission('platform-usage.view')) {
+    usageState.value = forbidden('platform-usage.view')
+    return
+  }
+  usageState.value = { status: 'loading' }
+  try {
+    usage.value = await tcflowApi.systemUsage()
+    usageState.value = { status: 'ready' }
+  } catch (error) {
+    usageState.value = errorState(error, 'Unable to load platform usage.')
+  }
+}
+
 async function loadUserRoles(): Promise<void> {
   if (!selectedUserId.value) {
     userRoles.value = []
@@ -222,9 +290,42 @@ async function saveUserRoles(): Promise<void> {
   }, 'Platform roles assigned to user.')
 }
 
+async function saveAiProvider(provider: GlobalAiProviderConfiguration): Promise<void> {
+  await run(async () => {
+    await tcflowApi.updateSystemAiProvider(provider)
+    await Promise.all([loadAiProviders(), loadAudit()])
+  }, 'Global AI provider updated and audited.')
+}
+
+async function saveGlobalSettings(): Promise<void> {
+  if (!globalSettings.value) return
+  await run(async () => {
+    globalSettings.value = await tcflowApi.updateGlobalSystemSettings(globalSettings.value!)
+    await loadAudit()
+  }, 'Global settings updated and audited.')
+}
+
+async function savePlatformPolicy(): Promise<void> {
+  if (!platformPolicy.value) return
+  await run(async () => {
+    platformPolicy.value = await tcflowApi.updatePlatformPolicy(platformPolicy.value!)
+    await loadAudit()
+  }, 'Platform policies updated and audited.')
+}
+
 watch(selectedUserId, loadUserRoles)
 watch(selectedRoleId, loadSelectedRole)
-Promise.all([loadUsers(), loadProjects(), loadRoles(), loadDefinitions(), loadAudit()])
+Promise.all([
+  loadUsers(),
+  loadProjects(),
+  loadRoles(),
+  loadDefinitions(),
+  loadAudit(),
+  loadAiProviders(),
+  loadGlobalSettings(),
+  loadPlatformPolicy(),
+  loadUsage(),
+])
 </script>
 
 <template>
@@ -432,6 +533,142 @@ Promise.all([loadUsers(), loadProjects(), loadRoles(), loadDefinitions(), loadAu
       </button>
     </form>
   </div>
+
+  <section class="panel">
+    <div class="section-heading section-heading--compact">
+      <div>
+        <span class="eyebrow">AI Providers</span>
+        <h2>Global AI configuration</h2>
+      </div>
+      <span class="count-badge">{{ aiProviders.length }}</span>
+    </div>
+    <ResourceState :state="aiProvidersState" empty-title="No AI providers" @retry="loadAiProviders">
+      <div class="admin-grid">
+        <form
+          v-for="provider in aiProviders"
+          :key="provider.id"
+          class="form-card"
+          @submit.prevent="saveAiProvider(provider)"
+        >
+          <span class="eyebrow">Codex App Server</span>
+          <h2>{{ provider.displayName }}</h2>
+          <label
+            >Display name<input v-model="provider.displayName" required maxlength="100"
+          /></label>
+          <label
+            >Model override<input
+              v-model="provider.model"
+              maxlength="100"
+              placeholder="Use managed-account default"
+          /></label>
+          <label class="check-row"
+            ><input v-model="provider.isEnabled" type="checkbox" />Available to project AI
+            policies</label
+          >
+          <button class="secondary-button" type="submit">Save AI provider</button>
+        </form>
+      </div>
+    </ResourceState>
+  </section>
+
+  <div class="admin-grid">
+    <section class="panel">
+      <div class="section-heading section-heading--compact">
+        <div>
+          <span class="eyebrow">Global Settings</span>
+          <h2>Platform identity</h2>
+        </div>
+      </div>
+      <ResourceState :state="settingsState" @retry="loadGlobalSettings">
+        <form v-if="globalSettings" class="form-card" @submit.prevent="saveGlobalSettings">
+          <label
+            >Platform name<input v-model="globalSettings.platformName" required maxlength="100"
+          /></label>
+          <label
+            >Default time zone<input
+              v-model="globalSettings.defaultTimeZone"
+              required
+              maxlength="100"
+              placeholder="UTC"
+          /></label>
+          <label
+            >Support URL<input
+              v-model="globalSettings.supportUrl"
+              type="url"
+              placeholder="https://support.example.com"
+          /></label>
+          <button class="secondary-button" type="submit">Save global settings</button>
+        </form>
+      </ResourceState>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading section-heading--compact">
+        <div>
+          <span class="eyebrow">Platform Policies</span>
+          <h2>Resource guardrails</h2>
+        </div>
+      </div>
+      <ResourceState :state="policyState" @retry="loadPlatformPolicy">
+        <form v-if="platformPolicy" class="form-card" @submit.prevent="savePlatformPolicy">
+          <label class="check-row"
+            ><input v-model="platformPolicy.projectCreationEnabled" type="checkbox" />Allow project
+            creation</label
+          >
+          <label class="check-row"
+            ><input v-model="platformPolicy.repositoryConnectionsEnabled" type="checkbox" />Allow
+            repository connections</label
+          >
+          <label
+            >Maximum repositories per project<input
+              v-model.number="platformPolicy.maximumRepositoriesPerProject"
+              type="number"
+              min="1"
+              max="100"
+              required
+          /></label>
+          <button class="secondary-button" type="submit">Save platform policies</button>
+        </form>
+      </ResourceState>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="section-heading section-heading--compact">
+      <div>
+        <span class="eyebrow">Usage</span>
+        <h2>Platform resource usage</h2>
+      </div>
+    </div>
+    <ResourceState :state="usageState" @retry="loadUsage">
+      <div v-if="usage" class="metric-grid" aria-label="Platform usage summary">
+        <article>
+          <span>Projects</span><strong>{{ usage.projects }}</strong>
+        </article>
+        <article>
+          <span>Active</span><strong>{{ usage.activeProjects }}</strong>
+        </article>
+        <article>
+          <span>Suspended</span><strong>{{ usage.suspendedProjects }}</strong>
+        </article>
+        <article>
+          <span>Repositories</span><strong>{{ usage.repositories }}</strong>
+        </article>
+        <article>
+          <span>Active repos</span><strong>{{ usage.activeRepositories }}</strong>
+        </article>
+        <article>
+          <span>Tasks</span><strong>{{ usage.tasks }}</strong>
+        </article>
+        <article>
+          <span>AI tasks</span><strong>{{ usage.aiGeneratedTasks }}</strong>
+        </article>
+        <article>
+          <span>Audit records</span><strong>{{ usage.auditRecords }}</strong>
+        </article>
+      </div>
+    </ResourceState>
+  </section>
 
   <section class="panel">
     <div class="section-heading section-heading--compact">

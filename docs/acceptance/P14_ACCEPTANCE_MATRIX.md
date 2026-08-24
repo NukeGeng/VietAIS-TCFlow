@@ -83,8 +83,9 @@ claims.
 | Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | Live stack health endpoint returned healthy on 2026-08-23 |
 | Private GitHub repository installation and initial scan | CONFIRMED (local runtime) | `NukeGeng/Portfolio` source revision was fetched; unsupported Next.js was correctly reported without invented facts |
 | Source-driven task completion verification | CONFIRMED (PR #50) | Deterministic evaluator passes locally; Marten integration coverage verifies AI policy, failed/inconclusive/passed outcomes, idempotency, evidence, versions, audit, and separation from human approval; rerun with Testcontainers after integration |
+| Codex managed-account App Server handshake | CONFIRMED (local runtime) | `codex login status` reports ChatGPT authentication and `ConfiguredCodexAppServerProcessCompletesManagedAccountHandshake` passes against the installed CLI |
 | Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change |
-| Live Codex managed-account reasoning worker | PROPOSED | `RepositoryReasoning.Enabled` is false in development defaults; enable only with managed account and explicit AI policy |
+| Live Codex structured reasoning turn | PROPOSED | Account/App Server handshake is confirmed, but `RepositoryReasoning.Enabled` remains false in development defaults; enable only with a supported repository and explicit AI policy |
 | Protected-branch integration | PROPOSED | Draft PRs #39–#50 require user review/authorization before merge |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and

@@ -32,8 +32,8 @@ from project membership. System Admin access does not grant Project Owner access
   permissions and TCFlow project/system definitions.
 - `GET /api/v1/system/audit` requires `system-audit.view`.
 - `GET/PUT /api/v1/system/ai-providers` requires `ai-provider.manage`; the
-  contract stores only Codex availability, display name, and optional model,
-  never account credentials.
+  contract stores only Codex availability and display name, never account
+  credentials.
 - `GET/PUT /api/v1/system/settings` requires `system-settings.manage`.
 - `GET/PUT /api/v1/system/policies` requires `platform-policy.manage`.
 - `GET /api/v1/system/usage` requires `platform-usage.view` and reports

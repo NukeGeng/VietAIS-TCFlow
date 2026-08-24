@@ -12,8 +12,7 @@ public sealed record UpdateGlobalAiProviderCommand(
     Guid ActorId,
     Guid ProviderId,
     string DisplayName,
-    bool IsEnabled,
-    string? Model)
+    bool IsEnabled)
     : IRequest<GlobalAiProviderConfiguration>;
 
 public sealed record GetGlobalSystemSettingsQuery(Guid ActorId)
@@ -90,7 +89,6 @@ public sealed class UpdateGlobalAiProviderHandler(
                 "AI provider display name",
                 100),
             IsEnabled = request.IsEnabled,
-            Model = SystemConfigurationValidation.Optional(request.Model, "AI provider model", 100),
             UpdatedAt = now,
             UpdatedBy = request.ActorId
         };

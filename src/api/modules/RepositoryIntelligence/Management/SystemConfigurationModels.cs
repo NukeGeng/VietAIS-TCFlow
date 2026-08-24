@@ -22,7 +22,6 @@ public sealed record GlobalAiProviderConfiguration(
     GlobalAiProviderKind Kind,
     string DisplayName,
     bool IsEnabled,
-    string? Model,
     DateTimeOffset UpdatedAt,
     Guid UpdatedBy);
 
@@ -62,7 +61,6 @@ internal static class SystemConfigurationDefaults
             GlobalAiProviderKind.CodexAppServer,
             "Codex App Server",
             IsEnabled: true,
-            Model: null,
             now,
             updatedBy);
 

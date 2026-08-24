@@ -172,8 +172,7 @@ public sealed class SystemAdministrationIntegrationTests
             $"api/v1/system/ai-providers/{provider.Id}",
             new UpdateGlobalAiProviderRequest(
                 "Managed Codex",
-                IsEnabled: false,
-                "gpt-5-codex"),
+                IsEnabled: false),
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, providerUpdateResponse.StatusCode);
         var updatedProvider = await providerUpdateResponse.Content
@@ -185,7 +184,7 @@ public sealed class SystemAdministrationIntegrationTests
 
         var unknownProviderResponse = await client.PutAsJsonAsync(
             $"api/v1/system/ai-providers/{Guid.NewGuid()}",
-            new UpdateGlobalAiProviderRequest("Unknown", true, null),
+            new UpdateGlobalAiProviderRequest("Unknown", true),
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, unknownProviderResponse.StatusCode);
 

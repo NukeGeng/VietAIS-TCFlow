@@ -77,16 +77,16 @@ claims.
 
 | Gate | Status | Evidence or remaining work |
 | --- | --- | --- |
-| Analyzer solution build/test | CONFIRMED (this branch) | Must remain green after final diff review |
-| Backend integration suite | CONFIRMED (feature branches) | PRs #40, #42, #44, and #46 report passing suites; rerun on integrated branch required |
-| Frontend typecheck/test/lint/build | CONFIRMED (feature branches) | PRs #41, #43, #45, and #47 report passing suites; rerun on integrated branch required |
+| Analyzer solution build/test | CONFIRMED (branch and CI baseline) | This branch builds locally; PR #49 GitHub Actions run `32678961896` restored, built, and tested the analyzer solution successfully |
+| Backend integration suite | CONFIRMED (feature branches and CI baseline) | PRs #40, #42, #44, and #46 report passing suites; PR #49 run `32678961896` built and tested the baseline solution successfully; rerun on the integrated branch remains required |
+| Frontend typecheck/test/lint/build | CONFIRMED (feature branches and CI baseline) | PRs #41, #43, #45, and #47 report passing suites; PR #49 run `32678961896` passed typecheck, unit tests, oxlint, ESLint, Prettier, and production build; rerun on the integrated branch remains required |
 | Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | Live stack health endpoint returned healthy on 2026-08-23 |
 | Private GitHub repository installation and initial scan | CONFIRMED (local runtime) | `NukeGeng/Portfolio` source revision was fetched; unsupported Next.js was correctly reported without invented facts |
 | Source-driven task completion verification | CONFIRMED (PR #50) | Deterministic evaluator passes locally; Marten integration coverage verifies AI policy, failed/inconclusive/passed outcomes, idempotency, evidence, versions, audit, and separation from human approval; rerun with Testcontainers after integration |
 | Codex managed-account App Server handshake | CONFIRMED (local runtime) | `codex login status` reports ChatGPT authentication and `ConfiguredCodexAppServerProcessCompletesManagedAccountHandshake` passes against the installed CLI |
 | Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change |
 | Live Codex structured reasoning turn | CONFIRMED (local runtime) | `ConfiguredCodexAppServerCompletesStructuredReasoningTurn` passed against Codex CLI 0.144.2 using the ChatGPT-managed account, strict JSON output, `:read-only` permissions, an isolated runtime root, and an empty evidence/artifact context; the test requires both `TCFLOW_CODEX_EXECUTABLE` and `TCFLOW_RUN_LIVE_CODEX=true`, so ordinary CI remains offline |
-| Protected-branch integration | PROPOSED | Draft PRs #39–#50 require user review/authorization before merge |
+| Protected-branch integration | PROPOSED | Active repository rulesets require pull requests and block deletion/non-fast-forward on `main`, `frontend`, `backend`, `mobile`, and `ai`; the `main` update restriction has only the NukeGeng user as bypass actor; Draft PRs #39–#50 still require user review/authorization before merge |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and
 branch-level evidence are present, but the supported live-repository

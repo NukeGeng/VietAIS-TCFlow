@@ -26,7 +26,7 @@ the merge/runtime gates at the end of this document pass.
 | 14 | Generate impact | CONFIRMED (ai) | `IncrementalMonitoringTests.ChangedPathIsReparsedWithoutDroppingUnchangedAnalyzerArtifactsAndQueuesTargetedReasoning` |
 | 15 | Generate or update task | CONFIRMED (branches) | `ReasoningAndReconciliationTests.ReconciliationCoversCanonicalCreateUpdateMergeCloseReopenAndIgnoreCases`; PR #40 `Deep_reasoning_projects_a_source_aware_suggestion_with_trace_and_audit` |
 | 16 | Trace task to source change | CONFIRMED (branches) | PR #40 `Deep_reasoning_projects_a_source_aware_suggestion_with_trace_and_audit`; `ReasoningAndReconciliationTests.MartenPersistsTaskVersionsAndAuditsWhileRejectingUnauthorizedClose` |
-| 17 | Reconcile subsequent changes | CONFIRMED (this branch) | P14 reconciliation metric; `IncrementalMonitoringTests.RevertIsDetectedAndDeepProcessorCreatesIgnoresThenClosesWithoutCallingAiForRevert` |
+| 17 | Reconcile subsequent changes | CONFIRMED (branches) | P14 reconciliation metric; `IncrementalMonitoringTests.RevertIsDetectedAndDeepProcessorCreatesIgnoresThenClosesWithoutCallingAiForRevert`; PR #50 source-driven completion verification |
 | 18 | Respect permission and component scope | CONFIRMED (backend branches) | PR #42 `ProjectAuthorizationIntegrationTests.Permission_engine_enforces_boundaries_traces_grants_and_audits_mutations`; `ProjectManagementIntegrationTests.Task_workflow_enforces_scope_preserves_trace_and_separates_ai_from_human_approval` |
 | 19 | Audit user and AI actions | CONFIRMED (branches) | `ReasoningAndReconciliationTests.MartenPersistsSuggestedTaskWithSuggestOnlyPolicyAndSuggestionAudit`; PR #42 authorization/governance audit tests |
 
@@ -82,9 +82,10 @@ claims.
 | Frontend typecheck/test/lint/build | CONFIRMED (feature branches) | PRs #41, #43, #45, and #47 report passing suites; rerun on integrated branch required |
 | Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | Live stack health endpoint returned healthy on 2026-08-23 |
 | Private GitHub repository installation and initial scan | CONFIRMED (local runtime) | `NukeGeng/Portfolio` source revision was fetched; unsupported Next.js was correctly reported without invented facts |
+| Source-driven task completion verification | CONFIRMED (PR #50) | Deterministic evaluator passes locally; Marten integration coverage verifies AI policy, failed/inconclusive/passed outcomes, idempotency, evidence, versions, audit, and separation from human approval; rerun with Testcontainers after integration |
 | Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change |
 | Live Codex managed-account reasoning worker | PROPOSED | `RepositoryReasoning.Enabled` is false in development defaults; enable only with managed account and explicit AI policy |
-| Protected-branch integration | PROPOSED | Draft PRs #39–#47 require user review/authorization before merge |
+| Protected-branch integration | PROPOSED | Draft PRs #39–#50 require user review/authorization before merge |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and
 branch-level evidence are present, but the supported live-repository reasoning

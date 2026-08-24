@@ -48,6 +48,12 @@ public static class RepositoryIntelligenceModule
                     .Index(record => record.ProjectId);
                 options.Schema.For<ProjectState>()
                     .UseOptimisticConcurrency(true);
+                options.Schema.For<GlobalAiProviderConfiguration>()
+                    .UseOptimisticConcurrency(true);
+                options.Schema.For<GlobalSystemSettings>()
+                    .UseOptimisticConcurrency(true);
+                options.Schema.For<PlatformPolicy>()
+                    .UseOptimisticConcurrency(true);
                 options.Schema.For<AuthorityPolicy>()
                     .UseOptimisticConcurrency(true);
                 options.Schema.For<ConventionProfile>()
@@ -136,6 +142,7 @@ public static class RepositoryIntelligenceModule
             .UseLightweightSessions();
 
         builder.Services.AddScoped<IProjectPermissionEvaluator, ProjectPermissionEvaluator>();
+        builder.Services.AddScoped<ISystemPermissionEvaluator, SystemPermissionEvaluator>();
         builder.Services.AddOptions<GitHubAppOptions>()
             .BindConfiguration(GitHubAppOptions.SectionName);
         builder.Services.AddHttpClient<IGitHubAppClient, GitHubAppClient>();

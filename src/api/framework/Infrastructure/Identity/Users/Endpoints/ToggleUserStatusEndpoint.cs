@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using FSH.Framework.Core.Identity.Users.Abstractions;
 using FSH.Framework.Core.Identity.Users.Features.ToggleUserStatus;
+using FSH.Framework.Infrastructure.Auth.Policy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +30,7 @@ public static class ToggleUserStatusEndpoint
         .WithName(nameof(ToggleUserStatusEndpoint))
         .WithSummary("Toggle a user's active status")
         .WithDescription("Toggle a user's active status")
-        .AllowAnonymous();
+        .RequirePermission("Permissions.Users.Update");
     }
 
 }

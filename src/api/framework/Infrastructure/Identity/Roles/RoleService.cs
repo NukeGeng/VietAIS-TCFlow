@@ -42,6 +42,7 @@ public class RoleService(RoleManager<FshRole> roleManager,
 
         if (role != null)
         {
+            EnsureMutable(role);
             role.Name = command.Name;
             role.Description = command.Description;
             await _roleManager.UpdateAsync(role);
@@ -60,6 +61,7 @@ public class RoleService(RoleManager<FshRole> roleManager,
         FshRole? role = await _roleManager.FindByIdAsync(id);
 
         _ = role ?? throw new NotFoundException("role not found");
+        EnsureMutable(role);
 
         await _roleManager.DeleteAsync(role);
     }
@@ -81,10 +83,7 @@ public class RoleService(RoleManager<FshRole> roleManager,
     {
         var role = await _roleManager.FindByIdAsync(request.RoleId);
         _ = role ?? throw new NotFoundException("role not found");
-        if (role.Name == FshRoles.Admin)
-        {
-            throw new FshException("operation not permitted");
-        }
+        EnsureMutable(role);
 
         if (multiTenantContextAccessor?.MultiTenantContext?.TenantInfo?.Id != TenantConstants.Root.Id)
         {
@@ -122,5 +121,13 @@ public class RoleService(RoleManager<FshRole> roleManager,
         }
 
         return "permissions updated";
+    }
+
+    private static void EnsureMutable(FshRole role)
+    {
+        if (role.Name is FshRoles.Admin or FshRoles.Basic)
+        {
+            throw new FshException("Built-in system roles cannot be modified or deleted.");
+        }
     }
 }

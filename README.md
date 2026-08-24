@@ -48,6 +48,16 @@ Technology-neutral analyzer contracts, deterministic analyzers,
 knowledge/governance engines, and bounded AI task reconciliation are documented
 in [`src/analyzers/README.md`](src/analyzers/README.md).
 
+## Source-driven task verification
+
+After a meaningful incremental repository change, TCFlow re-evaluates
+source-generated tasks that are in progress or ready for review. A remaining
+contract mismatch records failed verification with missing-requirement evidence;
+a resolved, still-matched contract records passed verification and moves an
+in-progress task to ready for review. Missing or ambiguous contract evidence is
+recorded as inconclusive. These mutations require the project AI policy to allow
+`ai.task.update`, are versioned and audited, and never grant human approval.
+
 ## Analyzer verification
 
 With the repository's .NET 9 SDK available:

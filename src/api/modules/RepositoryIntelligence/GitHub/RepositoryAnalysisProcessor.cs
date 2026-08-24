@@ -4,6 +4,7 @@ using VietAIS.TCFlow.Analyzers.Core;
 using VietAIS.TCFlow.Analyzers.Governance;
 using VietAIS.TCFlow.Analyzers.Knowledge;
 using VietAIS.TCFlow.Analyzers.Monitoring;
+using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
 using AnalyzerConventionKind = VietAIS.TCFlow.Analyzers.Governance.ConventionKind;
 using AnalyzerConventionProfile = VietAIS.TCFlow.Analyzers.Governance.RepositoryConventionProfile;
@@ -303,6 +304,20 @@ internal sealed class RepositoryAnalysisProcessor(
                     EvidenceLevel.Confirmed)]);
         }
 
+        var verification = RepositoryTaskVerificationBatch.Empty;
+        if (result.Status is not IncrementalMonitoringStatus.Ignored and not
+            IncrementalMonitoringStatus.Duplicate)
+        {
+            if (!Guid.TryParse(workItem.ProjectId, out var projectId) ||
+                !Guid.TryParse(workItem.RepositoryId, out var repositoryId))
+            {
+                throw new InvalidOperationException("Analysis verification identities are invalid.");
+            }
+
+            verification = await new RepositoryTaskVerificationService(session, timeProvider)
+                .VerifyAsync(projectId, repositoryId, currentGraph, result.Graph, cancellationToken);
+        }
+
         if (result.Graph.Revision > currentGraph.Revision)
         {
             await new MartenKnowledgeGraphWriter(session, timeProvider).SaveAsync(
@@ -313,10 +328,21 @@ internal sealed class RepositoryAnalysisProcessor(
         {
             await session.SaveChangesAsync(cancellationToken);
         }
-        var diagnostic = new AnalyzerDiagnostic(
-            result.DeepReasoning is null ? "ANALYSIS003" : "ANALYSIS004",
-            result.Reason,
-            result.DeepReasoning is null ? EvidenceLevel.Confirmed : EvidenceLevel.Inferred);
+        var diagnostics = new List<AnalyzerDiagnostic>
+        {
+            new(
+                result.DeepReasoning is null ? "ANALYSIS003" : "ANALYSIS004",
+                result.Reason,
+                result.DeepReasoning is null ? EvidenceLevel.Confirmed : EvidenceLevel.Inferred)
+        };
+        if (verification.CandidateCount > 0)
+        {
+            diagnostics.Add(new AnalyzerDiagnostic(
+                "ANALYSIS006",
+                VerificationSummary(verification),
+                EvidenceLevel.Confirmed));
+        }
+
         return new RepositoryAnalysisProcessingResult(
             result.Status switch
             {
@@ -330,8 +356,16 @@ internal sealed class RepositoryAnalysisProcessor(
             Technologies(result.Graph),
             result.Graph,
             GeneratedTaskCount: 0,
-            [diagnostic]);
+            diagnostics);
     }
+
+    private static string VerificationSummary(RepositoryTaskVerificationBatch verification) =>
+        verification.SkippedByPolicyCount > 0
+            ? $"Source verification skipped {verification.SkippedByPolicyCount} task(s) because " +
+                $"'{ProjectPermissionCodes.AiTaskUpdate}' is not allowed by project AI policy."
+            : $"Source verification evaluated {verification.CandidateCount} task(s): " +
+                $"{verification.PassedCount} passed, {verification.FailedCount} failed, " +
+                $"{verification.InconclusiveCount} inconclusive; {verification.UpdatedCount} task(s) updated.";
 
     private static string[] Technologies(RepositoryKnowledgeGraph graph) =>
         graph.Artifacts.Select(artifact => artifact.Technology)

@@ -10,6 +10,9 @@
     <PackageReference Include="MediatR" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="VietAIS.TCFlow.WebApi.RepositoryIntelligence.IntegrationTests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\framework\Core\Core.csproj" />
     <ProjectReference Include="..\..\framework\Infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\analyzers\aspnet\VietAIS.TCFlow.Analyzers.AspNet.csproj" />

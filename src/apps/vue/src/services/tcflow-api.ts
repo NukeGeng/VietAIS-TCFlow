@@ -170,7 +170,6 @@ export const tcflowApi = {
       body: JSON.stringify({
         displayName: provider.displayName,
         isEnabled: provider.isEnabled,
-        model: provider.model || null,
       }),
     })
   },

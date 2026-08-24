@@ -74,7 +74,6 @@ export interface GlobalAiProviderConfiguration {
   kind: GlobalAiProviderKind
   displayName: string
   isEnabled: boolean
-  model?: string
   updatedAt: string
   updatedBy: string
 }

@@ -143,7 +143,6 @@ describe('system administration', () => {
       kind: GlobalAiProviderKind.CodexAppServer,
       displayName: 'Codex App Server',
       isEnabled: true,
-      model: undefined,
       updatedAt: now,
       updatedBy: userId,
     }

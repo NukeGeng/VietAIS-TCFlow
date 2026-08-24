@@ -555,12 +555,6 @@ Promise.all([
           <label
             >Display name<input v-model="provider.displayName" required maxlength="100"
           /></label>
-          <label
-            >Model override<input
-              v-model="provider.model"
-              maxlength="100"
-              placeholder="Use managed-account default"
-          /></label>
           <label class="check-row"
             ><input v-model="provider.isEnabled" type="checkbox" />Available to project AI
             policies</label

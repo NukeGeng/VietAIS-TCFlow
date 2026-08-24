@@ -117,7 +117,10 @@ adapter uses the official [Codex App Server protocol](https://developers.openai.
 over JSONL stdio. Authentication state is read from the Codex-managed account;
 the adapter does not accept, extract, or persist cookies, API keys, or OAuth
 tokens. Turns run in an isolated working directory with a restricted read-only
-sandbox and a strict JSON output schema.
+permission profile, an explicit runtime workspace root, and a strict JSON
+output schema. Live structured-turn coverage is opt-in through
+`TCFLOW_RUN_LIVE_CODEX=true`; ordinary builds and CI do not invoke the managed
+account.
 
 Task generation and reconciliation are separate. Reconciliation first finds
 tasks by project, repository, and source-backed correlation key, then chooses

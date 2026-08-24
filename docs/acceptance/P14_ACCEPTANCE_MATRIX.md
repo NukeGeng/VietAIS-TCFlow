@@ -85,9 +85,9 @@ claims.
 | Source-driven task completion verification | CONFIRMED (PR #50) | Deterministic evaluator passes locally; Marten integration coverage verifies AI policy, failed/inconclusive/passed outcomes, idempotency, evidence, versions, audit, and separation from human approval; rerun with Testcontainers after integration |
 | Codex managed-account App Server handshake | CONFIRMED (local runtime) | `codex login status` reports ChatGPT authentication and `ConfiguredCodexAppServerProcessCompletesManagedAccountHandshake` passes against the installed CLI |
 | Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change |
-| Live Codex structured reasoning turn | PROPOSED | Account/App Server handshake is confirmed, but `RepositoryReasoning.Enabled` remains false in development defaults; enable only with a supported repository and explicit AI policy |
+| Live Codex structured reasoning turn | CONFIRMED (local runtime) | `ConfiguredCodexAppServerCompletesStructuredReasoningTurn` passed against Codex CLI 0.144.2 using the ChatGPT-managed account, strict JSON output, `:read-only` permissions, an isolated runtime root, and an empty evidence/artifact context; the test requires both `TCFLOW_CODEX_EXECUTABLE` and `TCFLOW_RUN_LIVE_CODEX=true`, so ordinary CI remains offline |
 | Protected-branch integration | PROPOSED | Draft PRs #39–#50 require user review/authorization before merge |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and
-branch-level evidence are present, but the supported live-repository reasoning
-run and protected-branch integration gates remain open.
+branch-level evidence are present, but the supported live-repository
+end-to-end run and protected-branch integration gates remain open.

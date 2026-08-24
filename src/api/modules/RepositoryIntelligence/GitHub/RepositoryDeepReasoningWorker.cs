@@ -173,6 +173,14 @@ internal sealed class RepositoryDeepReasoningWorker(
             return null;
         }
 
+        var provider = await session.LoadAsync<GlobalAiProviderConfiguration>(
+            SystemConfigurationIds.CodexAppServerProvider,
+            cancellationToken);
+        if (provider is { IsEnabled: false })
+        {
+            return null;
+        }
+
         session.Store(job with
         {
             Status = RepositoryReasoningJobStatus.Processing,

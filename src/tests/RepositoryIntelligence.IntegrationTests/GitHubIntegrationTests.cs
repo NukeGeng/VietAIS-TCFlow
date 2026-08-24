@@ -586,6 +586,13 @@ public sealed class GitHubIntegrationTests
                     VietAIS.TCFlow.Analyzers.Governance.ConventionProfileStatus.Confirmed,
                     []),
                 TestContext.Current.CancellationToken);
+            session.Store(new GlobalAiProviderConfiguration(
+                SystemConfigurationIds.CodexAppServerProvider,
+                GlobalAiProviderKind.CodexAppServer,
+                "Codex App Server",
+                IsEnabled: false,
+                DateTimeOffset.UtcNow,
+                ownerId));
             session.Store(new RepositoryAnalysisRequest(
                 requestId,
                 project.Id,
@@ -626,6 +633,28 @@ public sealed class GitHubIntegrationTests
                 CompletedAt: null));
             await scope.ServiceProvider.GetRequiredService<IDeepReasoningQueue>()
                 .EnqueueAsync(workItem, TestContext.Current.CancellationToken);
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await Task.Delay(TimeSpan.FromMilliseconds(150), TestContext.Current.CancellationToken);
+        await using (var disabledScope = app.Services.CreateAsyncScope())
+        {
+            var session = disabledScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var pendingRequest = await session.LoadAsync<RepositoryAnalysisRequest>(
+                requestId,
+                TestContext.Current.CancellationToken);
+            Assert.NotNull(pendingRequest);
+            Assert.Equal(GitHubAnalysisRequestStatus.AwaitingReasoning, pendingRequest.Status);
+            var provider = await session.LoadAsync<GlobalAiProviderConfiguration>(
+                SystemConfigurationIds.CodexAppServerProvider,
+                TestContext.Current.CancellationToken);
+            Assert.NotNull(provider);
+            session.Store(provider with
+            {
+                IsEnabled = true,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                UpdatedBy = ownerId
+            });
             await session.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 

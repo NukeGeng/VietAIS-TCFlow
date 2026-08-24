@@ -15,8 +15,7 @@ public sealed record UpdateProjectLifecycleStatusRequest(ProjectLifecycleStatus 
 
 public sealed record UpdateGlobalAiProviderRequest(
     string DisplayName,
-    bool IsEnabled,
-    string? Model);
+    bool IsEnabled);
 
 public sealed record UpdateGlobalSystemSettingsRequest(
     string PlatformName,
@@ -192,8 +191,7 @@ public sealed class SystemAdministrationEndpoints : CarterModule
                 GetActorId(principal),
                 providerId,
                 request.DisplayName,
-                request.IsEnabled,
-                request.Model),
+                request.IsEnabled),
             cancellationToken));
 
     private static async Task<IResult> GetSettings(

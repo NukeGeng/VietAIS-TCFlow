@@ -184,8 +184,11 @@ async function connectSelectedRepository(): Promise<void> {
     successMessage.value = `${connected.repository.name} connected.`
     if (workspace.hasPermission('source.analyze')) {
       try {
-        await tcflowApi.triggerInitialGitHubScan(selectedProjectId.value, connected.repository.id)
-        successMessage.value += ' Initial analysis queued.'
+        const analysis = await tcflowApi.triggerInitialGitHubScan(
+          selectedProjectId.value,
+          connected.repository.id,
+        )
+        successMessage.value += ` Initial analysis queued (${analysis.id.slice(0, 8)}). Open Analysis to follow its result.`
       } catch (error) {
         formError.value =
           error instanceof Error

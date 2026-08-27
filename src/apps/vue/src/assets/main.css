@@ -838,6 +838,96 @@ code {
   margin-bottom: 1rem;
 }
 
+.analysis-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.analysis-card .section-heading {
+  align-items: flex-start;
+}
+
+.analysis-status {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.analysis-status--completed {
+  color: #3f6115;
+  background: #e9f5d8;
+}
+
+.analysis-status--unsupported {
+  color: #76540b;
+  background: #fff0c7;
+}
+
+.analysis-status--failed {
+  color: #822d29;
+  background: #ffe0dc;
+}
+
+.analysis-status--pending {
+  color: #395f70;
+  background: #e2f1f6;
+}
+
+.analysis-metrics {
+  margin-top: 0.5rem;
+}
+
+.analysis-metrics article {
+  padding: 0.85rem;
+  background: #f8faf6;
+}
+
+.analysis-metrics strong {
+  margin-bottom: 0;
+  font-size: 1.5rem;
+}
+
+.analysis-meta {
+  margin: 1rem 0 0;
+  color: #64716b;
+  font-size: 0.8rem;
+}
+
+.analysis-message {
+  min-height: 0;
+  margin-top: 1rem;
+}
+
+.analysis-diagnostics {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.analysis-diagnostics > div {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.7rem;
+  align-items: baseline;
+  padding: 0.7rem;
+  border-top: 1px solid #e3e8df;
+  color: #53615b;
+  font-size: 0.78rem;
+}
+
+.analysis-diagnostics small {
+  color: #748079;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.task-evidence-panel {
+  margin-top: 1rem;
+}
+
 .metric-grid article {
   padding: 1.2rem;
   border: 1px solid #dce2d8;
@@ -1088,6 +1178,10 @@ code {
   background: #8b9891;
 }
 
+.status-7 {
+  background: #6c63b5;
+}
+
 .status-1,
 .status-2 {
   background: #e0a72a;
@@ -1191,6 +1285,11 @@ code {
 .task-status--completed {
   color: #426218;
   background: #e3f5be;
+}
+
+.task-status--suggested {
+  color: #51478f;
+  background: #eeebff;
 }
 
 .task-status--blocked,

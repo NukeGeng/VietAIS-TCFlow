@@ -23,9 +23,16 @@ const priority = ref(TaskPriority.Medium)
 const showCreate = ref(false)
 const actionError = ref('')
 
-const statuses = Object.values(TaskLifecycleStatus).filter(
-  (value): value is TaskLifecycleStatus => typeof value === 'number',
-)
+const statuses: TaskLifecycleStatus[] = [
+  TaskLifecycleStatus.Suggested,
+  TaskLifecycleStatus.Upcoming,
+  TaskLifecycleStatus.InProgress,
+  TaskLifecycleStatus.ReadyForReview,
+  TaskLifecycleStatus.Blocked,
+  TaskLifecycleStatus.Rejected,
+  TaskLifecycleStatus.Completed,
+  TaskLifecycleStatus.Cancelled,
+]
 const columns = computed(() =>
   statuses.map((status) => ({
     status,
@@ -120,7 +127,7 @@ Promise.all([workspace.loadTasks(), workspace.loadRepositories()])
     <div>
       <span class="eyebrow">{{ selectedProject?.name }}</span>
       <h1>Task board</h1>
-      <p>Lifecycle state is reloaded from the backend after every transition.</p>
+      <p>Review AI suggestions, accept verified work, and manage the human task lifecycle.</p>
     </div>
     <button
       v-if="workspace.hasPermission('task.create')"

@@ -74,6 +74,10 @@ the merge/runtime gates at the end of this document pass.
 27 labeled facts are executable source-controlled inputs rather than prose-only
 claims.
 
+Product-level risk controls are mapped separately in
+`PRODUCT_CONSTRAINTS_MATRIX.md`; each constraint is marked with direct source,
+test, benchmark, or explicitly open external evidence.
+
 ## Integration and runtime gates
 
 | Gate | Status | Evidence or remaining work |

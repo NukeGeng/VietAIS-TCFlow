@@ -16,19 +16,28 @@ import type {
   GitHubConnectionResult,
   GitHubInstallationStart,
   GitHubRepositorySummary,
+  GlobalAiProviderConfiguration,
+  GlobalSystemSettings,
   PagedList,
   PermissionDefinition,
   Project,
   ProjectComponent,
+  ProjectLifecycleStatus,
   ProjectFeature,
   ProjectMembership,
   ProjectRepository,
   ProjectRole,
+  PlatformPolicy,
+  SystemPermissionDefinition,
+  SystemProjectSummary,
+  SystemRole,
+  SystemUsageSummary,
   TaskEvidence,
   TaskReview,
   TaskVersion,
   TokenResponse,
   UserProfile,
+  UserRoleDetail,
 } from '../types/contracts'
 import type {
   RepositoryProviderKind,
@@ -84,6 +93,126 @@ export const tcflowApi = {
 
   users(): Promise<UserProfile[]> {
     return apiRequest<UserProfile[]>('/api/users/')
+  },
+
+  toggleUserStatus(userId: string, activateUser: boolean): Promise<void> {
+    return apiRequest<void>(`/api/users/${userId}/toggle-status`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, activateUser }),
+    })
+  },
+
+  systemRoles(): Promise<SystemRole[]> {
+    return apiRequest<SystemRole[]>('/api/roles/')
+  },
+
+  createSystemRole(name: string, description?: string): Promise<SystemRole> {
+    return apiRequest<SystemRole>('/api/roles/', {
+      method: 'POST',
+      body: JSON.stringify({ id: crypto.randomUUID(), name, description }),
+    })
+  },
+
+  deleteSystemRole(roleId: string): Promise<void> {
+    return apiRequest<void>(`/api/roles/${roleId}`, { method: 'DELETE' })
+  },
+
+  systemRole(roleId: string): Promise<SystemRole> {
+    return apiRequest<SystemRole>(`/api/roles/${roleId}/permissions`)
+  },
+
+  updateSystemRolePermissions(roleId: string, permissions: string[]): Promise<string> {
+    return apiRequest<string>(`/api/roles/${roleId}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify({ roleId, permissions }),
+    })
+  },
+
+  userRoles(userId: string): Promise<UserRoleDetail[]> {
+    return apiRequest<UserRoleDetail[]>(`/api/users/${userId}/roles`)
+  },
+
+  assignUserRoles(userId: string, userRoles: UserRoleDetail[]): Promise<string> {
+    return apiRequest<string>(`/api/users/${userId}/roles`, {
+      method: 'POST',
+      body: JSON.stringify({ userRoles }),
+    })
+  },
+
+  systemProjects(keyword?: string): Promise<PagedList<SystemProjectSummary>> {
+    return apiRequest<PagedList<SystemProjectSummary>>(
+      `/api/v1/system/projects${queryString({ pageNumber: 1, pageSize: 100, keyword })}`,
+    )
+  },
+
+  updateSystemProjectStatus(
+    projectId: string,
+    status: ProjectLifecycleStatus,
+  ): Promise<SystemProjectSummary> {
+    return apiRequest<SystemProjectSummary>(`/api/v1/system/projects/${projectId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    })
+  },
+
+  systemPermissionDefinitions(): Promise<SystemPermissionDefinition[]> {
+    return apiRequest<SystemPermissionDefinition[]>('/api/v1/system/permission-definitions')
+  },
+
+  systemAudit(projectId?: string, action?: string): Promise<PagedList<AuditRecord>> {
+    return apiRequest<PagedList<AuditRecord>>(
+      `/api/v1/system/audit${queryString({ pageNumber: 1, pageSize: 100, projectId, action })}`,
+    )
+  },
+
+  systemAiProviders(): Promise<GlobalAiProviderConfiguration[]> {
+    return apiRequest<GlobalAiProviderConfiguration[]>('/api/v1/system/ai-providers')
+  },
+
+  updateSystemAiProvider(
+    provider: GlobalAiProviderConfiguration,
+  ): Promise<GlobalAiProviderConfiguration> {
+    return apiRequest<GlobalAiProviderConfiguration>(`/api/v1/system/ai-providers/${provider.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        displayName: provider.displayName,
+        isEnabled: provider.isEnabled,
+      }),
+    })
+  },
+
+  globalSystemSettings(): Promise<GlobalSystemSettings> {
+    return apiRequest<GlobalSystemSettings>('/api/v1/system/settings')
+  },
+
+  updateGlobalSystemSettings(settings: GlobalSystemSettings): Promise<GlobalSystemSettings> {
+    return apiRequest<GlobalSystemSettings>('/api/v1/system/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        platformName: settings.platformName,
+        defaultTimeZone: settings.defaultTimeZone,
+        supportUrl: settings.supportUrl || null,
+      }),
+    })
+  },
+
+  platformPolicy(): Promise<PlatformPolicy> {
+    return apiRequest<PlatformPolicy>('/api/v1/system/policies')
+  },
+
+  updatePlatformPolicy(policy: PlatformPolicy): Promise<PlatformPolicy> {
+    return apiRequest<PlatformPolicy>('/api/v1/system/policies', {
+      method: 'PUT',
+      body: JSON.stringify({
+        projectCreationEnabled: policy.projectCreationEnabled,
+        repositoryConnectionsEnabled: policy.repositoryConnectionsEnabled,
+        maximumRepositoriesPerProject: policy.maximumRepositoriesPerProject,
+      }),
+    })
+  },
+
+  systemUsage(): Promise<SystemUsageSummary> {
+    return apiRequest<SystemUsageSummary>('/api/v1/system/usage')
   },
 
   projects(keyword?: string): Promise<PagedList<Project>> {

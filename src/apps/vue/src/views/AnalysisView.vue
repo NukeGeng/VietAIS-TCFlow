@@ -207,8 +207,7 @@ onUnmounted(() => {
           </p>
           <div
             v-if="
-              analyses[repository.id]!.run!.status ===
-              RepositoryAnalysisRunStatus.AwaitingReasoning
+              analyses[repository.id]!.run!.status === RepositoryAnalysisRunStatus.AwaitingReasoning
             "
             class="state-panel analysis-message"
           >

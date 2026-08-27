@@ -77,14 +77,15 @@ claims.
 Product-level risk controls are mapped separately in
 `PRODUCT_CONSTRAINTS_MATRIX.md`; each constraint is marked with direct source,
 test, benchmark, or explicitly open external evidence.
+
 ## Integration and runtime gates
 
 | Gate | Status | Evidence or remaining work |
 | --- | --- | --- |
-| Analyzer solution build/test | CONFIRMED (this branch) | .NET 9 build and all analyzer test projects pass on this branch |
-| Backend integration suite | CONFIRMED (this branch) | 41 integration tests pass on this branch |
-| Frontend typecheck/test/lint/build | PENDING RECHECK | The integrated frontend feature set requires a fresh typecheck, test, lint, format, and build run |
-| Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | Live stack health endpoint returned healthy on 2026-08-23 |
+| Analyzer solution build/test | CONFIRMED (integration candidate) | .NET 9 build and all 59 analyzer tests pass |
+| Backend integration suite | CONFIRMED (integration candidate) | All 43 integration tests pass against isolated PostgreSQL containers |
+| Frontend typecheck/test/lint/build | CONFIRMED (integration candidate) | Typecheck, 21 Vitest tests, Oxlint, ESLint, Prettier, and production build pass with Node 24 |
+| Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | On 2026-08-27 all five resources reported healthy; API health, Vue, and Swagger returned 200, while an unauthenticated project API call returned 401 |
 | Private GitHub repository installation and initial scan | CONFIRMED (local runtime) | `NukeGeng/Portfolio` source revision was fetched; unsupported Next.js was correctly reported without invented facts |
 | Source-driven task completion verification | CONFIRMED (this branch) | Deterministic and Marten integration coverage verifies AI policy, failed/inconclusive/passed outcomes, idempotency, evidence, versions, audit, and separation from human approval |
 | Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change |

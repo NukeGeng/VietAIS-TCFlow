@@ -178,6 +178,119 @@ describe('GitHub App connection', () => {
     expect(connect).toHaveBeenCalledWith(projectId, 101, 303)
   })
 
+  it('queues analysis again for an active connected GitHub repository with source permission', async () => {
+    authenticate()
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const workspace = useWorkspaceStore()
+    workspace.projects = [
+      { id: projectId, name: 'TCFlow', primaryOwnerId: actorId, createdAt: future },
+    ]
+    workspace.selectProject(projectId)
+    workspace.effectivePermissions = {
+      projectId,
+      userId: actorId,
+      grants: [
+        {
+          permissionCode: 'source.analyze',
+          roleId: '50000000-0000-0000-0000-000000000001',
+          roleName: 'Owner',
+          resourceScope: 1,
+          componentScopes: [],
+        },
+      ],
+    }
+    const repositoryId = '60000000-0000-0000-0000-000000000001'
+    workspace.repositories = [
+      {
+        id: repositoryId,
+        projectId,
+        name: remoteRepository.fullName,
+        provider: RepositoryProviderKind.GitHub,
+        remoteUrl: remoteRepository.htmlUrl,
+        defaultBranch: remoteRepository.defaultBranch,
+        status: RepositoryLifecycleStatus.Active,
+        createdAt: future,
+        createdBy: actorId,
+      },
+    ]
+    workspace.repositoriesState = { status: 'ready' }
+    vi.spyOn(workspace, 'loadRepositories').mockResolvedValue()
+    const queueScan = vi.spyOn(tcflowApi, 'triggerInitialGitHubScan').mockResolvedValue({
+      id: '80000000-0000-0000-0000-000000000001',
+      projectId,
+      repositoryId,
+      trigger: GitHubAnalysisTriggerKind.InitialScan,
+      reference: 'refs/heads/main',
+      fullScan: true,
+      requiresChangedFileFetch: false,
+      changedFiles: [],
+      status: GitHubAnalysisRequestStatus.Pending,
+      requestedAt: future,
+      requestedByType: 'User',
+      requestedBy: actorId,
+    })
+    const router = createAppRouter()
+    await router.push(`/projects/${projectId}/repositories`)
+    await router.isReady()
+
+    const wrapper = mount(RepositoriesView, { global: { plugins: [pinia, router] } })
+    await flushPromises()
+    const analyzeButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Analyze now')
+    expect(analyzeButton).toBeDefined()
+
+    await analyzeButton!.trigger('click')
+    await flushPromises()
+
+    expect(queueScan).toHaveBeenCalledWith(projectId, repositoryId)
+    expect(wrapper.get('[role="status"]').text()).toContain(
+      'NukeGeng/VietAIS-TCFlow analysis queued (80000000)',
+    )
+    wrapper.unmount()
+  })
+
+  it('does not expose repository analysis without source.analyze permission', async () => {
+    authenticate()
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const workspace = useWorkspaceStore()
+    workspace.projects = [
+      { id: projectId, name: 'TCFlow', primaryOwnerId: actorId, createdAt: future },
+    ]
+    workspace.selectProject(projectId)
+    workspace.effectivePermissions = {
+      projectId,
+      userId: actorId,
+      grants: [],
+    }
+    workspace.repositories = [
+      {
+        id: '60000000-0000-0000-0000-000000000001',
+        projectId,
+        name: remoteRepository.fullName,
+        provider: RepositoryProviderKind.GitHub,
+        remoteUrl: remoteRepository.htmlUrl,
+        defaultBranch: remoteRepository.defaultBranch,
+        status: RepositoryLifecycleStatus.Active,
+        createdAt: future,
+        createdBy: actorId,
+      },
+    ]
+    workspace.repositoriesState = { status: 'ready' }
+    vi.spyOn(workspace, 'loadRepositories').mockResolvedValue()
+    const router = createAppRouter()
+    await router.push(`/projects/${projectId}/repositories`)
+    await router.isReady()
+
+    const wrapper = mount(RepositoriesView, { global: { plugins: [pinia, router] } })
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Analyze now')
+    wrapper.unmount()
+  })
+
   it('shows an unsupported repository analysis instead of implying that analysis never ran', async () => {
     authenticate()
     const pinia = createPinia()

@@ -27,6 +27,7 @@ const selectedInstallationId = ref<number | null>(null)
 const selectedRepositoryId = ref<number | null>(null)
 const loadingGitHub = ref(false)
 const connectingRepository = ref(false)
+const analyzingRepositoryId = ref('')
 const formError = ref('')
 const successMessage = ref(route.query.github === 'connected' ? 'GitHub account connected.' : '')
 const editingRepositoryId = ref('')
@@ -101,6 +102,25 @@ async function disableRepository(repository: ProjectRepository): Promise<void> {
     successMessage.value = `${repository.name} disabled.`
   } catch (error) {
     formError.value = error instanceof Error ? error.message : 'Unable to disable repository.'
+  }
+}
+
+async function queueInitialScan(repository: ProjectRepository): Promise<void> {
+  if (!selectedProjectId.value) return
+  analyzingRepositoryId.value = repository.id
+  formError.value = ''
+  successMessage.value = ''
+  try {
+    const analysis = await tcflowApi.triggerInitialGitHubScan(
+      selectedProjectId.value,
+      repository.id,
+    )
+    successMessage.value = `${repository.name} analysis queued (${analysis.id.slice(0, 8)}). Open Analysis to follow its result.`
+  } catch (error) {
+    formError.value =
+      error instanceof Error ? error.message : `Unable to analyze ${repository.name}.`
+  } finally {
+    analyzingRepositoryId.value = ''
   }
 }
 
@@ -286,6 +306,19 @@ watch(
                       ? 'active'
                       : 'disabled'
                 }}</span>
+                <button
+                  v-if="
+                    repository.provider === RepositoryProviderKind.GitHub &&
+                    repository.status === RepositoryLifecycleStatus.Active &&
+                    workspace.hasPermission('source.analyze')
+                  "
+                  class="secondary-button"
+                  type="button"
+                  :disabled="analyzingRepositoryId === repository.id"
+                  @click="queueInitialScan(repository)"
+                >
+                  {{ analyzingRepositoryId === repository.id ? 'Analyzing…' : 'Analyze now' }}
+                </button>
                 <button
                   v-if="workspace.hasPermission('repository.update')"
                   class="secondary-button"

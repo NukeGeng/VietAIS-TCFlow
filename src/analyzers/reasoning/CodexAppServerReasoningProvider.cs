@@ -78,8 +78,7 @@ public sealed class CodexAppServerReasoningProvider(ICodexAppServerClient client
                 "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
                 "evidenceIds": {
                   "type": "array",
-                  "items": { "type": "string" },
-                  "uniqueItems": true
+                  "items": { "type": "string" }
                 },
                 "tasks": {
                   "type": "array",
@@ -99,18 +98,15 @@ public sealed class CodexAppServerReasoningProvider(ICodexAppServerClient client
                       "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
                       "artifactIds": {
                         "type": "array",
-                        "items": { "type": "string" },
-                        "uniqueItems": true
+                        "items": { "type": "string" }
                       },
                       "evidenceIds": {
                         "type": "array",
-                        "items": { "type": "string" },
-                        "uniqueItems": true
+                        "items": { "type": "string" }
                       },
                       "requirements": {
                         "type": "array",
-                        "items": { "type": "string" },
-                        "uniqueItems": true
+                        "items": { "type": "string" }
                       }
                     },
                     "required": [

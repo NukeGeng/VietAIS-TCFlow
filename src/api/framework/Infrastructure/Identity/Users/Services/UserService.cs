@@ -46,14 +46,55 @@ internal sealed partial class UserService(
         }
     }
 
-    public Task<string> ConfirmEmailAsync(string userId, string code, string tenant, CancellationToken cancellationToken)
+    public async Task<string> ConfirmEmailAsync(
+        string userId,
+        string code,
+        string tenant,
+        CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        EnsureValidTenant();
+
+        var user = await userManager.Users
+            .Where(item => item.Id == userId && !item.EmailConfirmed)
+            .FirstOrDefaultAsync(cancellationToken);
+        _ = user ?? throw new NotFoundException("user not found or email is already confirmed");
+
+        var result = await userManager.ConfirmEmailAsync(user, DecodeConfirmationCode(code));
+        if (!result.Succeeded)
+        {
+            throw new FshException(
+                "error confirming email",
+                result.Errors.Select(error => error.Description).ToList());
+        }
+
+        return $"Account Confirmed for E-Mail {user.Email}. You can now use the /api/tokens endpoint to generate JWT.";
     }
 
-    public Task<string> ConfirmPhoneNumberAsync(string userId, string code)
+    public async Task<string> ConfirmPhoneNumberAsync(string userId, string code)
     {
-        throw new NotImplementedException();
+        EnsureValidTenant();
+
+        var user = await userManager.Users
+            .Where(item => item.Id == userId && !item.PhoneNumberConfirmed)
+            .FirstOrDefaultAsync();
+        _ = user ?? throw new NotFoundException("user not found or phone number is already confirmed");
+        if (string.IsNullOrWhiteSpace(user.PhoneNumber))
+        {
+            throw new FshException("user phone number is not configured");
+        }
+
+        var result = await userManager.ChangePhoneNumberAsync(
+            user,
+            user.PhoneNumber,
+            DecodeConfirmationCode(code));
+        if (!result.Succeeded)
+        {
+            throw new FshException(
+                "error confirming phone number",
+                result.Errors.Select(error => error.Description).ToList());
+        }
+
+        return $"Phone number {user.PhoneNumber} confirmed successfully.";
     }
 
     public async Task<bool> ExistsWithEmailAsync(string email, string? exceptId = null)
@@ -95,9 +136,83 @@ internal sealed partial class UserService(
         return users.Adapt<List<UserDetail>>();
     }
 
-    public Task<string> GetOrCreateFromPrincipalAsync(ClaimsPrincipal principal)
+    public async Task<string> GetOrCreateFromPrincipalAsync(ClaimsPrincipal principal)
     {
-        throw new NotImplementedException();
+        EnsureValidTenant();
+        ArgumentNullException.ThrowIfNull(principal);
+
+        var email = principal.GetEmail() ?? principal.FindFirstValue("email");
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new UnauthorizedException("email claim is required for external authentication");
+        }
+
+        email = email.Trim().Normalize();
+        var existingUser = await userManager.FindByEmailAsync(email);
+        if (existingUser is not null)
+        {
+            return existingUser.Id;
+        }
+
+        var userName = principal.GetFirstName() ?? principal.FindFirstValue("preferred_username");
+        var separator = email.IndexOf('@', StringComparison.Ordinal);
+        if (string.IsNullOrWhiteSpace(userName))
+        {
+            userName = separator > 0 ? email[..separator] : email;
+        }
+        else
+        {
+            userName = userName.Trim();
+        }
+        if (await userManager.FindByNameAsync(userName) is not null)
+        {
+            userName = $"{userName}_{Guid.NewGuid():N}"[..Math.Min(20, userName.Length + 33)];
+        }
+
+        var user = new FshUser
+        {
+            Email = email,
+            UserName = userName,
+            FirstName = principal.GetFirstName() ?? principal.FindFirstValue("given_name"),
+            LastName = principal.GetSurname() ?? principal.FindFirstValue("family_name"),
+            ImageUrl = principal.GetImageUrl(),
+            EmailConfirmed = true,
+            IsActive = true
+        };
+        var result = await userManager.CreateAsync(user);
+        if (!result.Succeeded)
+        {
+            throw new FshException(
+                "failed to create user from external principal",
+                result.Errors.Select(error => error.Description).ToList());
+        }
+
+        var roleResult = await userManager.AddToRoleAsync(user, FshRoles.Basic);
+        if (!roleResult.Succeeded)
+        {
+            throw new FshException(
+                "failed to assign the default user role",
+                roleResult.Errors.Select(error => error.Description).ToList());
+        }
+
+        return user.Id;
+    }
+
+    private static string DecodeConfirmationCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new FshException("confirmation code is required");
+        }
+
+        try
+        {
+            return Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
+        }
+        catch (FormatException exception)
+        {
+            throw new FshException("confirmation code is invalid", [exception.Message]);
+        }
     }
 
     public async Task<RegisterUserResponse> RegisterAsync(RegisterUserCommand request, string origin, CancellationToken cancellationToken)

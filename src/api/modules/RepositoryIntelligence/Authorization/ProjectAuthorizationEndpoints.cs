@@ -15,6 +15,8 @@ public sealed record UpdateProjectRolePermissionsRequest(RolePermissionRequest[]
 
 public sealed record AssignMemberRolesRequest(Guid[] RoleIds);
 
+public sealed record AddProjectMemberRequest(Guid UserId);
+
 public sealed record UpdateAiPermissionPolicyRequest(
     AiTrustLevel TrustLevel,
     string[] AllowedPermissions);
@@ -43,9 +45,40 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .MapToApiVersion(new ApiVersion(1, 0));
 
+        projects.MapGet("roles", GetRoles)
+            .WithName(nameof(GetRoles))
+            .Produces<IReadOnlyList<ProjectRole>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
         projects.MapPut("roles/{roleId:guid}/permissions", UpdateRolePermissions)
             .WithName(nameof(UpdateRolePermissions))
             .Produces<ProjectRole>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        projects.MapDelete("roles/{roleId:guid}", DeleteRole)
+            .WithName(nameof(DeleteRole))
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        projects.MapGet("members", GetMembers)
+            .WithName(nameof(GetMembers))
+            .Produces<IReadOnlyList<ProjectMembership>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        projects.MapPost("members", AddMember)
+            .WithName(nameof(AddMember))
+            .Produces<ProjectMembership>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .MapToApiVersion(new ApiVersion(1, 0));
@@ -55,6 +88,15 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
             .Produces<ProjectMembership>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        projects.MapDelete("members/{memberId:guid}", RemoveMember)
+            .WithName(nameof(RemoveMember))
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .MapToApiVersion(new ApiVersion(1, 0));
 
         projects.MapGet("members/{memberId:guid}/effective-permissions", GetEffectivePermissions)
@@ -69,6 +111,14 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
             .Produces<AiPermissionPolicy>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        projects.MapGet("ai-policy", GetAiPolicy)
+            .WithName(nameof(GetAiPolicy))
+            .Produces<AiPermissionPolicy>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .MapToApiVersion(new ApiVersion(1, 0));
 
         projects.MapPost("ownership-transfers", TransferOwnership)
@@ -109,6 +159,15 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
         return Results.Created($"projects/{projectId}/roles/{role.Id}", role);
     }
 
+    private static async Task<IResult> GetRoles(
+        Guid projectId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new GetProjectRolesQuery(GetActorId(httpContext), projectId),
+            cancellationToken));
+
     private static async Task<IResult> UpdateRolePermissions(
         Guid projectId,
         Guid roleId,
@@ -124,6 +183,41 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
                 request.Permissions),
             cancellationToken));
 
+    private static async Task<IResult> DeleteRole(
+        Guid projectId,
+        Guid roleId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken)
+    {
+        await mediator.Send(
+            new DeleteProjectRoleCommand(GetActorId(httpContext), projectId, roleId),
+            cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> GetMembers(
+        Guid projectId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new GetProjectMembersQuery(GetActorId(httpContext), projectId),
+            cancellationToken));
+
+    private static async Task<IResult> AddMember(
+        Guid projectId,
+        AddProjectMemberRequest request,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken)
+    {
+        var membership = await mediator.Send(
+            new AddProjectMemberCommand(GetActorId(httpContext), projectId, request.UserId),
+            cancellationToken);
+        return Results.Created($"projects/{projectId}/members/{membership.UserId}", membership);
+    }
+
     private static async Task<IResult> AssignMemberRoles(
         Guid projectId,
         Guid memberId,
@@ -138,6 +232,19 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
                 memberId,
                 request.RoleIds),
             cancellationToken));
+
+    private static async Task<IResult> RemoveMember(
+        Guid projectId,
+        Guid memberId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken)
+    {
+        await mediator.Send(
+            new RemoveProjectMemberCommand(GetActorId(httpContext), projectId, memberId),
+            cancellationToken);
+        return Results.NoContent();
+    }
 
     private static async Task<IResult> GetEffectivePermissions(
         Guid projectId,
@@ -168,6 +275,15 @@ public sealed class ProjectAuthorizationEndpoints : CarterModule
                 projectId,
                 request.TrustLevel,
                 request.AllowedPermissions),
+            cancellationToken));
+
+    private static async Task<IResult> GetAiPolicy(
+        Guid projectId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new GetAiPermissionPolicyQuery(GetActorId(httpContext), projectId),
             cancellationToken));
 
     private static async Task<IResult> TransferOwnership(

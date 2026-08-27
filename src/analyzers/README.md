@@ -31,8 +31,9 @@ by project phases P5-P13.
 - `github/` validates the backend's GitHub analysis-request contract and maps
   initial-scan, push, pull-request, and merge requests into provider-neutral
   repository analysis work items. It does not fetch source or call AI.
-- `monitoring/` ingests changed-file contents, claims delivery correlation
-  keys, filters cosmetic work, applies path-scoped analyzer updates, emits
+- `monitoring/` validates and analyzes bounded initial repository snapshots,
+  then ingests changed-file contents, claims delivery correlation keys,
+  filters cosmetic work, applies path-scoped analyzer updates, emits
   deterministic impacts, queues bounded deep-reasoning jobs, detects exact
   reverts, and reconciles source-backed tasks under AI policy.
 - `tests/` verifies deterministic output and evidence boundaries against the
@@ -43,6 +44,13 @@ by project phases P5-P13.
   live in `samples/reasoning/`. The cross-domain GitHub request fixture lives
   in `samples/github/`; P13 latency, duplicate, cosmetic, and reconciliation
   targets live in `samples/incremental-monitoring/`.
+
+P14 adds a cross-layer quality gate in
+`tests/monitoring/EndToEndQualityBenchmarkTests.cs`. Its versioned ground truth
+is in `samples/end-to-end-acceptance/`, and the complete criterion-to-evidence
+matrix plus measured report are in `docs/acceptance/`. The benchmark reports
+precision, recall, false-positive/false-negative rates, task duplication,
+reconciliation accuracy, and deterministic fast-path p95 latency.
 
 The Vue analyzer recognizes single-file components, `<script setup>`, props,
 emits, form bindings and validation attributes, reactive/loading/error state,
@@ -109,7 +117,10 @@ adapter uses the official [Codex App Server protocol](https://developers.openai.
 over JSONL stdio. Authentication state is read from the Codex-managed account;
 the adapter does not accept, extract, or persist cookies, API keys, or OAuth
 tokens. Turns run in an isolated working directory with a restricted read-only
-sandbox and a strict JSON output schema.
+permission profile, an explicit runtime workspace root, and a strict JSON
+output schema. Live structured-turn coverage is opt-in through
+`TCFLOW_RUN_LIVE_CODEX=true`; ordinary builds and CI do not invoke the managed
+account.
 
 Task generation and reconciliation are separate. Reconciliation first finds
 tasks by project, repository, and source-backed correlation key, then chooses
@@ -125,6 +136,16 @@ incremental event invariants; rejects unsafe repository-relative paths; and
 maps GitHub file states into the analyzer core's technology-neutral
 `RepositoryAnalysisWorkItem` and `ChangeKind`. Content retrieval is supplied
 through the P13 change-source boundary.
+
+The initial-analysis service accepts only initial full-scan work items. A
+repository snapshot source supplies one immutable source revision and bounded,
+safe repository-relative files. Repository-level applicability gates the Vue,
+ASP.NET, and Marten analyzers before parsing, preventing a React/Next.js
+TypeScript repository from being interpreted as Vue. Supported facts produce
+a revisioned graph, detected conventions, and suggested authority defaults. If
+no configured analyzer can produce source facts, the result is explicitly
+`Unsupported` with diagnostic `ANALYSIS001`; the pipeline does not invent
+tasks or confirmed facts for an unsupported stack.
 
 The incremental fast path accepts only provider-neutral incremental work items
 and validates loaded contents against event paths unless the GitHub contract

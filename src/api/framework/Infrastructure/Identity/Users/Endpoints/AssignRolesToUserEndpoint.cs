@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using FSH.Framework.Core.Identity.Users.Abstractions;
 using FSH.Framework.Core.Identity.Users.Features.AssignUserRole;
+using FSH.Framework.Infrastructure.Auth.Policy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -22,6 +23,7 @@ public static class AssignRolesToUserEndpoint
         })
         .WithName(nameof(AssignRolesToUserEndpoint))
         .WithSummary("assign roles")
+        .RequirePermission("Permissions.UserRoles.Update")
         .WithDescription("assign roles");
     }
 

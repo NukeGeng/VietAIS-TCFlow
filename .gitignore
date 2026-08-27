@@ -465,6 +465,9 @@ $RECYCLE.BIN/
 # Workspace-local toolchains
 .tools/
 
+# Local isolated Codex reasoning workspace
+.tcflow/
+
 # Frontend outputs
 dist/
 coverage/

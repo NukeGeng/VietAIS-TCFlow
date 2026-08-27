@@ -43,7 +43,13 @@ public sealed class TaskReconciliationService
         if (open.Length == 0)
         {
             var previous = related[0];
-            var reopened = ApplyProposal(previous, proposal, SourceAwareTaskStatus.Upcoming, now);
+            var reopened = ApplyProposal(
+                previous,
+                proposal,
+                proposal.Disposition == TaskProposalDisposition.Create
+                    ? SourceAwareTaskStatus.Upcoming
+                    : SourceAwareTaskStatus.Suggested,
+                now);
             return Decision(
                 proposal,
                 TaskReconciliationAction.Reopen,

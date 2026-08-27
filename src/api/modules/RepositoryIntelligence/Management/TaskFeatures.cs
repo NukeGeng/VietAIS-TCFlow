@@ -362,6 +362,8 @@ public sealed class TransitionEngineeringTaskHandler(
             .SingleOrDefaultAsync(item => item.TaskId == task.Id, cancellationToken);
         var permission = request.Status switch
         {
+            TaskLifecycleStatus.Upcoming when task.Status == TaskLifecycleStatus.Suggested =>
+                ProjectPermissionCodes.TaskCreate,
             TaskLifecycleStatus.Completed => ProjectPermissionCodes.TaskApprove,
             TaskLifecycleStatus.Rejected => ProjectPermissionCodes.TaskReject,
             _ => ProjectPermissionCodes.TaskStatusUpdate

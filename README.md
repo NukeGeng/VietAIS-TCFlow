@@ -78,6 +78,16 @@ The OAuth user token and installation token are short-lived process memory only.
 TCFlow persists the verified installation and selected repository identities,
 but never persists those tokens or includes them in audit records.
 
+## Project resource lifecycle
+
+Project-scoped authenticated APIs expose permission-checked updates for projects,
+repositories, components, and features. Repository deletion is a recoverable
+disable operation (`RepositoryLifecycleStatus.Disabled`). Components are deleted
+only when neither engineering tasks nor source artifacts reference them, and
+features are deleted only when no engineering task references them. Every
+successful lifecycle mutation is persisted explicitly through Marten and emits
+an audit record containing its before/after state.
+
 Technology-neutral analyzer contracts, deterministic analyzers,
 knowledge/governance engines, and bounded AI task reconciliation are documented
 in [`src/analyzers/README.md`](src/analyzers/README.md).

@@ -104,11 +104,17 @@ The version 1 endpoints are:
 | Method | Route | Required project permission |
 | --- | --- | --- |
 | `GET` | `/api/v1/projects/{projectId}/permission-definitions` | `role.view` |
+| `GET` | `/api/v1/projects/{projectId}/roles` | `role.view` |
 | `POST` | `/api/v1/projects/{projectId}/roles` | `role.create` |
 | `PUT` | `/api/v1/projects/{projectId}/roles/{roleId}/permissions` | `role.update` |
+| `DELETE` | `/api/v1/projects/{projectId}/roles/{roleId}` | `role.delete`; only unused custom roles |
+| `GET` | `/api/v1/projects/{projectId}/members` | `member.view` |
+| `POST` | `/api/v1/projects/{projectId}/members` | `member.invite` |
 | `PUT` | `/api/v1/projects/{projectId}/members/{memberId}/roles` | `member.role.assign` |
+| `DELETE` | `/api/v1/projects/{projectId}/members/{memberId}` | `member.remove`; primary owner excluded |
 | `GET` | `/api/v1/projects/{projectId}/members/{memberId}/effective-permissions` | `role.view` |
 | `PUT` | `/api/v1/projects/{projectId}/ai-policy` | `ai.policy.update` |
+| `GET` | `/api/v1/projects/{projectId}/ai-policy` | `ai.policy.update` |
 | `GET` | `/api/v1/projects/{projectId}/authority-policy` | `authority.view` |
 | `PUT` | `/api/v1/projects/{projectId}/authority-policy` | `authority.update` |
 | `GET` | `/api/v1/projects/{projectId}/convention-profile` | `convention.view` |
@@ -144,7 +150,9 @@ Project-scoped version 1 routes include:
 | `POST` | `/api/v1/projects/{projectId}/repositories` | `repository.create` |
 | `GET` | `/api/v1/projects/{projectId}/repositories` | `repository.view` with resource/component scope |
 | `POST` | `/api/v1/projects/{projectId}/components` | `component.create` |
+| `GET` | `/api/v1/projects/{projectId}/components` | `component.view` with repository/component scope |
 | `POST` | `/api/v1/projects/{projectId}/features` | `feature.create` |
+| `GET` | `/api/v1/projects/{projectId}/features` | `feature.view` |
 | `POST` | `/api/v1/projects/{projectId}/tasks` | `task.create` |
 | `GET` | `/api/v1/projects/{projectId}/tasks` | `task.view` with project/repository/component/own/assigned scope |
 | `GET` | `/api/v1/projects/{projectId}/tasks/{taskId}` | `task.view` with task scope |

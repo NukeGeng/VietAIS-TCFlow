@@ -729,6 +729,38 @@ code {
   margin-bottom: 1rem;
 }
 
+.lifecycle-project-form {
+  grid-template-columns: minmax(12rem, 1fr) auto;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.resource-editor {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0e5de;
+}
+
+.lifecycle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.lifecycle-actions .primary-button,
+.lifecycle-actions .secondary-button,
+.lifecycle-actions .danger-button {
+  min-height: 2.1rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+}
+
 .field-grow {
   min-width: 0;
 }
@@ -1595,6 +1627,7 @@ legend {
   }
 
   .form-card--horizontal,
+  .lifecycle-project-form,
   .form-grid,
   .detail-facts,
   .trace-grid,

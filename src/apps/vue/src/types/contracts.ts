@@ -133,6 +133,17 @@ export enum ComponentScopeKind {
   Service = 7,
 }
 
+export interface ProjectComponent {
+  id: string
+  projectId: string
+  repositoryId: string
+  name: string
+  scope: ComponentScopeKind
+  rootPath?: string
+  createdAt: string
+  createdBy: string
+}
+
 export interface ProjectFeature {
   id: string
   projectId: string
@@ -180,6 +191,62 @@ export enum AiTrustLevel {
   UpdateTasks = 2,
   CodeGeneration = 3,
   PullRequestCreation = 4,
+}
+
+export interface AiPermissionPolicy {
+  id: string
+  projectId: string
+  trustLevel: AiTrustLevel
+  allowedPermissions: string[]
+  updatedBy: string
+  updatedAt: string
+}
+
+export enum AuthorityKnowledgeKind {
+  ApiContract = 0,
+  UiRequirement = 1,
+  BusinessLogic = 2,
+  Persistence = 3,
+}
+
+export enum AuthoritySourceKind {
+  Backend = 0,
+  Frontend = 1,
+  OpenApi = 2,
+  Database = 3,
+  Tests = 4,
+  Documentation = 5,
+}
+
+export interface AuthorityRule {
+  knowledge: AuthorityKnowledgeKind
+  source: AuthoritySourceKind
+}
+
+export interface AuthorityPolicy {
+  id: string
+  projectId: string
+  rules: AuthorityRule[]
+  updatedAt: string
+  updatedBy: string
+}
+
+export enum ConventionProfileStatus {
+  PendingAnalysis = 0,
+  Confirmed = 1,
+}
+
+export interface ConventionProfile {
+  id: string
+  projectId: string
+  status: ConventionProfileStatus
+  architectures: string[]
+  apiStyles: string[]
+  persistencePatterns: string[]
+  validationPatterns: string[]
+  dtoPatterns: string[]
+  updatedAt: string
+  updatedBy: string
 }
 
 export enum TaskReviewDecision {
@@ -337,6 +404,18 @@ export interface ProjectRole {
     resourceScope: number
     resourceId?: string
     componentScopes: ComponentScopeKind[]
+  }>
+}
+
+export interface ProjectMembership {
+  id: string
+  projectId: string
+  userId: string
+  isActive: boolean
+  roles: Array<{
+    roleId: string
+    assignedAt: string
+    assignedBy: string
   }>
 }
 

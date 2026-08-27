@@ -45,6 +45,13 @@ by project phases P5-P13.
   in `samples/github/`; P13 latency, duplicate, cosmetic, and reconciliation
   targets live in `samples/incremental-monitoring/`.
 
+P14 adds a cross-layer quality gate in
+`tests/monitoring/EndToEndQualityBenchmarkTests.cs`. Its versioned ground truth
+is in `samples/end-to-end-acceptance/`, and the complete criterion-to-evidence
+matrix plus measured report are in `docs/acceptance/`. The benchmark reports
+precision, recall, false-positive/false-negative rates, task duplication,
+reconciliation accuracy, and deterministic fast-path p95 latency.
+
 The Vue analyzer recognizes single-file components, `<script setup>`, props,
 emits, form bindings and validation attributes, reactive/loading/error state,
 API calls and payloads, response-field usage, TypeScript interfaces, Pinia

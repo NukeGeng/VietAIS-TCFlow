@@ -1,6 +1,7 @@
 using JasperFx;
 using Marten;
 using Microsoft.Extensions.Options;
+using VietAIS.TCFlow.Analyzers.Contracts;
 using VietAIS.TCFlow.Analyzers.Core;
 using VietAIS.TCFlow.Analyzers.Monitoring;
 using VietAIS.TCFlow.Analyzers.Reasoning;
@@ -46,7 +47,14 @@ internal sealed record RepositoryTaskProjection(
     Guid EngineeringTaskId,
     int SourceVersion,
     SourceAwareTaskStatus SourceStatus,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    RepositoryTaskVerificationTarget? VerificationTarget);
+
+internal sealed record RepositoryTaskVerificationTarget(
+    string FrontendContractId,
+    string BackendContractId,
+    ContractMismatchKind MismatchKind,
+    string Subject);
 
 internal sealed class NoAnalyzableRepositoryChangesException(string message)
     : InvalidOperationException(message);

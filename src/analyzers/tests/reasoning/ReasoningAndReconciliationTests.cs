@@ -95,6 +95,7 @@ public sealed class ReasoningAndReconciliationTests
         Assert.Contains("\"projectId\": \"project-1\"", client.Prompt, StringComparison.Ordinal);
         Assert.Equal(JsonValueKind.Object, client.Schema.ValueKind);
         Assert.False(client.Schema.GetProperty("additionalProperties").GetBoolean());
+        Assert.DoesNotContain("\"uniqueItems\"", client.Schema.GetRawText(), StringComparison.Ordinal);
         Assert.Contains("inferred", client.Schema.GetProperty("properties")
             .GetProperty("evidenceLevel")
             .GetProperty("enum")
@@ -135,6 +136,53 @@ public sealed class ReasoningAndReconciliationTests
             var account = await client.ReadAccountAsync(TestContext.Current.CancellationToken);
 
             Assert.False(account.RequiresOpenAiAuth && string.IsNullOrWhiteSpace(account.AccountType));
+        }
+        finally
+        {
+            if (Directory.Exists(isolatedDirectory))
+            {
+                Directory.Delete(isolatedDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ConfiguredCodexAppServerCompletesStructuredReasoningTurn()
+    {
+        var executable = Environment.GetEnvironmentVariable("TCFLOW_CODEX_EXECUTABLE");
+        var runLiveTurn = Environment.GetEnvironmentVariable("TCFLOW_RUN_LIVE_CODEX");
+        if (string.IsNullOrWhiteSpace(executable) ||
+            !string.Equals(runLiveTurn, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var isolatedDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"tcflow-codex-reasoning-{Guid.NewGuid():N}");
+        try
+        {
+            await using var client = new CodexAppServerProcessClient(new CodexAppServerOptions(
+                executable,
+                isolatedDirectory));
+            var provider = new CodexAppServerReasoningProvider(client);
+
+            var result = await provider.AnalyzeImpactAsync(
+                EmptyReasoningContext(),
+                TestContext.Current.CancellationToken);
+
+            Assert.False(string.IsNullOrWhiteSpace(result.Summary));
+            Assert.InRange(result.Confidence, 0m, 1m);
+            Assert.True(result.EvidenceLevel is EvidenceLevel.Inferred or EvidenceLevel.Proposed);
+            Assert.Empty(result.EvidenceIds);
+            Assert.All(result.Tasks, task =>
+            {
+                Assert.False(string.IsNullOrWhiteSpace(task.Title));
+                Assert.InRange(task.Confidence, 0m, 1m);
+                Assert.True(task.EvidenceLevel is EvidenceLevel.Inferred or EvidenceLevel.Proposed);
+                Assert.Empty(task.ArtifactIds);
+                Assert.Empty(task.EvidenceIds);
+            });
         }
         finally
         {

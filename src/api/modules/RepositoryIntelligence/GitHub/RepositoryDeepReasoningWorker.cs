@@ -453,6 +453,20 @@ internal sealed class RepositoryTaskProjector(
         var projection = await session.LoadAsync<RepositoryTaskProjection>(sourceTask.Id, cancellationToken);
         if (projection?.SourceVersion >= sourceTask.Version)
         {
+            if (projection.VerificationTarget is null)
+            {
+                var target = RepositoryTaskVerificationTargetFactory.Create(
+                    graph,
+                    sourceTask.ContractMismatchId);
+                if (target is not null)
+                {
+                    session.Store(projection with
+                    {
+                        VerificationTarget = target,
+                        UpdatedAt = timeProvider.GetUtcNow()
+                    });
+                }
+            }
             return;
         }
 
@@ -504,7 +518,7 @@ internal sealed class RepositoryTaskProjector(
             }
 
             StoreEvidence(projectId, taskId, sourceChangeIds, artifactIds, impactIds, graph, sourceTask);
-            StoreProjection(projectId, repositoryId, taskId, sourceTask);
+            StoreProjection(projectId, repositoryId, taskId, graph, sourceTask);
             session.Store(AuditRecordFactory.Create(
                 projectId,
                 aiActorId,
@@ -524,7 +538,7 @@ internal sealed class RepositoryTaskProjector(
         }
 
         StoreEvidence(projectId, taskId, sourceChangeIds, artifactIds, impactIds, graph, sourceTask);
-        StoreProjection(projectId, repositoryId, taskId, sourceTask);
+        StoreProjection(projectId, repositoryId, taskId, graph, sourceTask);
         if (existing is null)
         {
             session.Store(projected);
@@ -562,14 +576,22 @@ internal sealed class RepositoryTaskProjector(
         Guid projectId,
         Guid repositoryId,
         Guid taskId,
-        AnalyzerTask sourceTask) => session.Store(new RepositoryTaskProjection(
-        sourceTask.Id,
-        projectId,
-        repositoryId,
-        taskId,
-        sourceTask.Version,
-        sourceTask.Status,
-        timeProvider.GetUtcNow()));
+        RepositoryKnowledgeGraph graph,
+        AnalyzerTask sourceTask)
+    {
+        var target = RepositoryTaskVerificationTargetFactory.Create(
+            graph,
+            sourceTask.ContractMismatchId);
+        session.Store(new RepositoryTaskProjection(
+            sourceTask.Id,
+            projectId,
+            repositoryId,
+            taskId,
+            sourceTask.Version,
+            sourceTask.Status,
+            timeProvider.GetUtcNow(),
+            target));
+    }
 
     private static string RequiredProjectionPermission(
         EngineeringTask? existing,

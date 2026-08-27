@@ -779,6 +779,218 @@ public sealed class GitHubIntegrationTests
             .ToListAsync(TestContext.Current.CancellationToken));
         Assert.Equal(2, sourceAware.Version);
         Assert.Contains("Persist categoryId consistently.", sourceAware.Requirements);
+        var projection = await secondQuery.LoadAsync<RepositoryTaskProjection>(
+            sourceAware.Id,
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(projection);
+        Assert.NotNull(projection.VerificationTarget);
+        Assert.Equal("categoryId", projection.VerificationTarget.Subject);
+    }
+
+    [Fact]
+    public void Source_verification_requires_a_matched_contract_pair_before_passing()
+    {
+        var repositoryId = Guid.NewGuid();
+        var graph = ReasoningGraph(repositoryId);
+        var projection = new RepositoryTaskProjection(
+            "source-task-1",
+            Guid.NewGuid(),
+            repositoryId,
+            Guid.NewGuid(),
+            SourceVersion: 1,
+            SourceAwareTaskStatus.InProgress,
+            DateTimeOffset.UtcNow,
+            new RepositoryTaskVerificationTarget(
+                "frontend-contract",
+                "backend-contract",
+                ContractMismatchKind.RequestFieldMissingBackend,
+                "categoryId"));
+
+        var failed = RepositoryTaskVerificationEvaluator.Evaluate(projection, graph);
+        Assert.Equal(AiVerificationStatus.Failed, failed.Status);
+        Assert.StartsWith("Missing requirement", failed.Summary, StringComparison.Ordinal);
+
+        var inconclusive = RepositoryTaskVerificationEvaluator.Evaluate(
+            projection,
+            graph with { ContractPairs = [], ContractMismatches = [] });
+        Assert.Equal(AiVerificationStatus.Inconclusive, inconclusive.Status);
+
+        var passed = RepositoryTaskVerificationEvaluator.Evaluate(
+            projection,
+            graph with { ContractMismatches = [] });
+        Assert.Equal(AiVerificationStatus.Passed, passed.Status);
+        Assert.Contains("expected and actual source now match", passed.Summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Source_verification_respects_ai_policy_and_keeps_human_approval_separate()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        await using var app = await BuildApplicationAsync(postgres.GetConnectionString());
+        var projectId = Guid.NewGuid();
+        var repositoryId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var graph = ReasoningGraph(repositoryId);
+        var task = new EngineeringTask(
+            taskId,
+            projectId,
+            repositoryId,
+            ComponentId: null,
+            ComponentScopeKind.Backend,
+            FeatureId: null,
+            "Accept categoryId in the product request",
+            "Align the backend request contract with the frontend expectation.",
+            TaskLifecycleStatus.InProgress,
+            TaskPriority.High,
+            new TaskSourceTrace(null, [], [], []),
+            ["POST /api/products"],
+            [],
+            [],
+            ["Accept required categoryId."],
+            [],
+            actorId,
+            TaskActorType.User,
+            now,
+            now,
+            CurrentVersion: 1,
+            AiVerificationStatus.NotRun,
+            HumanApprovalStatus.Pending);
+        var projection = new RepositoryTaskProjection(
+            "source-task-1",
+            projectId,
+            repositoryId,
+            taskId,
+            SourceVersion: 1,
+            SourceAwareTaskStatus.InProgress,
+            now,
+            new RepositoryTaskVerificationTarget(
+                "frontend-contract",
+                "backend-contract",
+                ContractMismatchKind.RequestFieldMissingBackend,
+                "categoryId"));
+
+        await using (var seedScope = app.Services.CreateAsyncScope())
+        {
+            var session = seedScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            session.Store(task);
+            session.Store(projection);
+            session.Store(new AiPermissionPolicy(
+                projectId,
+                projectId,
+                VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization.AiTrustLevel.SuggestOnly,
+                [ProjectPermissionCodes.AiTaskSuggest],
+                actorId,
+                now));
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using (var deniedScope = app.Services.CreateAsyncScope())
+        {
+            var session = deniedScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var denied = await new RepositoryTaskVerificationService(session, TimeProvider.System)
+                .VerifyAsync(projectId, repositoryId, graph, graph, TestContext.Current.CancellationToken);
+            Assert.Equal(1, denied.CandidateCount);
+            Assert.Equal(1, denied.SkippedByPolicyCount);
+            Assert.Equal(0, denied.UpdatedCount);
+        }
+
+        await using (var policyScope = app.Services.CreateAsyncScope())
+        {
+            var session = policyScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            session.Store(new AiPermissionPolicy(
+                projectId,
+                projectId,
+                VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization.AiTrustLevel.UpdateTasks,
+                [ProjectPermissionCodes.AiTaskUpdate],
+                actorId,
+                DateTimeOffset.UtcNow));
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using (var failedScope = app.Services.CreateAsyncScope())
+        {
+            var session = failedScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var failed = await new RepositoryTaskVerificationService(session, TimeProvider.System)
+                .VerifyAsync(projectId, repositoryId, graph, graph, TestContext.Current.CancellationToken);
+            Assert.Equal(1, failed.FailedCount);
+            Assert.Equal(1, failed.UpdatedCount);
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var inconclusiveGraph = graph with
+        {
+            Revision = graph.Revision + 1,
+            ContractPairs = [],
+            ContractMismatches = []
+        };
+        await using (var inconclusiveScope = app.Services.CreateAsyncScope())
+        {
+            var session = inconclusiveScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var inconclusive = await new RepositoryTaskVerificationService(session, TimeProvider.System)
+                .VerifyAsync(
+                    projectId,
+                    repositoryId,
+                    graph,
+                    inconclusiveGraph,
+                    TestContext.Current.CancellationToken);
+            Assert.Equal(1, inconclusive.InconclusiveCount);
+            Assert.Equal(1, inconclusive.UpdatedCount);
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var resolvedGraph = graph with
+        {
+            Revision = graph.Revision + 2,
+            ContractMismatches = []
+        };
+        await using (var passedScope = app.Services.CreateAsyncScope())
+        {
+            var session = passedScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var passed = await new RepositoryTaskVerificationService(session, TimeProvider.System)
+                .VerifyAsync(projectId, repositoryId, graph, resolvedGraph, TestContext.Current.CancellationToken);
+            Assert.Equal(1, passed.PassedCount);
+            Assert.Equal(1, passed.UpdatedCount);
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using (var duplicateScope = app.Services.CreateAsyncScope())
+        {
+            var session = duplicateScope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var duplicate = await new RepositoryTaskVerificationService(session, TimeProvider.System)
+                .VerifyAsync(projectId, repositoryId, graph, resolvedGraph, TestContext.Current.CancellationToken);
+            Assert.Equal(1, duplicate.PassedCount);
+            Assert.Equal(0, duplicate.UpdatedCount);
+        }
+
+        await using var verificationScope = app.Services.CreateAsyncScope();
+        var query = verificationScope.ServiceProvider.GetRequiredService<IQuerySession>();
+        var verified = await query.LoadAsync<EngineeringTask>(taskId, TestContext.Current.CancellationToken);
+        Assert.NotNull(verified);
+        Assert.Equal(TaskLifecycleStatus.ReadyForReview, verified.Status);
+        Assert.Equal(AiVerificationStatus.Passed, verified.AiVerification);
+        Assert.Equal(HumanApprovalStatus.Pending, verified.HumanApproval);
+        Assert.Equal(4, verified.CurrentVersion);
+        var evidence = await query.Query<TaskEvidence>()
+            .Where(item => item.TaskId == taskId)
+            .OrderBy(item => item.CreatedAt)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(3, evidence.Count);
+        Assert.Contains(evidence, item => item.Summary.StartsWith("Missing requirement", StringComparison.Ordinal));
+        Assert.Contains(evidence, item => item.Summary.Contains("inconclusive", StringComparison.Ordinal));
+        Assert.Contains(evidence, item => item.Summary.Contains("passed", StringComparison.Ordinal));
+        var versions = await query.Query<TaskVersion>()
+            .Where(item => item.TaskId == taskId)
+            .OrderBy(item => item.Version)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal([2, 3, 4], versions.Select(item => item.Version));
+        Assert.All(versions, version => Assert.Equal(HumanApprovalStatus.Pending, version.Snapshot.HumanApproval));
+        var audit = await query.Query<AuditRecord>()
+            .Where(item => item.ProjectId == projectId && item.Action == "task.ai.verify")
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(3, audit.Count);
     }
 
     private static RepositoryKnowledgeGraph ReasoningGraph(Guid repositoryId)

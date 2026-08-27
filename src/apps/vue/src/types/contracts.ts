@@ -150,6 +150,7 @@ export enum TaskLifecycleStatus {
   Blocked = 4,
   Rejected = 5,
   Cancelled = 6,
+  Suggested = 7,
 }
 
 export enum TaskPriority {
@@ -367,6 +368,7 @@ export const taskStatusLabel: Record<TaskLifecycleStatus, string> = {
   [TaskLifecycleStatus.Blocked]: 'Blocked',
   [TaskLifecycleStatus.Rejected]: 'Rejected',
   [TaskLifecycleStatus.Cancelled]: 'Cancelled',
+  [TaskLifecycleStatus.Suggested]: 'Suggested',
 }
 
 export const taskPriorityLabel: Record<TaskPriority, string> = {

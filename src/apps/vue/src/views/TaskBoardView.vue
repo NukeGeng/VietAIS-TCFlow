@@ -34,6 +34,11 @@ const columns = computed(() =>
 )
 
 const transitions: Partial<Record<TaskLifecycleStatus, TaskLifecycleStatus[]>> = {
+  [TaskLifecycleStatus.Suggested]: [
+    TaskLifecycleStatus.Upcoming,
+    TaskLifecycleStatus.Rejected,
+    TaskLifecycleStatus.Cancelled,
+  ],
   [TaskLifecycleStatus.Upcoming]: [TaskLifecycleStatus.InProgress, TaskLifecycleStatus.Cancelled],
   [TaskLifecycleStatus.InProgress]: [
     TaskLifecycleStatus.ReadyForReview,
@@ -49,14 +54,17 @@ const transitions: Partial<Record<TaskLifecycleStatus, TaskLifecycleStatus[]>> =
   [TaskLifecycleStatus.Rejected]: [TaskLifecycleStatus.InProgress, TaskLifecycleStatus.Cancelled],
 }
 
-function transitionPermission(status: TaskLifecycleStatus): string {
+function transitionPermission(task: EngineeringTask, status: TaskLifecycleStatus): string {
+  if (status === TaskLifecycleStatus.Upcoming && task.status === TaskLifecycleStatus.Suggested) {
+    return 'task.create'
+  }
   if (status === TaskLifecycleStatus.Completed) return 'task.approve'
   if (status === TaskLifecycleStatus.Rejected) return 'task.reject'
   return 'task.status.update'
 }
 
 function transitionUnavailableReason(task: EngineeringTask, status: TaskLifecycleStatus): string {
-  const permission = transitionPermission(status)
+  const permission = transitionPermission(task, status)
   if (!workspace.hasPermission(permission)) return `Requires ${permission}`
   if (
     status === TaskLifecycleStatus.Completed &&

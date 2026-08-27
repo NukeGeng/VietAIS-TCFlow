@@ -27,7 +27,7 @@ the merge/runtime gates at the end of this document pass.
 | 15 | Generate or update task | CONFIRMED (branches) | `ReasoningAndReconciliationTests.ReconciliationCoversCanonicalCreateUpdateMergeCloseReopenAndIgnoreCases`; PR #40 `Deep_reasoning_projects_a_source_aware_suggestion_with_trace_and_audit` |
 | 16 | Trace task to source change | CONFIRMED (branches) | PR #40 `Deep_reasoning_projects_a_source_aware_suggestion_with_trace_and_audit`; `ReasoningAndReconciliationTests.MartenPersistsTaskVersionsAndAuditsWhileRejectingUnauthorizedClose` |
 | 16a | Verify source change resolves the task | CONFIRMED (this branch) | `GitHubIntegrationTests.Source_verification_requires_a_matched_contract_pair_before_passing`; `GitHubIntegrationTests.Source_verification_respects_ai_policy_and_keeps_human_approval_separate` |
-| 17 | Reconcile subsequent changes | CONFIRMED (this branch) | P14 reconciliation metric; `IncrementalMonitoringTests.RevertIsDetectedAndDeepProcessorCreatesIgnoresThenClosesWithoutCallingAiForRevert` |
+| 17 | Reconcile subsequent changes | CONFIRMED (this branch) | P14 reconciliation metric; `IncrementalMonitoringTests.RevertIsDetectedAndDeepProcessorCreatesIgnoresThenClosesWithoutCallingAiForRevert`; source-driven completion verification |
 | 18 | Respect permission and component scope | CONFIRMED (backend branches) | PR #42 `ProjectAuthorizationIntegrationTests.Permission_engine_enforces_boundaries_traces_grants_and_audits_mutations`; `ProjectManagementIntegrationTests.Task_workflow_enforces_scope_preserves_trace_and_separates_ai_from_human_approval` |
 | 19 | Audit user and AI actions | CONFIRMED (branches) | `ReasoningAndReconciliationTests.MartenPersistsSuggestedTaskWithSuggestOnlyPolicyAndSuggestionAudit`; PR #42 authorization/governance audit tests |
 
@@ -77,20 +77,21 @@ claims.
 Product-level risk controls are mapped separately in
 `PRODUCT_CONSTRAINTS_MATRIX.md`; each constraint is marked with direct source,
 test, benchmark, or explicitly open external evidence.
-
 ## Integration and runtime gates
 
 | Gate | Status | Evidence or remaining work |
 | --- | --- | --- |
 | Analyzer solution build/test | CONFIRMED (this branch) | .NET 9 build and all analyzer test projects pass on this branch |
 | Backend integration suite | CONFIRMED (this branch) | 41 integration tests pass on this branch |
-| Frontend typecheck/test/lint/build | CONFIRMED (this branch) | Vite build, typecheck, 9 Vitest tests, Oxlint, ESLint, and Prettier checks pass |
+| Frontend typecheck/test/lint/build | PENDING RECHECK | The integrated frontend feature set requires a fresh typecheck, test, lint, format, and build run |
 | Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | Live stack health endpoint returned healthy on 2026-08-23 |
 | Private GitHub repository installation and initial scan | CONFIRMED (local runtime) | `NukeGeng/Portfolio` source revision was fetched; unsupported Next.js was correctly reported without invented facts |
+| Source-driven task completion verification | CONFIRMED (this branch) | Deterministic and Marten integration coverage verifies AI policy, failed/inconclusive/passed outcomes, idempotency, evidence, versions, audit, and separation from human approval |
 | Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change |
 | Codex App Server managed-account handshake and structured turn | CONFIRMED (local provider) | Opt-in live reasoning test completed with the authenticated managed Codex executable on 2026-08-27 |
 | Live Codex managed-account reasoning worker | PROPOSED | `RepositoryReasoning.Enabled` is false in development defaults; enable only with managed account and explicit AI policy |
-| Protected-branch integration | PROPOSED | Draft PRs #39–#47 require user review/authorization before merge |
+| Long-lived branch protection | CONFIRMED (GitHub) | `main`, `frontend`, `backend`, `mobile`, and `ai` require pull requests, enforce rules for admins, and reject force-push/deletion |
+| Protected-branch integration | PROPOSED | Draft PRs #39–#50 still require integration and readback before completion |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and
 branch-level evidence are present, but the supported live-repository reasoning

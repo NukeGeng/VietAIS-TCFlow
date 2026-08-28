@@ -8,6 +8,7 @@ import { useWorkspaceStore } from '../stores/workspace'
 import {
   GitHubAnalysisRequestStatus,
   RepositoryAnalysisRunStatus,
+  RepositoryReasoningJobStatus,
   RepositoryProviderKind,
   type ProjectRepository,
   type RepositoryAnalysisDetails,
@@ -58,13 +59,46 @@ function statusClass(details: RepositoryAnalysisDetails | null): string {
 }
 
 function isInProgress(details: RepositoryAnalysisDetails | null): boolean {
-  return (
-    details?.request.status === GitHubAnalysisRequestStatus.Pending ||
-    details?.request.status === GitHubAnalysisRequestStatus.Processing ||
-    details?.request.status === GitHubAnalysisRequestStatus.AwaitingReasoning ||
-    details?.run?.status === RepositoryAnalysisRunStatus.Processing ||
-    details?.run?.status === RepositoryAnalysisRunStatus.AwaitingReasoning
+  if (!details) return false
+  if (
+    details.request.status === GitHubAnalysisRequestStatus.Pending ||
+    details.request.status === GitHubAnalysisRequestStatus.Processing ||
+    details.run?.status === RepositoryAnalysisRunStatus.Processing
   )
+    return true
+  const awaitingReasoning =
+    details.request.status === GitHubAnalysisRequestStatus.AwaitingReasoning ||
+    details.run?.status === RepositoryAnalysisRunStatus.AwaitingReasoning
+  if (!awaitingReasoning) return false
+  return details.reasoning
+    ? details.reasoning.workerEnabled && details.reasoning.providerEnabled
+    : true
+}
+
+function isReasoningBlocked(details: RepositoryAnalysisDetails): boolean {
+  return Boolean(
+    details.reasoning && (!details.reasoning.workerEnabled || !details.reasoning.providerEnabled),
+  )
+}
+
+function reasoningTitle(details: RepositoryAnalysisDetails): string {
+  if (details.reasoning && !details.reasoning.workerEnabled)
+    return 'AI reasoning is queued, but the worker is disabled'
+  if (details.reasoning && !details.reasoning.providerEnabled)
+    return 'AI reasoning is queued, but the provider is disabled'
+  return details.reasoning?.jobStatus === RepositoryReasoningJobStatus.Processing
+    ? 'Targeted AI reasoning is running'
+    : 'Targeted AI reasoning is queued'
+}
+
+function reasoningMessage(details: RepositoryAnalysisDetails): string {
+  if (details.reasoning && !details.reasoning.workerEnabled)
+    return 'Static source facts are ready. Enable the repository reasoning worker for this deployment before task reconciliation can continue.'
+  if (details.reasoning && !details.reasoning.providerEnabled)
+    return 'Static source facts are ready. A system administrator must enable the configured AI provider before task reconciliation can continue.'
+  if (details.reasoning?.jobStatus === RepositoryReasoningJobStatus.Processing)
+    return 'Static source facts are ready. TCFlow is applying project authority, conventions, and AI permissions before reconciling tasks.'
+  return 'Static source facts are ready. TCFlow will apply project authority, conventions, and AI permissions when the reasoning worker claims this job.'
 }
 
 function repositoryTitle(repository: ProjectRepository): string {
@@ -209,15 +243,22 @@ onUnmounted(() => {
             v-if="
               analyses[repository.id]!.run!.status === RepositoryAnalysisRunStatus.AwaitingReasoning
             "
-            class="state-panel analysis-message"
+            :class="[
+              'state-panel',
+              'analysis-message',
+              { 'state-panel--warning': isReasoningBlocked(analyses[repository.id]!) },
+            ]"
           >
-            <span class="loader" aria-hidden="true"></span>
+            <span
+              v-if="isReasoningBlocked(analyses[repository.id]!)"
+              class="state-icon"
+              aria-hidden="true"
+              >!</span
+            >
+            <span v-else class="loader" aria-hidden="true"></span>
             <div>
-              <strong>Targeted AI reasoning is running</strong>
-              <p>
-                Static source facts are ready. TCFlow is applying project authority, conventions,
-                and AI permissions before reconciling tasks.
-              </p>
+              <strong>{{ reasoningTitle(analyses[repository.id]!) }}</strong>
+              <p>{{ reasoningMessage(analyses[repository.id]!) }}</p>
             </div>
           </div>
           <div

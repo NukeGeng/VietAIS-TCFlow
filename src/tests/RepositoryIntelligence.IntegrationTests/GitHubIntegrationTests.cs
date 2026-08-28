@@ -1418,10 +1418,7 @@ public sealed class GitHubIntegrationTests
             var run = await session.LoadAsync<RepositoryAnalysisRun>(
                 requestId,
                 TestContext.Current.CancellationToken);
-            if (request is not null && run?.Status is
-                RepositoryAnalysisRunStatus.Completed or
-                RepositoryAnalysisRunStatus.Unsupported or
-                RepositoryAnalysisRunStatus.Failed)
+            if (request is not null && run is not null && IsTerminalState(request.Status, run.Status))
             {
                 return new RepositoryAnalysisDetails(request, run);
             }
@@ -1431,4 +1428,16 @@ public sealed class GitHubIntegrationTests
 
         throw new TimeoutException("Repository analysis did not reach a terminal status.");
     }
+
+    private static bool IsTerminalState(
+        GitHubAnalysisRequestStatus requestStatus,
+        RepositoryAnalysisRunStatus runStatus) =>
+        (requestStatus, runStatus) switch
+        {
+            (GitHubAnalysisRequestStatus.Completed, RepositoryAnalysisRunStatus.Completed) => true,
+            (GitHubAnalysisRequestStatus.Ignored, RepositoryAnalysisRunStatus.Completed) => true,
+            (GitHubAnalysisRequestStatus.Ignored, RepositoryAnalysisRunStatus.Unsupported) => true,
+            (GitHubAnalysisRequestStatus.Failed, RepositoryAnalysisRunStatus.Failed) => true,
+            _ => false
+        };
 }

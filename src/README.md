@@ -57,6 +57,28 @@ dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:bootstrap-
 dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-webhook-secret" "<github-app-webhook-secret>"
 ```
 
+Configure the GitHub App parameters in the same user-secrets store. The App's
+OAuth callback must exactly match the callback URI configured in GitHub (the
+default local URI is `http://localhost:5173/github/callback`). Keep the private
+key as a base64-encoded PEM value; do not paste the PEM or client secret into a
+tracked file.
+
+```bash
+dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-app-id" "<app-id>"
+dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-app-slug" "<app-slug>"
+dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-client-id" "<client-id>"
+dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-client-secret" "<client-secret>"
+private_key_base64="$(base64 < /absolute/path/to/app.private-key.pem | tr -d '\n')"
+dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-private-key-base64" "$private_key_base64"
+```
+
+The webhook endpoint is fail-closed and can remain unused while the GitHub App
+has no subscribed events. If `Push`, `Pull request`, or `Merge` events are
+enabled later, set `Parameters:github-webhook-secret` to the same App webhook
+secret and configure the webhook URL to the publicly reachable API endpoint.
+The `.env` file is not an Aspire secrets store; a bare value in it is not read
+as GitHub configuration.
+
 Codex reasoning is disabled by default. To enable the managed Codex App Server
 worker locally, point Aspire at an authenticated `codex` executable. The worker
 uses the CLI's existing managed account session; no API key or ChatGPT credential

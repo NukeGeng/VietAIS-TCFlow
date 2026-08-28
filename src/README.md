@@ -14,11 +14,17 @@ The repository `global.json` accepts a compatible installed .NET 9 feature
 band.
 
 If multiple SDK installations exist, ensure `dotnet --version` reports a .NET
-9 SDK before starting Aspire. Child projects inherit `PATH` from the AppHost.
+9 SDK before starting Aspire. Child projects inherit `PATH` and the .NET host
+selection environment from the AppHost. On macOS, an inherited `DOTNET_ROOT`
+that points at another SDK can make testhost launch with the wrong runtime even
+when `dotnet --version` is correct, so point both variables at the same .NET 9
+installation.
 For a keg-only Homebrew installation on Apple Silicon, for example:
 
 ```bash
-export PATH="/opt/homebrew/opt/dotnet@9/bin:$PATH"
+export DOTNET_ROOT="/opt/homebrew/opt/dotnet@9/libexec"
+export PATH="/opt/homebrew/opt/dotnet@9/bin:$DOTNET_ROOT:$PATH"
+dotnet --version
 ```
 
 The Vue application pins the verified Node release in `apps/vue/.nvmrc`. Make

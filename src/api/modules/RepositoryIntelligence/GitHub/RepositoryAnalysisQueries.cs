@@ -1,7 +1,9 @@
 using FSH.Framework.Core.Exceptions;
 using Marten;
 using MediatR;
+using Microsoft.Extensions.Options;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
+using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
 
 namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.GitHub;
 
@@ -18,7 +20,8 @@ public sealed record GetLatestRepositoryAnalysisQuery(
 
 public sealed class GetRepositoryAnalysisHandler(
     IQuerySession session,
-    IProjectPermissionEvaluator evaluator)
+    IProjectPermissionEvaluator evaluator,
+    IOptions<RepositoryReasoningWorkerOptions> reasoningOptions)
     : IRequestHandler<GetRepositoryAnalysisQuery, RepositoryAnalysisDetails>,
         IRequestHandler<GetLatestRepositoryAnalysisQuery, RepositoryAnalysisDetails>
 {
@@ -85,6 +88,26 @@ public sealed class GetRepositoryAnalysisHandler(
         }
 
         var run = await session.LoadAsync<RepositoryAnalysisRun>(request.Id, cancellationToken);
-        return new RepositoryAnalysisDetails(request, run);
+        var reasoningJob = await session.Query<RepositoryReasoningJob>()
+            .Where(job => job.WorkItem.RequestId == request.Id.ToString())
+            .OrderByDescending(job => job.UpdatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        RepositoryReasoningDetails? reasoning = null;
+        if (reasoningJob is not null ||
+            request.Status == GitHubAnalysisRequestStatus.AwaitingReasoning ||
+            run?.Status == RepositoryAnalysisRunStatus.AwaitingReasoning)
+        {
+            var provider = await session.LoadAsync<GlobalAiProviderConfiguration>(
+                SystemConfigurationIds.CodexAppServerProvider,
+                cancellationToken);
+            reasoning = new RepositoryReasoningDetails(
+                reasoningOptions.Value.Enabled,
+                provider?.IsEnabled ?? true,
+                reasoningJob?.Status,
+                reasoningJob?.Attempt ?? 0,
+                reasoningJob?.UpdatedAt);
+        }
+
+        return new RepositoryAnalysisDetails(request, run, reasoning);
     }
 }

@@ -1,5 +1,6 @@
 using FSH.Framework.Core.Exceptions;
 using Marten;
+using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
 
 namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 
@@ -10,6 +11,12 @@ public sealed class ProjectPermissionEvaluator(IQuerySession session) : IProject
         Guid projectId,
         CancellationToken cancellationToken)
     {
+        var state = await session.LoadAsync<ProjectState>(projectId, cancellationToken);
+        if (state is not null && state.Status != ProjectLifecycleStatus.Active)
+        {
+            return [];
+        }
+
         var membership = await session.Query<ProjectMembership>()
             .SingleOrDefaultAsync(
                 item => item.ProjectId == projectId && item.UserId == userId && item.IsActive,

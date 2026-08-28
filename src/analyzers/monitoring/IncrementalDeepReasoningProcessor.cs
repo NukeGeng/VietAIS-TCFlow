@@ -102,7 +102,7 @@ public sealed class IncrementalDeepReasoningProcessor(
                     proposal.CorrelationKey,
                     cancellationToken);
                 var decision = _reconciliation.Reconcile(proposal, existing, _timeProvider.GetUtcNow());
-                EnsureAuthorized(settings.AiPolicy, decision.Action);
+                EnsureAuthorized(settings.AiPolicy, decision);
                 await taskGateway.ApplyAsync(decision, settings.AiPolicy, settings.ActorId, cancellationToken);
                 decisions.Add(decision);
             }
@@ -164,7 +164,7 @@ public sealed class IncrementalDeepReasoningProcessor(
                 SourceChangeState.Reverted,
                 TaskProposalDisposition.Suggested);
             var decision = _reconciliation.Reconcile(proposal, tasks, _timeProvider.GetUtcNow());
-            EnsureAuthorized(settings.AiPolicy, decision.Action);
+            EnsureAuthorized(settings.AiPolicy, decision);
             await taskGateway.ApplyAsync(decision, settings.AiPolicy, settings.ActorId, cancellationToken);
             decisions.Add(decision);
         }
@@ -199,17 +199,8 @@ public sealed class IncrementalDeepReasoningProcessor(
         }
     }
 
-    private static void EnsureAuthorized(AiActionPolicy policy, TaskReconciliationAction action) =>
-        AiActionAuthorizer.EnsureAllowed(policy, action switch
-        {
-            TaskReconciliationAction.Create => AiTaskAction.Create,
-            TaskReconciliationAction.Update => AiTaskAction.Update,
-            TaskReconciliationAction.Merge => AiTaskAction.Merge,
-            TaskReconciliationAction.Close => AiTaskAction.Close,
-            TaskReconciliationAction.Reopen => AiTaskAction.Reopen,
-            TaskReconciliationAction.Ignore => AiTaskAction.Ignore,
-            _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unknown reconciliation action.")
-        });
+    private static void EnsureAuthorized(AiActionPolicy policy, TaskReconciliationDecision decision) =>
+        AiActionAuthorizer.EnsureAllowed(policy, AiActionAuthorizer.RequiredAction(decision));
 }
 
 public sealed class MartenIncrementalTaskGateway(

@@ -45,7 +45,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Aspire", "Aspire", "{D36E77
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ServiceDefaults", "aspire\service-defaults\ServiceDefaults.csproj", "{990CA37A-86D3-4FE6-B777-3CF0DDAC6BF6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Host", "aspire\host\Host.csproj", "{2119CE89-308D-4932-BFCE-8CDC0A05EB9E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Host", "aspire\Host\Host.csproj", "{2119CE89-308D-4932-BFCE-8CDC0A05EB9E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared", "Shared\Shared.csproj", "{49AA63BF-3DBA-4490-9470-5AE0EB7F49F0}"
 EndProject

@@ -73,7 +73,11 @@ public static class PermissionCatalog
         System(SystemPermissionCodes.ProjectInspect),
         System(SystemPermissionCodes.ProjectSuspend),
         System(SystemPermissionCodes.PermissionDefinitionManage),
-        System(SystemPermissionCodes.SystemAuditView)
+        System(SystemPermissionCodes.SystemAuditView),
+        System(SystemPermissionCodes.AiProviderManage),
+        System(SystemPermissionCodes.SystemSettingsManage),
+        System(SystemPermissionCodes.PlatformPolicyManage),
+        System(SystemPermissionCodes.PlatformUsageView)
     ];
 
     public static IReadOnlyList<PermissionDefinition> All { get; } = Array.AsReadOnly(Definitions);

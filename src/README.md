@@ -57,6 +57,16 @@ dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:bootstrap-
 dotnet user-secrets --project aspire/Host/Host.csproj set "Parameters:github-webhook-secret" "<github-app-webhook-secret>"
 ```
 
+Codex reasoning is disabled by default. To enable the managed Codex App Server
+worker locally, point Aspire at an authenticated `codex` executable. The worker
+uses the CLI's existing managed account session; no API key or ChatGPT credential
+is stored by TCFlow.
+
+```bash
+dotnet user-secrets --project aspire/Host/Host.csproj set "RepositoryReasoning:Enabled" "true"
+dotnet user-secrets --project aspire/Host/Host.csproj set "RepositoryReasoning:ExecutablePath" "/absolute/path/to/codex"
+```
+
 ## Run locally
 
 ```bash
@@ -94,11 +104,17 @@ The version 1 endpoints are:
 | Method | Route | Required project permission |
 | --- | --- | --- |
 | `GET` | `/api/v1/projects/{projectId}/permission-definitions` | `role.view` |
+| `GET` | `/api/v1/projects/{projectId}/roles` | `role.view` |
 | `POST` | `/api/v1/projects/{projectId}/roles` | `role.create` |
 | `PUT` | `/api/v1/projects/{projectId}/roles/{roleId}/permissions` | `role.update` |
+| `DELETE` | `/api/v1/projects/{projectId}/roles/{roleId}` | `role.delete`; only unused custom roles |
+| `GET` | `/api/v1/projects/{projectId}/members` | `member.view` |
+| `POST` | `/api/v1/projects/{projectId}/members` | `member.invite` |
 | `PUT` | `/api/v1/projects/{projectId}/members/{memberId}/roles` | `member.role.assign` |
+| `DELETE` | `/api/v1/projects/{projectId}/members/{memberId}` | `member.remove`; primary owner excluded |
 | `GET` | `/api/v1/projects/{projectId}/members/{memberId}/effective-permissions` | `role.view` |
 | `PUT` | `/api/v1/projects/{projectId}/ai-policy` | `ai.policy.update` |
+| `GET` | `/api/v1/projects/{projectId}/ai-policy` | `ai.policy.update` |
 | `GET` | `/api/v1/projects/{projectId}/authority-policy` | `authority.view` |
 | `PUT` | `/api/v1/projects/{projectId}/authority-policy` | `authority.update` |
 | `GET` | `/api/v1/projects/{projectId}/convention-profile` | `convention.view` |
@@ -134,7 +150,9 @@ Project-scoped version 1 routes include:
 | `POST` | `/api/v1/projects/{projectId}/repositories` | `repository.create` |
 | `GET` | `/api/v1/projects/{projectId}/repositories` | `repository.view` with resource/component scope |
 | `POST` | `/api/v1/projects/{projectId}/components` | `component.create` |
+| `GET` | `/api/v1/projects/{projectId}/components` | `component.view` with repository/component scope |
 | `POST` | `/api/v1/projects/{projectId}/features` | `feature.create` |
+| `GET` | `/api/v1/projects/{projectId}/features` | `feature.view` |
 | `POST` | `/api/v1/projects/{projectId}/tasks` | `task.create` |
 | `GET` | `/api/v1/projects/{projectId}/tasks` | `task.view` with project/repository/component/own/assigned scope |
 | `GET` | `/api/v1/projects/{projectId}/tasks/{taskId}` | `task.view` with task scope |
@@ -170,6 +188,8 @@ GitHub integration routes are:
 | `PUT` | `/api/v1/projects/{projectId}/github/installations/{installationId}` | `repository.access.manage` |
 | `POST` | `/api/v1/projects/{projectId}/github/repositories` | `repository.create` and `repository.access.manage` |
 | `POST` | `/api/v1/projects/{projectId}/github/repositories/{repositoryId}/initial-scan` | `source.analyze` for the selected repository |
+| `GET` | `/api/v1/projects/{projectId}/github/repositories/{repositoryId}/analyses/latest` | `source.analyze` for the selected repository |
+| `GET` | `/api/v1/projects/{projectId}/github/repositories/{repositoryId}/analyses/{analysisRequestId}` | `source.analyze` for the selected repository |
 | `POST` | `/api/v1/github/webhooks` | Valid `X-Hub-Signature-256`; no user session |
 
 Only repositories explicitly selected for the active installation can enqueue
@@ -178,3 +198,27 @@ events create pending analysis requests. `X-GitHub-Delivery` is the idempotency
 key, so retrying or concurrently delivering the same event does not create
 duplicate analysis requests. Repository selection, scan requests, and accepted
 webhook deliveries are audited without including raw payloads or secrets.
+
+The hosted analysis worker claims pending requests with optimistic concurrency.
+Initial scans obtain a short-lived installation token, read one immutable
+commit/tree snapshot, and persist the analyzer knowledge graph and convention
+profile. Incremental push requests load the immutable before/after revisions
+for the declared changed paths; pull-request and merge requests discover their
+changed paths by comparing those revisions. Meaningful source changes update
+the existing graph and report cumulative `changeCount` and `impactCount` values.
+Cosmetic or documentation-only changes complete as ignored without invoking AI,
+and delivery identifiers prevent duplicate graph processing.
+
+Contract-impacting changes enter `AwaitingReasoning`. The reasoning worker uses
+targeted graph context, project authority, detected conventions, and the project
+AI permission policy. It persists retryable jobs with processing leases and
+finishes the analysis only after task reconciliation. `SuggestOnly` projects a
+source-traceable task in `Suggested`; `CreateTasks` may project eligible tasks in
+`Upcoming`. AI task mutations and reasoning completion/failure are audited.
+
+Tokens and source contents are not stored in analysis status or audit documents.
+A supported Vue, ASP.NET Core, or Marten repository completes with fact counts
+and diagnostics. Other stacks, including Next.js/React in V1, finish as
+`Unsupported` with `ANALYSIS001` and zero generated tasks rather than remaining
+pending or producing invented work. Processing leases allow a crashed worker
+attempt to be retried.

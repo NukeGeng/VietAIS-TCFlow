@@ -4,12 +4,18 @@ import { ApiError } from '../services/http'
 import { tcflowApi, type CreateTaskInput, type TaskSearch } from '../services/tcflow-api'
 import type {
   AuditRecord,
+  AiPermissionPolicy,
+  AuthorityPolicy,
+  AuthorityRule,
+  ConventionProfile,
   EffectivePermissionResult,
   EngineeringTask,
   EngineeringTaskDetails,
   PermissionDefinition,
   Project,
+  ProjectComponent,
   ProjectFeature,
+  ProjectMembership,
   ProjectRepository,
   ProjectRole,
   ResourceState,
@@ -17,6 +23,7 @@ import type {
 } from '../types/contracts'
 import {
   AiTrustLevel,
+  ConventionProfileStatus,
   RepositoryProviderKind,
   TaskEvidenceKind,
   TaskLifecycleStatus,
@@ -42,17 +49,23 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const selectedProjectId = ref<string | null>(selectedFromStorage())
   const repositories = ref<ProjectRepository[]>([])
   const tasks = ref<EngineeringTask[]>([])
-  const transientFeatures = ref<ProjectFeature[]>([])
+  const features = ref<ProjectFeature[]>([])
+  const components = ref<ProjectComponent[]>([])
   const taskDetails = ref<EngineeringTaskDetails | null>(null)
   const taskHistory = ref<TaskVersion[]>([])
   const effectivePermissions = ref<EffectivePermissionResult | null>(null)
   const permissionDefinitions = ref<PermissionDefinition[]>([])
   const audit = ref<AuditRecord[]>([])
-  const createdRoles = ref<ProjectRole[]>([])
+  const projectRoles = ref<ProjectRole[]>([])
+  const projectMembers = ref<ProjectMembership[]>([])
+  const aiPolicy = ref<AiPermissionPolicy | null>(null)
+  const authorityPolicy = ref<AuthorityPolicy | null>(null)
+  const conventionProfile = ref<ConventionProfile | null>(null)
 
   const projectsState = ref<ResourceState>({ status: 'idle' })
   const permissionsState = ref<ResourceState>({ status: 'idle' })
   const repositoriesState = ref<ResourceState>({ status: 'idle' })
+  const featuresState = ref<ResourceState>({ status: 'idle' })
   const tasksState = ref<ResourceState>({ status: 'idle' })
   const taskState = ref<ResourceState>({ status: 'idle' })
   const administrationState = ref<ResourceState>({ status: 'idle' })
@@ -74,7 +87,20 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     permissionsState.value = { status: 'idle' }
     repositories.value = []
     tasks.value = []
-    transientFeatures.value = []
+    features.value = []
+    components.value = []
+    taskDetails.value = null
+    taskHistory.value = []
+    projectRoles.value = []
+    projectMembers.value = []
+    aiPolicy.value = null
+    authorityPolicy.value = null
+    conventionProfile.value = null
+    repositoriesState.value = { status: 'idle' }
+    featuresState.value = { status: 'idle' }
+    tasksState.value = { status: 'idle' }
+    taskState.value = { status: 'idle' }
+    administrationState.value = { status: 'idle' }
     if (typeof window !== 'undefined') {
       if (projectId) window.sessionStorage.setItem(projectStorageKey, projectId)
       else window.sessionStorage.removeItem(projectStorageKey)
@@ -104,6 +130,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     selectProject(response.project.id)
     await loadPermissions(userId)
     return response.project
+  }
+
+  async function updateProject(name: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    const project = await tcflowApi.updateProject(selectedProjectId.value, name)
+    projects.value = projects.value.map((item) => (item.id === project.id ? project : item))
+    await loadAdministration()
   }
 
   async function loadPermissions(userId: string): Promise<void> {
@@ -145,6 +178,27 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }): Promise<void> {
     if (!selectedProjectId.value) return
     await tcflowApi.createRepository(selectedProjectId.value, input)
+    await loadRepositories()
+  }
+
+  async function updateRepository(
+    repositoryId: string,
+    input: {
+      name: string
+      localPath?: string
+      remoteUrl?: string
+      defaultBranch: string
+      status: ProjectRepository['status']
+    },
+  ): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.updateRepository(selectedProjectId.value, repositoryId, input)
+    await loadRepositories()
+  }
+
+  async function disableRepository(repositoryId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.disableRepository(selectedProjectId.value, repositoryId)
     await loadRepositories()
   }
 
@@ -221,22 +275,90 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   async function createFeature(name: string, description?: string): Promise<void> {
     if (!selectedProjectId.value) return
-    const feature = await tcflowApi.createFeature(selectedProjectId.value, name, description)
-    transientFeatures.value = [...transientFeatures.value, feature]
+    await tcflowApi.createFeature(selectedProjectId.value, name, description)
+    await loadFeatures()
+  }
+
+  async function updateFeature(
+    featureId: string,
+    name: string,
+    description?: string,
+  ): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.updateFeature(selectedProjectId.value, featureId, name, description)
+    await loadFeatures()
+  }
+
+  async function deleteFeature(featureId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.deleteFeature(selectedProjectId.value, featureId)
+    await loadFeatures()
+  }
+
+  async function loadFeatures(keyword?: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    featuresState.value = { status: 'loading' }
+    try {
+      const response = await tcflowApi.features(selectedProjectId.value, keyword)
+      features.value = response.items
+      featuresState.value = { status: response.items.length ? 'ready' : 'empty' }
+    } catch (error) {
+      featuresState.value = stateFromError(error, 'Unable to load features.')
+    }
   }
 
   async function loadAdministration(): Promise<void> {
     if (!selectedProjectId.value) return
     administrationState.value = { status: 'loading' }
-    const [definitions, records] = await Promise.allSettled([
-      tcflowApi.permissionDefinitions(selectedProjectId.value),
-      tcflowApi.audit(selectedProjectId.value),
+    const projectId = selectedProjectId.value
+    const [
+      definitions,
+      roles,
+      members,
+      componentPage,
+      currentAiPolicy,
+      currentAuthority,
+      currentConvention,
+      records,
+    ] = await Promise.allSettled([
+      hasPermission('role.view') ? tcflowApi.permissionDefinitions(projectId) : Promise.resolve([]),
+      hasPermission('role.view') ? tcflowApi.roles(projectId) : Promise.resolve([]),
+      hasPermission('member.view') ? tcflowApi.members(projectId) : Promise.resolve([]),
+      hasPermission('component.view')
+        ? tcflowApi.components(projectId)
+        : Promise.resolve({ items: [] } as { items: ProjectComponent[] }),
+      hasPermission('ai.policy.update') ? tcflowApi.aiPolicy(projectId) : Promise.resolve(null),
+      hasPermission('authority.view')
+        ? tcflowApi.authorityPolicy(projectId)
+        : Promise.resolve(null),
+      hasPermission('convention.view')
+        ? tcflowApi.conventionProfile(projectId)
+        : Promise.resolve(null),
+      hasPermission('audit.view') ? tcflowApi.audit(projectId) : Promise.resolve([]),
     ])
     permissionDefinitions.value = definitions.status === 'fulfilled' ? definitions.value : []
+    projectRoles.value = roles.status === 'fulfilled' ? roles.value : []
+    projectMembers.value = members.status === 'fulfilled' ? members.value : []
+    components.value = componentPage.status === 'fulfilled' ? componentPage.value.items : []
+    aiPolicy.value = currentAiPolicy.status === 'fulfilled' ? currentAiPolicy.value : null
+    authorityPolicy.value = currentAuthority.status === 'fulfilled' ? currentAuthority.value : null
+    conventionProfile.value =
+      currentConvention.status === 'fulfilled' ? currentConvention.value : null
     audit.value = records.status === 'fulfilled' ? records.value : []
-    if (definitions.status === 'rejected' && records.status === 'rejected') {
+    const failures = [
+      definitions,
+      roles,
+      members,
+      componentPage,
+      currentAiPolicy,
+      currentAuthority,
+      currentConvention,
+      records,
+    ].filter((result) => result.status === 'rejected')
+    if (failures.length > 0) {
+      const firstFailure = failures[0] as PromiseRejectedResult
       administrationState.value = stateFromError(
-        definitions.reason,
+        firstFailure.reason,
         'Unable to load project administration.',
       )
       return
@@ -247,30 +369,34 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function createRole(name: string): Promise<ProjectRole> {
     if (!selectedProjectId.value) throw new Error('Select a project before creating a role.')
     const role = await tcflowApi.createRole(selectedProjectId.value, name)
-    createdRoles.value = [...createdRoles.value, role]
     await loadAdministration()
     return role
   }
 
+  async function deleteRole(roleId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.deleteRole(selectedProjectId.value, roleId)
+    await loadAdministration()
+  }
+
   async function updateRolePermissions(
     roleId: string,
-    permissionCodes: string[],
-    resourceScope: number,
-    componentScopes: number[],
-    resourceId?: string,
+    permissions: ProjectRole['permissions'],
   ): Promise<void> {
     if (!selectedProjectId.value) return
-    const updated = await tcflowApi.updateRolePermissions(
-      selectedProjectId.value,
-      roleId,
-      permissionCodes.map((permissionCode) => ({
-        permissionCode,
-        resourceScope,
-        resourceId: resourceId || undefined,
-        componentScopes,
-      })),
-    )
-    createdRoles.value = createdRoles.value.map((role) => (role.id === updated.id ? updated : role))
+    await tcflowApi.updateRolePermissions(selectedProjectId.value, roleId, permissions)
+    await loadAdministration()
+  }
+
+  async function addMember(userId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.addMember(selectedProjectId.value, userId)
+    await loadAdministration()
+  }
+
+  async function removeMember(userId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.removeMember(selectedProjectId.value, userId)
     await loadAdministration()
   }
 
@@ -283,6 +409,51 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function updateAiPolicy(trustLevel: AiTrustLevel, permissions: string[]): Promise<void> {
     if (!selectedProjectId.value) return
     await tcflowApi.updateAiPolicy(selectedProjectId.value, trustLevel, permissions)
+    await loadAdministration()
+  }
+
+  async function updateAuthorityPolicy(rules: AuthorityRule[]): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.updateAuthorityPolicy(selectedProjectId.value, rules)
+    await loadAdministration()
+  }
+
+  async function updateConventionProfile(input: {
+    status: ConventionProfileStatus
+    architectures: string[]
+    apiStyles: string[]
+    persistencePatterns: string[]
+    validationPatterns: string[]
+    dtoPatterns: string[]
+  }): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.updateConventionProfile(selectedProjectId.value, input)
+    await loadAdministration()
+  }
+
+  async function createComponent(input: {
+    repositoryId: string
+    name: string
+    scope: number
+    rootPath?: string
+  }): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.createComponent(selectedProjectId.value, input)
+    await loadAdministration()
+  }
+
+  async function updateComponent(
+    componentId: string,
+    input: { name: string; scope: number; rootPath?: string },
+  ): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.updateComponent(selectedProjectId.value, componentId, input)
+    await loadAdministration()
+  }
+
+  async function deleteComponent(componentId: string): Promise<void> {
+    if (!selectedProjectId.value) return
+    await tcflowApi.deleteComponent(selectedProjectId.value, componentId)
     await loadAdministration()
   }
 
@@ -309,16 +480,22 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     selectedProject,
     repositories,
     tasks,
-    transientFeatures,
+    features,
+    components,
     taskDetails,
     taskHistory,
     effectivePermissions,
     permissionDefinitions,
     audit,
-    createdRoles,
+    projectRoles,
+    projectMembers,
+    aiPolicy,
+    authorityPolicy,
+    conventionProfile,
     projectsState,
     permissionsState,
     repositoriesState,
+    featuresState,
     tasksState,
     taskState,
     administrationState,
@@ -327,9 +504,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     selectProject,
     loadProjects,
     createProject,
+    updateProject,
     loadPermissions,
     loadRepositories,
     createRepository,
+    updateRepository,
+    disableRepository,
     loadTasks,
     createTask,
     transitionTask,
@@ -338,11 +518,22 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     assignTask,
     addEvidence,
     createFeature,
+    updateFeature,
+    deleteFeature,
+    loadFeatures,
     loadAdministration,
     createRole,
+    deleteRole,
     updateRolePermissions,
     assignMemberRoles,
+    addMember,
+    removeMember,
     updateAiPolicy,
+    updateAuthorityPolicy,
+    updateConventionProfile,
+    createComponent,
+    updateComponent,
+    deleteComponent,
     transferOwnership,
     defaults: { RepositoryProviderKind, TaskPriority },
   }

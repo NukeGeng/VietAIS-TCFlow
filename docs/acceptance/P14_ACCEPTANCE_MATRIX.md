@@ -92,7 +92,7 @@ test, benchmark, or explicitly open external evidence.
 | Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change |
 | Codex App Server managed-account handshake and structured turn | CONFIRMED (local provider) | Opt-in live reasoning test completed with the authenticated managed Codex executable on 2026-08-27 |
 | Live Codex managed-account reasoning worker | PROPOSED | `RepositoryReasoning.Enabled` is false in development defaults; enable only with managed account and explicit AI policy |
-| Long-lived branch protection | CONFIRMED (GitHub) | `main`, `frontend`, `backend`, `mobile`, and `ai` require pull requests and all three quality gates, enforce rules for admins, and reject force-push/deletion |
+| Long-lived branch protection | CONFIRMED (GitHub) | `main`, `frontend`, `backend`, `mobile`, and `ai` require pull requests and all three quality gates, enforce rules for admins, and reject force-push/deletion; collaborator readback shows only `NukeGeng` has admin/push access. GitHub does not expose per-user push restrictions for this personal repository. |
 | Protected-branch integration | CONFIRMED (main) | PRs #70 and #71 passed all required checks and merged into `main` as `247d1bc` and `cbab1de`; readback confirms the complete integration head is reachable from `main` |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and

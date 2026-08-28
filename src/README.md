@@ -243,6 +243,10 @@ AI permission policy. It persists retryable jobs with processing leases and
 finishes the analysis only after task reconciliation. `SuggestOnly` projects a
 source-traceable task in `Suggested`; `CreateTasks` may project eligible tasks in
 `Upcoming`. AI task mutations and reasoning completion/failure are audited.
+Analysis detail responses include a nullable `reasoning` status for requests
+that have entered this phase. It reports only whether the worker and configured
+provider are enabled plus the queued job state, attempt count, and update time;
+it never exposes the executable path, model configuration, or credentials.
 
 Tokens and source contents are not stored in analysis status or audit documents.
 A supported Vue, ASP.NET Core, or Marten repository completes with fact counts

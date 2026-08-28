@@ -227,6 +227,13 @@ export enum RepositoryAnalysisRunStatus {
   AwaitingReasoning = 4,
 }
 
+export enum RepositoryReasoningJobStatus {
+  Pending = 0,
+  Processing = 1,
+  Completed = 2,
+  Failed = 3,
+}
+
 export interface RepositoryAnalysisRequest {
   id: string
   projectId: string
@@ -276,9 +283,18 @@ export interface RepositoryAnalysisRun {
   completedAt?: string
 }
 
+export interface RepositoryReasoningDetails {
+  workerEnabled: boolean
+  providerEnabled: boolean
+  jobStatus?: RepositoryReasoningJobStatus
+  attempt: number
+  updatedAt?: string
+}
+
 export interface RepositoryAnalysisDetails {
   request: RepositoryAnalysisRequest
   run?: RepositoryAnalysisRun
+  reasoning?: RepositoryReasoningDetails
 }
 
 export enum ComponentScopeKind {

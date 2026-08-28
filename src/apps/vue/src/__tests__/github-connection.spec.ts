@@ -14,8 +14,10 @@ import {
   GitHubAnalysisRequestStatus,
   GitHubAnalysisTriggerKind,
   RepositoryAnalysisRunStatus,
+  RepositoryReasoningJobStatus,
   RepositoryLifecycleStatus,
   RepositoryProviderKind,
+  type RepositoryReasoningDetails,
 } from '../types/contracts'
 
 const projectId = '20000000-0000-0000-0000-000000000001'
@@ -56,8 +58,90 @@ const remoteRepository = {
   htmlUrl: 'https://github.com/NukeGeng/VietAIS-TCFlow',
 }
 
+async function mountReasoningAnalysis(reasoning: RepositoryReasoningDetails) {
+  authenticate()
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const workspace = useWorkspaceStore()
+  workspace.projects = [{ id: projectId, name: 'Test', primaryOwnerId: actorId, createdAt: future }]
+  workspace.selectProject(projectId)
+  workspace.effectivePermissions = {
+    projectId,
+    userId: actorId,
+    grants: [
+      {
+        permissionCode: 'source.analyze',
+        roleId: '50000000-0000-0000-0000-000000000001',
+        roleName: 'Owner',
+        resourceScope: 1,
+        componentScopes: [],
+      },
+    ],
+  }
+  const repositoryId = '60000000-0000-0000-0000-000000000003'
+  workspace.repositories = [
+    {
+      id: repositoryId,
+      projectId,
+      name: 'NukeGeng/VietAIS-TCFlow',
+      provider: RepositoryProviderKind.GitHub,
+      remoteUrl: 'https://github.com/NukeGeng/VietAIS-TCFlow',
+      defaultBranch: 'main',
+      status: RepositoryLifecycleStatus.Active,
+      createdAt: future,
+      createdBy: actorId,
+    },
+  ]
+  workspace.repositoriesState = { status: 'ready' }
+  workspace.tasksState = { status: 'empty' }
+  vi.spyOn(workspace, 'loadRepositories').mockResolvedValue()
+  vi.spyOn(workspace, 'loadTasks').mockResolvedValue()
+  const latest = vi.spyOn(tcflowApi, 'latestRepositoryAnalysis').mockResolvedValue({
+    request: {
+      id: '80000000-0000-0000-0000-000000000002',
+      projectId,
+      repositoryId,
+      trigger: GitHubAnalysisTriggerKind.Push,
+      reference: 'refs/heads/main',
+      fullScan: false,
+      requiresChangedFileFetch: false,
+      changedFiles: [{ path: 'src/CreateProduct.vue', status: 1 }],
+      status: GitHubAnalysisRequestStatus.AwaitingReasoning,
+      requestedAt: future,
+      requestedByType: 'System',
+    },
+    run: {
+      id: '80000000-0000-0000-0000-000000000002',
+      projectId,
+      repositoryId,
+      status: RepositoryAnalysisRunStatus.AwaitingReasoning,
+      attempt: 1,
+      sourceRevision: '988facfcf7837a4e043e3901219e2a788e0220bc',
+      technologies: ['Vue', 'AspNet', 'Marten'],
+      artifactCount: 3,
+      dependencyCount: 2,
+      contractCount: 2,
+      mismatchCount: 1,
+      changeCount: 1,
+      impactCount: 1,
+      generatedTaskCount: 0,
+      diagnostics: [],
+      startedAt: future,
+      updatedAt: future,
+    },
+    reasoning,
+  })
+  const router = createAppRouter()
+  await router.push(`/projects/${projectId}/analysis`)
+  await router.isReady()
+  const wrapper = mount(AnalysisView, { global: { plugins: [pinia, router] } })
+  await flushPromises()
+  return { wrapper, latest }
+}
+
 describe('GitHub App connection', () => {
   afterEach(() => {
+    vi.useRealTimers()
     authSession.clear()
     gitHubConnectionSession.remove('oauth-state')
     vi.restoreAllMocks()
@@ -387,6 +471,74 @@ describe('GitHub App connection', () => {
     expect(wrapper.text()).toContain('ANALYSIS001')
     expect(wrapper.text()).toContain('No task was created')
     expect(wrapper.text()).toContain('No analyzed task evidence')
+    wrapper.unmount()
+  })
+
+  it.each([
+    {
+      name: 'disabled worker',
+      reasoning: {
+        workerEnabled: false,
+        providerEnabled: true,
+        jobStatus: RepositoryReasoningJobStatus.Pending,
+        attempt: 0,
+        updatedAt: future,
+      },
+      expected: 'AI reasoning is queued, but the worker is disabled',
+    },
+    {
+      name: 'disabled provider',
+      reasoning: {
+        workerEnabled: true,
+        providerEnabled: false,
+        jobStatus: RepositoryReasoningJobStatus.Pending,
+        attempt: 0,
+        updatedAt: future,
+      },
+      expected: 'AI reasoning is queued, but the provider is disabled',
+    },
+    {
+      name: 'pending job',
+      reasoning: {
+        workerEnabled: true,
+        providerEnabled: true,
+        jobStatus: RepositoryReasoningJobStatus.Pending,
+        attempt: 0,
+        updatedAt: future,
+      },
+      expected: 'Targeted AI reasoning is queued',
+    },
+    {
+      name: 'processing job',
+      reasoning: {
+        workerEnabled: true,
+        providerEnabled: true,
+        jobStatus: RepositoryReasoningJobStatus.Processing,
+        attempt: 1,
+        updatedAt: future,
+      },
+      expected: 'Targeted AI reasoning is running',
+    },
+  ])('shows the actual reasoning state for a $name', async ({ reasoning, expected }) => {
+    const { wrapper } = await mountReasoningAnalysis(reasoning)
+
+    expect(wrapper.text()).toContain(expected)
+    wrapper.unmount()
+  })
+
+  it('stops polling while reasoning cannot make progress', async () => {
+    vi.useFakeTimers()
+    const { wrapper, latest } = await mountReasoningAnalysis({
+      workerEnabled: false,
+      providerEnabled: true,
+      jobStatus: RepositoryReasoningJobStatus.Pending,
+      attempt: 0,
+      updatedAt: future,
+    })
+
+    expect(latest).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(2_500)
+    expect(latest).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 })

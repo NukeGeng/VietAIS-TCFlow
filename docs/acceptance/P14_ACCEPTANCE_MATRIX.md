@@ -84,7 +84,7 @@ test, benchmark, or explicitly open external evidence.
 | --- | --- | --- |
 | Analyzer solution build/test | CONFIRMED (main) | .NET 9 build and all 59 analyzer tests pass locally and in required CI |
 | Backend integration suite | CONFIRMED (main) | All 43 integration tests pass against isolated PostgreSQL containers locally and in required CI |
-| Frontend typecheck/test/lint/build | CONFIRMED (main) | Typecheck, 23 Vitest tests, Oxlint, ESLint, Prettier, and production build pass with Node 24 locally and in required CI |
+| Frontend typecheck/test/lint/build | CONFIRMED (frontend) | Typecheck, 28 Vitest tests, Oxlint, ESLint, Prettier, and production build pass with Node 24 locally; reasoning status covers queued, processing, disabled worker/provider, and blocked-polling behavior |
 | Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | On 2026-08-27 all five resources reported healthy; API health, Vue, and Swagger returned 200, while an unauthenticated project API call returned 401 |
 | Private GitHub repository installation and initial scan | CONFIRMED (local runtime) | `NukeGeng/Portfolio` source revision was fetched; unsupported Next.js was correctly reported without invented facts |
 | GitHub App installation configuration | CONFIRMED (GitHub readback) | App `vietais-tcflow` installation `155925244` selects `NukeGeng/Portfolio` and `NukeGeng/VietAIS-TCFlow`; installation permissions are read-only for contents/metadata/pull requests and no webhook events are subscribed |

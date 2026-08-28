@@ -83,8 +83,8 @@ test, benchmark, or explicitly open external evidence.
 | Gate | Status | Evidence or remaining work |
 | --- | --- | --- |
 | Analyzer solution build/test | CONFIRMED (main) | .NET 9 build and all 59 analyzer tests pass locally and in required CI |
-| Backend integration suite | CONFIRMED (main) | All 43 integration tests pass against isolated PostgreSQL containers locally and in required CI |
-| Frontend typecheck/test/lint/build | CONFIRMED (main) | Typecheck, 23 Vitest tests, Oxlint, ESLint, Prettier, and production build pass with Node 24 locally and in required CI |
+| Backend integration suite | CONFIRMED (main) | All 44 integration tests pass against isolated PostgreSQL containers locally and in required CI |
+| Frontend typecheck/test/lint/build | CONFIRMED (main) | Typecheck, 28 Vitest tests, Oxlint, ESLint, Prettier, and production build pass with Node 24 locally and in required CI; reasoning status covers queued, processing, disabled worker/provider, and blocked-polling behavior |
 | Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | On 2026-08-27 all five resources reported healthy; API health, Vue, and Swagger returned 200, while an unauthenticated project API call returned 401 |
 | Private GitHub repository installation and initial scan | CONFIRMED (local runtime) | `NukeGeng/Portfolio` source revision was fetched; unsupported Next.js was correctly reported without invented facts |
 | GitHub App installation configuration | CONFIRMED (GitHub readback) | App `vietais-tcflow` installation `155925244` selects `NukeGeng/Portfolio` and `NukeGeng/VietAIS-TCFlow`; installation permissions are read-only for contents/metadata/pull requests and no webhook events are subscribed |
@@ -93,7 +93,7 @@ test, benchmark, or explicitly open external evidence.
 | Codex App Server managed-account handshake and structured turn | CONFIRMED (local provider) | Opt-in live reasoning test completed with the authenticated managed Codex executable on 2026-08-27 |
 | Live Codex managed-account reasoning worker | PROPOSED | `RepositoryReasoning.Enabled` is false in development defaults; enable only with managed account and explicit AI policy |
 | Long-lived branch protection | CONFIRMED (GitHub) | `main`, `frontend`, `backend`, `mobile`, and `ai` require pull requests and all three quality gates, enforce rules for admins, and reject force-push/deletion |
-| Protected-branch integration | CONFIRMED (main) | PR #51 passed all required checks and merged as `fd9f8b7`; readback confirms the complete integration head is reachable from `main` |
+| Protected-branch integration | CONFIRMED (main) | PRs #70 and #71 passed all required checks and merged into `main` as `247d1bc` and `cbab1de`; readback confirms the complete integration head is reachable from `main` |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and
 protected integration are present, but the supported live-repository reasoning

@@ -33,5 +33,3 @@ outside the current local-development acceptance boundary.
 - The full reasoning worker must be enabled explicitly with the managed Codex
   account and project AI policy; the provider handshake/structured-turn test
   already passes locally.
-- Protected branch integration requires human review and merge of the open
-  draft PR; the agent does not bypass that authorization boundary.

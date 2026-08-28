@@ -19,14 +19,6 @@ internal sealed record IncrementalAnalysisDelivery(
     IncrementalDeliveryStatus Status,
     DateTimeOffset UpdatedAt);
 
-internal enum RepositoryReasoningJobStatus
-{
-    Pending,
-    Processing,
-    Completed,
-    Failed
-}
-
 internal sealed record RepositoryReasoningJob(
     string Id,
     DeepReasoningWorkItem WorkItem,

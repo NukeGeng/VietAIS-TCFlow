@@ -46,6 +46,14 @@ public enum RepositoryAnalysisRunStatus
     AwaitingReasoning
 }
 
+public enum RepositoryReasoningJobStatus
+{
+    Pending,
+    Processing,
+    Completed,
+    Failed
+}
+
 public enum GitHubChangedFileStatus
 {
     Added,
@@ -154,9 +162,17 @@ public sealed record RepositoryAnalysisRun(
     DateTimeOffset UpdatedAt,
     DateTimeOffset? CompletedAt);
 
+public sealed record RepositoryReasoningDetails(
+    bool WorkerEnabled,
+    bool ProviderEnabled,
+    RepositoryReasoningJobStatus? JobStatus,
+    int Attempt,
+    DateTimeOffset? UpdatedAt);
+
 public sealed record RepositoryAnalysisDetails(
     RepositoryAnalysisRequest Request,
-    RepositoryAnalysisRun? Run);
+    RepositoryAnalysisRun? Run,
+    RepositoryReasoningDetails? Reasoning = null);
 
 public sealed record ConnectedGitHubRepository(
     Management.ProjectRepository Repository,

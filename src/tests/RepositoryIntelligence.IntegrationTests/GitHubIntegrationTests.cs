@@ -550,6 +550,90 @@ public sealed class GitHubIntegrationTests
     }
 
     [Fact]
+    public async Task Reasoning_status_reports_a_disabled_worker_for_a_queued_job()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        await using var app = await BuildApplicationAsync(postgres.GetConnectionString());
+        var ownerId = Guid.NewGuid();
+        var project = await CreateProjectAsync(app.Services, ownerId);
+        var connected = await ConnectRepositoryAsync(app.Services, ownerId, project.Id);
+        var requestId = Guid.NewGuid();
+        var queuedAt = DateTimeOffset.UtcNow;
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            session.Store(new RepositoryAnalysisRequest(
+                requestId,
+                project.Id,
+                connected.Repository.Id,
+                GitHubAnalysisTriggerKind.Push,
+                "disabled-reasoning-delivery",
+                "base-revision",
+                "head-revision",
+                "refs/heads/main",
+                null,
+                FullScan: false,
+                RequiresChangedFileFetch: false,
+                [new GitHubChangedFile("src/CreateProduct.vue", GitHubChangedFileStatus.Modified)],
+                GitHubAnalysisRequestStatus.AwaitingReasoning,
+                queuedAt,
+                "system",
+                null));
+            session.Store(new RepositoryAnalysisRun(
+                requestId,
+                project.Id,
+                connected.Repository.Id,
+                RepositoryAnalysisRunStatus.AwaitingReasoning,
+                Attempt: 1,
+                "head-revision",
+                ["Vue", "AspNet", "Marten"],
+                ArtifactCount: 1,
+                DependencyCount: 0,
+                ContractCount: 2,
+                MismatchCount: 1,
+                ChangeCount: 1,
+                ImpactCount: 1,
+                GeneratedTaskCount: 0,
+                [],
+                ErrorCode: null,
+                ErrorMessage: null,
+                queuedAt,
+                queuedAt,
+                CompletedAt: null));
+            await scope.ServiceProvider.GetRequiredService<IDeepReasoningQueue>()
+                .EnqueueAsync(new DeepReasoningWorkItem(
+                    "disabled-reasoning-job",
+                    requestId.ToString(),
+                    project.Id.ToString(),
+                    connected.Repository.Id.ToString(),
+                    "disabled-reasoning-correlation",
+                    GraphRevision: 1,
+                    ["change-1"],
+                    ["mismatch-1"],
+                    [],
+                    queuedAt),
+                    TestContext.Current.CancellationToken);
+            await session.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var client = CreateClient(app);
+        client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, ownerId.ToString());
+        var details = await client.GetFromJsonAsync<RepositoryAnalysisDetails>(
+            $"api/v1/projects/{project.Id}/github/repositories/{connected.Repository.Id}/" +
+            $"analyses/{requestId}",
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(details);
+        Assert.NotNull(details.Reasoning);
+        Assert.False(details.Reasoning.WorkerEnabled);
+        Assert.True(details.Reasoning.ProviderEnabled);
+        Assert.Equal(RepositoryReasoningJobStatus.Pending, details.Reasoning.JobStatus);
+        Assert.Equal(0, details.Reasoning.Attempt);
+        Assert.Equal(queuedAt, details.Reasoning.UpdatedAt);
+    }
+
+    [Fact]
     public async Task Deep_reasoning_projects_a_source_aware_suggestion_with_trace_and_audit()
     {
         await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
@@ -645,6 +729,17 @@ public sealed class GitHubIntegrationTests
                 TestContext.Current.CancellationToken);
             Assert.NotNull(pendingRequest);
             Assert.Equal(GitHubAnalysisRequestStatus.AwaitingReasoning, pendingRequest.Status);
+            using var client = CreateClient(app);
+            client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, ownerId.ToString());
+            var queued = await client.GetFromJsonAsync<RepositoryAnalysisDetails>(
+                $"api/v1/projects/{project.Id}/github/repositories/{connected.Repository.Id}/" +
+                $"analyses/{requestId}",
+                TestContext.Current.CancellationToken);
+            Assert.NotNull(queued);
+            Assert.NotNull(queued.Reasoning);
+            Assert.True(queued.Reasoning.WorkerEnabled);
+            Assert.False(queued.Reasoning.ProviderEnabled);
+            Assert.Equal(RepositoryReasoningJobStatus.Pending, queued.Reasoning.JobStatus);
             var provider = await session.LoadAsync<GlobalAiProviderConfiguration>(
                 SystemConfigurationIds.CodexAppServerProvider,
                 TestContext.Current.CancellationToken);
@@ -664,6 +759,20 @@ public sealed class GitHubIntegrationTests
         Assert.Equal(RepositoryAnalysisRunStatus.Completed, completed.Run!.Status);
         Assert.Equal(1, completed.Run.GeneratedTaskCount);
         Assert.Contains(completed.Run.Diagnostics, diagnostic => diagnostic.Code == "ANALYSIS005");
+        using (var client = CreateClient(app))
+        {
+            client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, ownerId.ToString());
+            var completedDetails = await client.GetFromJsonAsync<RepositoryAnalysisDetails>(
+                $"api/v1/projects/{project.Id}/github/repositories/{connected.Repository.Id}/" +
+                $"analyses/{requestId}",
+                TestContext.Current.CancellationToken);
+            Assert.NotNull(completedDetails);
+            Assert.NotNull(completedDetails.Reasoning);
+            Assert.True(completedDetails.Reasoning.WorkerEnabled);
+            Assert.True(completedDetails.Reasoning.ProviderEnabled);
+            Assert.Equal(RepositoryReasoningJobStatus.Completed, completedDetails.Reasoning.JobStatus);
+            Assert.Equal(1, completedDetails.Reasoning.Attempt);
+        }
         await using var verificationScope = app.Services.CreateAsyncScope();
         var query = verificationScope.ServiceProvider.GetRequiredService<IQuerySession>();
         var task = Assert.Single(await query.Query<EngineeringTask>()

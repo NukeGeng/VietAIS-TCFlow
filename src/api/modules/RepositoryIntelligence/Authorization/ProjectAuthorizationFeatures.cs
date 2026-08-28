@@ -7,6 +7,12 @@ namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 public sealed record CreateProjectRoleCommand(Guid ActorId, Guid ProjectId, string Name)
     : IRequest<ProjectRole>;
 
+public sealed record GetProjectRolesQuery(Guid ActorId, Guid ProjectId)
+    : IRequest<IReadOnlyList<ProjectRole>>;
+
+public sealed record DeleteProjectRoleCommand(Guid ActorId, Guid ProjectId, Guid RoleId)
+    : IRequest;
+
 public sealed record RolePermissionRequest(
     string PermissionCode,
     ResourceScopeKind ResourceScope,
@@ -27,6 +33,15 @@ public sealed record AssignMemberRolesCommand(
     Guid[] RoleIds)
     : IRequest<ProjectMembership>;
 
+public sealed record GetProjectMembersQuery(Guid ActorId, Guid ProjectId)
+    : IRequest<IReadOnlyList<ProjectMembership>>;
+
+public sealed record AddProjectMemberCommand(Guid ActorId, Guid ProjectId, Guid UserId)
+    : IRequest<ProjectMembership>;
+
+public sealed record RemoveProjectMemberCommand(Guid ActorId, Guid ProjectId, Guid UserId)
+    : IRequest;
+
 public sealed record GetEffectivePermissionsQuery(
     Guid ActorId,
     Guid ProjectId,
@@ -40,6 +55,9 @@ public sealed record UpdateAiPermissionPolicyCommand(
     Guid ProjectId,
     AiTrustLevel TrustLevel,
     string[] AllowedPermissions)
+    : IRequest<AiPermissionPolicy>;
+
+public sealed record GetAiPermissionPolicyQuery(Guid ActorId, Guid ProjectId)
     : IRequest<AiPermissionPolicy>;
 
 public sealed record TransferProjectOwnershipCommand(
@@ -103,6 +121,83 @@ public sealed class CreateProjectRoleHandler(
         session.Store(audit);
         await session.SaveChangesAsync(cancellationToken);
         return role;
+    }
+}
+
+public sealed class GetProjectRolesHandler(
+    IQuerySession session,
+    IProjectPermissionEvaluator evaluator)
+    : IRequestHandler<GetProjectRolesQuery, IReadOnlyList<ProjectRole>>
+{
+    public async Task<IReadOnlyList<ProjectRole>> Handle(
+        GetProjectRolesQuery request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.RoleView,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+
+        return await session.Query<ProjectRole>()
+            .Where(role => role.ProjectId == request.ProjectId)
+            .OrderByDescending(role => role.IsOwner)
+            .ThenBy(role => role.Name)
+            .ToListAsync(cancellationToken);
+    }
+}
+
+public sealed class DeleteProjectRoleHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<DeleteProjectRoleCommand>
+{
+    public async Task Handle(
+        DeleteProjectRoleCommand request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.RoleDelete,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+
+        var role = await session.LoadAsync<ProjectRole>(request.RoleId, cancellationToken);
+        if (role is null || role.ProjectId != request.ProjectId)
+        {
+            throw new NotFoundException("Project role not found.");
+        }
+
+        if (role.IsSystemDefined || role.IsOwner)
+        {
+            throw new ProjectAuthorizationValidationException(
+                "System-defined project roles cannot be deleted.");
+        }
+
+        var memberships = await session.Query<ProjectMembership>()
+            .Where(membership => membership.ProjectId == request.ProjectId && membership.IsActive)
+            .ToListAsync(cancellationToken);
+        if (memberships.Any(membership => membership.Roles.Any(assignment => assignment.RoleId == role.Id)))
+        {
+            throw new ProjectAuthorizationValidationException(
+                "A project role assigned to an active member cannot be deleted.");
+        }
+
+        var audit = AuditRecordFactory.Create(
+            request.ProjectId,
+            request.ActorId,
+            "user",
+            "role.delete",
+            nameof(ProjectRole),
+            role.Id.ToString(),
+            role,
+            null,
+            timeProvider);
+
+        session.Delete(role);
+        session.Store(audit);
+        await session.SaveChangesAsync(cancellationToken);
     }
 }
 
@@ -274,6 +369,126 @@ public sealed class AssignMemberRolesHandler(
     }
 }
 
+public sealed class GetProjectMembersHandler(
+    IQuerySession session,
+    IProjectPermissionEvaluator evaluator)
+    : IRequestHandler<GetProjectMembersQuery, IReadOnlyList<ProjectMembership>>
+{
+    public async Task<IReadOnlyList<ProjectMembership>> Handle(
+        GetProjectMembersQuery request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.MemberView,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+
+        return await session.Query<ProjectMembership>()
+            .Where(membership => membership.ProjectId == request.ProjectId && membership.IsActive)
+            .OrderBy(membership => membership.UserId)
+            .ToListAsync(cancellationToken);
+    }
+}
+
+public sealed class AddProjectMemberHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<AddProjectMemberCommand, ProjectMembership>
+{
+    public async Task<ProjectMembership> Handle(
+        AddProjectMemberCommand request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.MemberInvite,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+
+        if (request.UserId == Guid.Empty)
+        {
+            throw new ProjectAuthorizationValidationException("Member user id is required.");
+        }
+
+        var existing = await session.Query<ProjectMembership>()
+            .SingleOrDefaultAsync(
+                membership => membership.ProjectId == request.ProjectId && membership.UserId == request.UserId,
+                cancellationToken);
+        if (existing?.IsActive == true)
+        {
+            throw new ProjectAuthorizationValidationException("The user is already an active project member.");
+        }
+
+        var membership = existing is null
+            ? new ProjectMembership(Guid.NewGuid(), request.ProjectId, request.UserId, IsActive: true, [])
+            : existing with { IsActive = true, Roles = [] };
+        var audit = AuditRecordFactory.Create(
+            request.ProjectId,
+            request.ActorId,
+            "user",
+            "member.invite",
+            nameof(ProjectMembership),
+            membership.Id.ToString(),
+            existing,
+            membership,
+            timeProvider);
+
+        session.Store(membership);
+        session.Store(audit);
+        await session.SaveChangesAsync(cancellationToken);
+        return membership;
+    }
+}
+
+public sealed class RemoveProjectMemberHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<RemoveProjectMemberCommand>
+{
+    public async Task Handle(
+        RemoveProjectMemberCommand request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.MemberRemove,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+
+        var project = await session.LoadAsync<Project>(request.ProjectId, cancellationToken)
+            ?? throw new NotFoundException("Project not found.");
+        if (project.PrimaryOwnerId == request.UserId)
+        {
+            throw new ProjectAuthorizationValidationException(
+                "The primary owner must transfer ownership before leaving the project.");
+        }
+
+        var membership = await session.Query<ProjectMembership>()
+            .SingleOrDefaultAsync(
+                item => item.ProjectId == request.ProjectId && item.UserId == request.UserId && item.IsActive,
+                cancellationToken)
+            ?? throw new NotFoundException("Active project membership not found.");
+        var updated = membership with { IsActive = false, Roles = [] };
+        var audit = AuditRecordFactory.Create(
+            request.ProjectId,
+            request.ActorId,
+            "user",
+            "member.remove",
+            nameof(ProjectMembership),
+            membership.Id.ToString(),
+            membership,
+            updated,
+            timeProvider);
+
+        session.Store(updated);
+        session.Store(audit);
+        await session.SaveChangesAsync(cancellationToken);
+    }
+}
+
 public sealed class GetEffectivePermissionsHandler(
     IProjectPermissionEvaluator evaluator)
     : IRequestHandler<GetEffectivePermissionsQuery, EffectivePermissionResult>
@@ -357,6 +572,26 @@ public sealed class UpdateAiPermissionPolicyHandler(
         session.Store(audit);
         await session.SaveChangesAsync(cancellationToken);
         return updated;
+    }
+}
+
+public sealed class GetAiPermissionPolicyHandler(
+    IQuerySession session,
+    IProjectPermissionEvaluator evaluator)
+    : IRequestHandler<GetAiPermissionPolicyQuery, AiPermissionPolicy>
+{
+    public async Task<AiPermissionPolicy> Handle(
+        GetAiPermissionPolicyQuery request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.AiPolicyUpdate,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+
+        return await session.LoadAsync<AiPermissionPolicy>(request.ProjectId, cancellationToken)
+            ?? throw new NotFoundException("AI permission policy not found.");
     }
 }
 

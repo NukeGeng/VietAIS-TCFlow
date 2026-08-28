@@ -24,7 +24,7 @@ public static class UpdateRolePermissionsEndpoint
         })
         .WithName(nameof(UpdateRolePermissionsEndpoint))
         .WithSummary("update role permissions")
-        .RequirePermission("Permissions.Roles.Create")
+        .RequirePermission("Permissions.RoleClaims.Update")
         .WithDescription("update role permissions");
     }
 }

@@ -1,0 +1,122 @@
+name: Quality gates
+
+on:
+  pull_request:
+    branches:
+      - main
+      - frontend
+      - backend
+      - mobile
+      - ai
+  push:
+    branches:
+      - main
+      - frontend
+      - backend
+      - mobile
+      - ai
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-gates-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  analyzers:
+    name: Analyzer build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore analyzers
+        run: dotnet restore src/analyzers/VietAIS.TCFlow.Analyzers.sln
+
+      - name: Build analyzers
+        run: dotnet build src/analyzers/VietAIS.TCFlow.Analyzers.sln --configuration Release --no-restore
+
+      - name: Test analyzers
+        run: >-
+          dotnet test src/analyzers/VietAIS.TCFlow.Analyzers.sln
+          --configuration Release
+          --no-build
+          --no-restore
+          --logger "console;verbosity=minimal"
+
+  backend:
+    name: Backend build and integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore backend
+        run: dotnet restore src/VietAIS.TCFlow.sln
+
+      - name: Build backend
+        run: dotnet build src/VietAIS.TCFlow.sln --configuration Release --no-restore
+
+      - name: Test backend
+        run: >-
+          dotnet test src/VietAIS.TCFlow.sln
+          --configuration Release
+          --no-build
+          --no-restore
+          --logger "console;verbosity=minimal"
+
+  frontend:
+    name: Frontend typecheck, tests, lint, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: src/apps/vue
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: src/apps/vue/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run type-check
+
+      - name: Test
+        run: npm run test:unit -- --run
+
+      - name: Lint without rewriting source
+        run: |
+          npm exec -- oxlint . --deny-warnings
+          npm exec -- eslint . --max-warnings=0
+
+      - name: Check formatting
+        run: npm exec -- prettier --check .
+
+      - name: Build
+        run: npm run build-only

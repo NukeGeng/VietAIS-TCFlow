@@ -1,6 +1,13 @@
 ﻿using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using VietAIS.TCFlow.Analyzers.AspNet;
+using VietAIS.TCFlow.Analyzers.Governance;
+using VietAIS.TCFlow.Analyzers.Knowledge;
+using VietAIS.TCFlow.Analyzers.Monitoring;
+using VietAIS.TCFlow.Analyzers.Reasoning;
+using VietAIS.TCFlow.Analyzers.Vue;
+using IRepositoryAnalyzer = VietAIS.TCFlow.Analyzers.Core.IRepositoryAnalyzer;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.GitHub;
 using VietAIS.TCFlow.WebApi.RepositoryIntelligence.Management;
@@ -40,6 +47,12 @@ public static class RepositoryIntelligenceModule
                 options.Schema.For<AuditRecord>()
                     .Index(record => record.ProjectId);
                 options.Schema.For<ProjectState>()
+                    .UseOptimisticConcurrency(true);
+                options.Schema.For<GlobalAiProviderConfiguration>()
+                    .UseOptimisticConcurrency(true);
+                options.Schema.For<GlobalSystemSettings>()
+                    .UseOptimisticConcurrency(true);
+                options.Schema.For<PlatformPolicy>()
                     .UseOptimisticConcurrency(true);
                 options.Schema.For<AuthorityPolicy>()
                     .UseOptimisticConcurrency(true);
@@ -104,13 +117,74 @@ public static class RepositoryIntelligenceModule
                     .Index(request => request.RepositoryId)
                     .Index(request => request.DeliveryId)
                     .Index(request => request.Status);
+                options.Schema.For<RepositoryAnalysisRun>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(run => run.ProjectId)
+                    .Index(run => run.RepositoryId)
+                    .Index(run => run.Status)
+                    .Index(run => run.UpdatedAt);
+                options.Schema.For<IncrementalAnalysisDelivery>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(delivery => delivery.Status);
+                options.Schema.For<RepositoryReasoningJob>()
+                    .UseOptimisticConcurrency(true)
+                    .Index(job => job.Status)
+                    .Index(job => job.NextAttemptAt);
+                options.Schema.For<RepositoryTaskProjection>()
+                    .UseOptimisticConcurrency(true)
+                    .UniqueIndex(projection => projection.EngineeringTaskId)
+                    .Index(projection => projection.ProjectId)
+                    .Index(projection => projection.RepositoryId);
+                KnowledgeGraphStorage.Configure(options);
+                ConventionProfileStorage.Configure(options);
+                TaskReconciliationStorage.Configure(options);
             })
             .UseLightweightSessions();
 
         builder.Services.AddScoped<IProjectPermissionEvaluator, ProjectPermissionEvaluator>();
+        builder.Services.AddScoped<ISystemPermissionEvaluator, SystemPermissionEvaluator>();
         builder.Services.AddOptions<GitHubAppOptions>()
             .BindConfiguration(GitHubAppOptions.SectionName);
         builder.Services.AddHttpClient<IGitHubAppClient, GitHubAppClient>();
+        builder.Services.AddScoped<IRepositoryAnalyzer, VueAnalyzer>();
+        builder.Services.AddScoped<IRepositoryAnalyzer, AspNetAnalyzer>();
+        builder.Services.AddScoped<
+            IRepositoryAnalyzer,
+            VietAIS.TCFlow.Analyzers.Marten.MartenAnalyzer>();
+        builder.Services.AddScoped<IRepositorySnapshotSource, GitHubRepositorySnapshotSource>();
+        builder.Services.AddScoped<IIncrementalChangeSource, GitHubIncrementalChangeSource>();
+        builder.Services.AddScoped<IIncrementalDeliveryRegistry, MartenIncrementalDeliveryRegistry>();
+        builder.Services.AddScoped<IDeepReasoningQueue, MartenDeepReasoningQueue>();
+        builder.Services.AddScoped(serviceProvider => new InitialRepositoryAnalysisService(
+            serviceProvider.GetRequiredService<IRepositorySnapshotSource>(),
+            serviceProvider.GetServices<IRepositoryAnalyzer>().ToArray()));
+        builder.Services.AddScoped(serviceProvider => new IncrementalMonitoringService(
+            serviceProvider.GetRequiredService<IIncrementalChangeSource>(),
+            serviceProvider.GetRequiredService<IIncrementalDeliveryRegistry>(),
+            serviceProvider.GetRequiredService<IDeepReasoningQueue>(),
+            serviceProvider.GetServices<IRepositoryAnalyzer>().ToArray(),
+            serviceProvider.GetRequiredService<TimeProvider>()));
+        builder.Services.AddScoped<RepositoryAnalysisProcessor>();
+        builder.Services.AddOptions<RepositoryAnalysisWorkerOptions>()
+            .BindConfiguration(RepositoryAnalysisWorkerOptions.SectionName);
+        builder.Services.AddHostedService<RepositoryAnalysisWorker>();
+        builder.Services.AddOptions<RepositoryReasoningWorkerOptions>()
+            .BindConfiguration(RepositoryReasoningWorkerOptions.SectionName);
+        var contentRoot = builder.Environment.ContentRootPath;
+        builder.Services.AddSingleton<ICodexAppServerClient>(serviceProvider =>
+        {
+            var configured = serviceProvider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<RepositoryReasoningWorkerOptions>>().Value;
+            var workingDirectory = Path.IsPathRooted(configured.WorkingDirectory)
+                ? configured.WorkingDirectory
+                : Path.GetFullPath(configured.WorkingDirectory, contentRoot);
+            return new CodexAppServerProcessClient(new CodexAppServerOptions(
+                configured.ExecutablePath,
+                workingDirectory,
+                configured.Model));
+        });
+        builder.Services.AddSingleton<IAiReasoningProvider, CodexAppServerReasoningProvider>();
+        builder.Services.AddHostedService<RepositoryDeepReasoningWorker>();
         builder.Services.AddSingleton<IGitHubWebhookSignatureValidator>(
             new GitHubWebhookSignatureValidator(builder.Configuration["GitHub:WebhookSecret"]));
         builder.Services.AddSingleton(TimeProvider.System);

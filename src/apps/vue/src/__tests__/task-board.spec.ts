@@ -44,6 +44,37 @@ describe('task board review boundary', () => {
     const enabled = wrapper.findAll('button').find((button) => button.text() === 'Completed')
     expect(enabled?.attributes('disabled')).toBeUndefined()
   })
+
+  it('renders suggested tasks and gates promotion on task creation permission', async () => {
+    setActivePinia(createPinia())
+    const workspace = useWorkspaceStore()
+    const task = taskFixture({ status: TaskLifecycleStatus.Suggested })
+    workspace.selectProject(task.projectId)
+    workspace.tasks = [task]
+    workspace.tasksState = { status: 'ready' }
+    workspace.effectivePermissions = {
+      projectId: task.projectId,
+      userId: task.createdBy,
+      grants: [grant('task.view')],
+    }
+    vi.spyOn(workspace, 'loadTasks').mockResolvedValue()
+    vi.spyOn(workspace, 'loadRepositories').mockResolvedValue()
+
+    const wrapper = mount(TaskBoardView, {
+      global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
+    })
+    expect(wrapper.text()).toContain('Suggested')
+    const promote = wrapper.findAll('button').find((button) => button.text() === 'Upcoming')
+    expect(promote?.attributes('disabled')).toBeDefined()
+    expect(promote?.attributes('title')).toBe('Requires task.create')
+
+    workspace.effectivePermissions = {
+      ...workspace.effectivePermissions,
+      grants: [grant('task.view'), grant('task.create')],
+    }
+    await nextTick()
+    expect(promote?.attributes('disabled')).toBeUndefined()
+  })
 })
 
 function grant(permissionCode: string): PermissionGrantTrace {

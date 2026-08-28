@@ -95,6 +95,24 @@ public sealed class GitHubIntegrationEndpoints : CarterModule
             .ProducesProblem(StatusCodes.Status404NotFound)
             .MapToApiVersion(new ApiVersion(1, 0));
 
+        github.MapGet("repositories/{repositoryId:guid}/analyses/latest", GetLatestAnalysis)
+            .WithName(nameof(GetLatestAnalysis))
+            .Produces<RepositoryAnalysisDetails>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
+        github.MapGet(
+                "repositories/{repositoryId:guid}/analyses/{analysisRequestId:guid}",
+                GetAnalysis)
+            .WithName(nameof(GetAnalysis))
+            .Produces<RepositoryAnalysisDetails>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .MapToApiVersion(new ApiVersion(1, 0));
+
         app.MapPost("github/webhooks", ReceiveWebhook)
             .WithName(nameof(ReceiveWebhook))
             .WithTags("github-integration")
@@ -194,9 +212,37 @@ public sealed class GitHubIntegrationEndpoints : CarterModule
                 repositoryId),
             cancellationToken);
         return Results.Accepted(
-            $"projects/{projectId}/github/repositories/{repositoryId}/initial-scan/{request.Id}",
+            $"projects/{projectId}/github/repositories/{repositoryId}/analyses/{request.Id}",
             request);
     }
+
+    private static async Task<IResult> GetAnalysis(
+        Guid projectId,
+        Guid repositoryId,
+        Guid analysisRequestId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new GetRepositoryAnalysisQuery(
+                GetActorId(httpContext),
+                projectId,
+                repositoryId,
+                analysisRequestId),
+            cancellationToken));
+
+    private static async Task<IResult> GetLatestAnalysis(
+        Guid projectId,
+        Guid repositoryId,
+        HttpContext httpContext,
+        ISender mediator,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.Send(
+            new GetLatestRepositoryAnalysisQuery(
+                GetActorId(httpContext),
+                projectId,
+                repositoryId),
+            cancellationToken));
 
     private static async Task<IResult> ReceiveWebhook(
         HttpRequest request,

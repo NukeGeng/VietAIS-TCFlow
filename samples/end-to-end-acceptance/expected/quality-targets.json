@@ -1,0 +1,42 @@
+{
+  "minimumPrecision": 0.95,
+  "minimumRecall": 0.95,
+  "maximumFalsePositiveRate": 0.05,
+  "maximumFalseNegativeRate": 0.05,
+  "maximumTaskDuplicationRate": 0.0,
+  "minimumTaskReconciliationAccuracy": 1.0,
+  "maximumFastPathP95Milliseconds": 2000,
+  "maximumChangedFiles": 20,
+  "facts": [
+    { "id": "technology-vue", "kind": "technology", "name": "Vue", "expectedPresent": true },
+    { "id": "technology-typescript", "kind": "technology", "name": "TypeScript", "expectedPresent": true },
+    { "id": "technology-dotnet", "kind": "technology", "name": "DotNet", "expectedPresent": true },
+    { "id": "technology-aspnet", "kind": "technology", "name": "AspNetCore", "expectedPresent": true },
+    { "id": "technology-marten", "kind": "technology", "name": "Marten", "expectedPresent": true },
+
+    { "id": "artifact-vue-component", "kind": "artifact", "name": "CreateProductView", "artifactKind": "VueComponent", "expectedPresent": true },
+    { "id": "artifact-api-call", "kind": "artifact", "name": "POST /api/v1/catalog/products", "artifactKind": "ApiCall", "expectedPresent": true },
+    { "id": "artifact-endpoint", "kind": "artifact", "name": "CreateProductEndpoint", "artifactKind": "AspNetEndpoint", "expectedPresent": true },
+    { "id": "artifact-handler", "kind": "artifact", "name": "CreateProductHandler", "artifactKind": "Handler", "expectedPresent": true },
+    { "id": "artifact-request", "kind": "artifact", "name": "CreateProductCommand", "artifactKind": "RequestDto", "expectedPresent": true },
+    { "id": "artifact-response", "kind": "artifact", "name": "CreateProductResponse", "artifactKind": "ResponseDto", "expectedPresent": true },
+    { "id": "artifact-validator", "kind": "artifact", "name": "CreateProductCommandValidator", "artifactKind": "Validator", "expectedPresent": true },
+    { "id": "artifact-document", "kind": "artifact", "name": "Product", "artifactKind": "MartenDocument", "expectedPresent": true },
+
+    { "id": "edge-api-endpoint", "kind": "dependency", "source": "POST /api/v1/catalog/products", "target": "CreateProductEndpoint", "dependencyKind": "Calls", "expectedPresent": true },
+    { "id": "edge-endpoint-document", "kind": "dependency", "source": "CreateProductEndpoint", "target": "Product", "dependencyKind": "Writes", "expectedPresent": true },
+    { "id": "matched-contract", "kind": "matchedContract", "expectedPresent": true },
+    { "id": "frontend-request-name", "kind": "contractField", "direction": "FrontendExpected", "fieldSection": "request", "name": "name", "expectedPresent": true },
+    { "id": "frontend-request-price", "kind": "contractField", "direction": "FrontendExpected", "fieldSection": "request", "name": "price", "expectedPresent": true },
+    { "id": "frontend-request-category", "kind": "contractField", "direction": "FrontendExpected", "fieldSection": "request", "name": "categoryId", "expectedPresent": true },
+    { "id": "backend-request-category", "kind": "contractField", "direction": "BackendActual", "fieldSection": "request", "name": "CategoryId", "expectedPresent": true },
+    { "id": "backend-response-id", "kind": "contractField", "direction": "BackendActual", "fieldSection": "response", "name": "Id", "expectedPresent": true },
+    { "id": "endpoint-permission", "kind": "permission", "name": "Permissions.Products.Create", "expectedPresent": true },
+
+    { "id": "no-phantom-artifact", "kind": "artifact", "name": "DeleteProductEndpoint", "artifactKind": "AspNetEndpoint", "expectedPresent": false },
+    { "id": "no-phantom-edge", "kind": "dependency", "source": "UnrelatedSettings", "target": "Product", "dependencyKind": "Writes", "expectedPresent": false },
+    { "id": "unrelated-excluded-from-context", "kind": "retrievedArtifact", "name": "UnrelatedSettings", "expectedPresent": false },
+    { "id": "no-contract-mismatch", "kind": "contractMismatch", "expectedPresent": false },
+    { "id": "no-phantom-request-field", "kind": "contractField", "direction": "FrontendExpected", "fieldSection": "request", "name": "supplierId", "expectedPresent": false }
+  ]
+}

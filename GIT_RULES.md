@@ -65,7 +65,8 @@ Rules:
 - No direct implementation commits.
 - No force push.
 - No destructive history rewrite.
-- Changes enter through reviewed Pull Requests.
+- Changes enter through Pull Requests; any configured review requirement must
+  be satisfied before merge.
 - Relevant CI checks must pass before merge.
 
 ## `frontend`
@@ -151,8 +152,16 @@ Mandatory rules:
 - Pull Request required.
 - No direct implementation work.
 - No force push.
-- No unreviewed merge.
+- No merge may bypass configured review requirements or required CI checks.
 - Relevant build/test checks must pass.
+
+For this personal GitHub repository, GitHub does not support actor-level push
+restrictions in branch protection. The current collaborator readback contains
+only `NukeGeng` with admin/push access, so the repository access boundary
+currently enforces the intended single-operator model. If another writer is
+added, repository access must be reviewed; organization-level restrictions or
+an equivalent access-control configuration are required for a technical
+per-user branch restriction.
 
 ---
 

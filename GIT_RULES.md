@@ -155,13 +155,13 @@ Mandatory rules:
 - No merge may bypass configured review requirements or required CI checks.
 - Relevant build/test checks must pass.
 
-For this personal GitHub repository, GitHub does not support actor-level push
-restrictions in branch protection. The current collaborator readback contains
-only `NukeGeng` with admin/push access, so the repository access boundary
-currently enforces the intended single-operator model. If another writer is
-added, repository access must be reviewed; organization-level restrictions or
-an equivalent access-control configuration are required for a technical
-per-user branch restriction.
+The personal repository uses the active `main-owner-only-updates` ruleset for
+`main`; its update rule permits the `NukeGeng` user to bypass through a pull
+request. The active `protected-branches-pull-request` and
+`protected-branches-safety` rulesets cover all long-lived branches. The current
+collaborator readback also contains only `NukeGeng` with admin/push access. If
+another writer is added, the ruleset and repository access must be reviewed
+together.
 
 ---
 

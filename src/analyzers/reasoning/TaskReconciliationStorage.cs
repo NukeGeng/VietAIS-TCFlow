@@ -43,7 +43,8 @@ public sealed class MartenTaskReconciliationWriter(
             throw new AiPolicyViolationException("AI policy does not belong to the reconciliation project.");
         }
 
-        AiActionAuthorizer.EnsureAllowed(policy, ToAiAction(decision.Action));
+        var authorizedAction = AiActionAuthorizer.RequiredAction(decision);
+        AiActionAuthorizer.EnsureAllowed(policy, authorizedAction);
         foreach (var mutation in decision.Mutations)
         {
             await ValidateCurrentAsync(mutation, cancellationToken);
@@ -65,7 +66,7 @@ public sealed class MartenTaskReconciliationWriter(
             decision.ProjectId,
             decision.RepositoryId,
             actorId,
-            $"ai.task.{decision.Action.ToString().ToLowerInvariant()}",
+            AiActionAuthorizer.RequiredPermission(authorizedAction),
             decision.ProposalId,
             decision.Mutations.Select(mutation => mutation.After.Id)
                 .Distinct(StringComparer.Ordinal)
@@ -99,16 +100,6 @@ public sealed class MartenTaskReconciliationWriter(
         }
     }
 
-    private static AiTaskAction ToAiAction(TaskReconciliationAction action) => action switch
-    {
-        TaskReconciliationAction.Create => AiTaskAction.Create,
-        TaskReconciliationAction.Update => AiTaskAction.Update,
-        TaskReconciliationAction.Merge => AiTaskAction.Merge,
-        TaskReconciliationAction.Close => AiTaskAction.Close,
-        TaskReconciliationAction.Reopen => AiTaskAction.Reopen,
-        TaskReconciliationAction.Ignore => AiTaskAction.Ignore,
-        _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unknown reconciliation action.")
-    };
 }
 
 public sealed class MartenTaskReconciliationReader(IQuerySession session)

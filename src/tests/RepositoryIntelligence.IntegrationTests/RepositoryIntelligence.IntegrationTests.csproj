@@ -18,5 +18,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\api\modules\RepositoryIntelligence\RepositoryIntelligence.csproj" />
+    <ProjectReference Include="..\..\analyzers\contracts\VietAIS.TCFlow.Analyzers.Contracts.csproj" />
+    <ProjectReference Include="..\..\analyzers\core\VietAIS.TCFlow.Analyzers.Core.csproj" />
+    <ProjectReference Include="..\..\analyzers\governance\VietAIS.TCFlow.Analyzers.Governance.csproj" />
+    <ProjectReference Include="..\..\analyzers\knowledge\VietAIS.TCFlow.Analyzers.Knowledge.csproj" />
+    <ProjectReference Include="..\..\analyzers\monitoring\VietAIS.TCFlow.Analyzers.Monitoring.csproj" />
+    <ProjectReference Include="..\..\analyzers\reasoning\VietAIS.TCFlow.Analyzers.Reasoning.csproj" />
   </ItemGroup>
 </Project>

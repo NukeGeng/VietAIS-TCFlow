@@ -24,11 +24,30 @@ const projectNavigation = computed(() => {
     },
     { label: 'Analysis', to: `/projects/${projectId}/analysis`, permission: 'analysis.view' },
     { label: 'Impact graph', to: `/projects/${projectId}/impacts`, permission: 'task.view' },
-    { label: 'Features', to: `/projects/${projectId}/features`, permission: 'task.view' },
+    { label: 'Features', to: `/projects/${projectId}/features`, permission: 'feature.view' },
     { label: 'Task board', to: `/projects/${projectId}/tasks`, permission: 'task.view' },
-    { label: 'Project admin', to: `/projects/${projectId}/admin`, permission: 'role.view' },
+    {
+      label: 'Project admin',
+      to: `/projects/${projectId}/admin`,
+      permission: 'role.view',
+      additionalPermissions: [
+        'member.view',
+        'component.view',
+        'project.update',
+        'authority.view',
+        'convention.view',
+        'ai.policy.update',
+        'audit.view',
+      ],
+    },
   ]
 })
+
+function canNavigate(item: { permission: string; additionalPermissions?: string[] }): boolean {
+  return [item.permission, ...(item.additionalPermissions ?? [])].some((permission) =>
+    workspace.hasPermission(permission),
+  )
+}
 
 function changeProject(event: Event): void {
   const projectId = (event.target as HTMLSelectElement).value
@@ -85,9 +104,7 @@ watch(isAuthenticated, (authenticated) => {
           <template v-if="selectedProjectId">
             <span class="nav-label">Project</span>
             <template v-for="item in projectNavigation" :key="item.to">
-              <RouterLink v-if="workspace.hasPermission(item.permission)" :to="item.to">{{
-                item.label
-              }}</RouterLink>
+              <RouterLink v-if="canNavigate(item)" :to="item.to">{{ item.label }}</RouterLink>
               <span v-else class="nav-disabled" :title="`Requires ${item.permission}`"
                 >{{ item.label }}<small>{{ item.permission }}</small></span
               >

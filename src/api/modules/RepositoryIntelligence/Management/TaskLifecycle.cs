@@ -5,6 +5,12 @@ public static class TaskLifecycle
     private static readonly IReadOnlyDictionary<TaskLifecycleStatus, TaskLifecycleStatus[]> AllowedTransitions =
         new Dictionary<TaskLifecycleStatus, TaskLifecycleStatus[]>
         {
+            [TaskLifecycleStatus.Suggested] =
+            [
+                TaskLifecycleStatus.Upcoming,
+                TaskLifecycleStatus.Rejected,
+                TaskLifecycleStatus.Cancelled
+            ],
             [TaskLifecycleStatus.Upcoming] =
             [
                 TaskLifecycleStatus.InProgress,

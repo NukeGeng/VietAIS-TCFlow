@@ -1,3 +1,5 @@
+using VietAIS.TCFlow.Shared.Authorization;
+
 namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.Authorization;
 
 public static class ProjectPermissionCodes
@@ -58,9 +60,13 @@ public static class ProjectPermissionCodes
 
 public static class SystemPermissionCodes
 {
-    public const string UserManage = "user.manage";
-    public const string ProjectInspect = "project.inspect";
-    public const string ProjectSuspend = "project.suspend";
-    public const string PermissionDefinitionManage = "permission-definition.manage";
-    public const string SystemAuditView = "system-audit.view";
+    public const string UserManage = TcFlowSystemPermissions.UserManage;
+    public const string ProjectInspect = TcFlowSystemPermissions.ProjectInspect;
+    public const string ProjectSuspend = TcFlowSystemPermissions.ProjectSuspend;
+    public const string PermissionDefinitionManage = TcFlowSystemPermissions.PermissionDefinitionManage;
+    public const string SystemAuditView = TcFlowSystemPermissions.SystemAuditView;
+    public const string AiProviderManage = TcFlowSystemPermissions.AiProviderManage;
+    public const string SystemSettingsManage = TcFlowSystemPermissions.SystemSettingsManage;
+    public const string PlatformPolicyManage = TcFlowSystemPermissions.PlatformPolicyManage;
+    public const string PlatformUsageView = TcFlowSystemPermissions.PlatformUsageView;
 }

@@ -27,6 +27,7 @@ public sealed class RepositoryIntelligenceModuleTests
 
         var builder = WebApplication.CreateBuilder();
         builder.Configuration["DatabaseOptions:ConnectionString"] = postgres.GetConnectionString();
+        builder.Configuration["RepositoryAnalysis:Enabled"] = "false";
         builder.RegisterRepositoryIntelligenceServices();
 
         await using var app = builder.Build();

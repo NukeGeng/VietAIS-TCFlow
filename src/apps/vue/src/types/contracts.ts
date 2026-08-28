@@ -40,6 +40,87 @@ export interface Project {
   createdAt: string
 }
 
+export enum ProjectLifecycleStatus {
+  Active = 0,
+  Suspended = 1,
+  Archived = 2,
+}
+
+export interface ProjectState {
+  id: string
+  projectId: string
+  status: ProjectLifecycleStatus
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface SystemProjectSummary {
+  project: Project
+  state: ProjectState
+}
+
+export interface SystemPermissionDefinition {
+  id: string
+  description: string
+  scope: number
+}
+
+export enum GlobalAiProviderKind {
+  CodexAppServer = 0,
+}
+
+export interface GlobalAiProviderConfiguration {
+  id: string
+  kind: GlobalAiProviderKind
+  displayName: string
+  isEnabled: boolean
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface GlobalSystemSettings {
+  id: string
+  platformName: string
+  defaultTimeZone: string
+  supportUrl?: string
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface PlatformPolicy {
+  id: string
+  projectCreationEnabled: boolean
+  repositoryConnectionsEnabled: boolean
+  maximumRepositoriesPerProject: number
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface SystemUsageSummary {
+  projects: number
+  activeProjects: number
+  suspendedProjects: number
+  repositories: number
+  activeRepositories: number
+  tasks: number
+  aiGeneratedTasks: number
+  auditRecords: number
+}
+
+export interface SystemRole {
+  id: string
+  name: string
+  description?: string
+  permissions?: string[]
+}
+
+export interface UserRoleDetail {
+  roleId?: string
+  roleName?: string
+  description?: string
+  enabled: boolean
+}
+
 export enum RepositoryProviderKind {
   Local = 0,
   GitHub = 1,
@@ -122,6 +203,84 @@ export interface ConnectedGitHubRepository {
   }
 }
 
+export enum GitHubAnalysisTriggerKind {
+  InitialScan = 0,
+  Push = 1,
+  PullRequest = 2,
+  Merge = 3,
+}
+
+export enum GitHubAnalysisRequestStatus {
+  Pending = 0,
+  Processing = 1,
+  Completed = 2,
+  Failed = 3,
+  Ignored = 4,
+  AwaitingReasoning = 5,
+}
+
+export enum RepositoryAnalysisRunStatus {
+  Processing = 0,
+  Completed = 1,
+  Unsupported = 2,
+  Failed = 3,
+  AwaitingReasoning = 4,
+}
+
+export interface RepositoryAnalysisRequest {
+  id: string
+  projectId: string
+  repositoryId: string
+  trigger: GitHubAnalysisTriggerKind
+  deliveryId?: string
+  baseRevision?: string
+  headRevision?: string
+  reference?: string
+  pullRequestNumber?: number
+  fullScan: boolean
+  requiresChangedFileFetch: boolean
+  changedFiles: Array<{ path: string; status: number }>
+  status: GitHubAnalysisRequestStatus
+  requestedAt: string
+  requestedByType: string
+  requestedBy?: string
+}
+
+export interface RepositoryAnalysisDiagnostic {
+  code: string
+  message: string
+  evidenceLevel: string
+  path?: string
+}
+
+export interface RepositoryAnalysisRun {
+  id: string
+  projectId: string
+  repositoryId: string
+  status: RepositoryAnalysisRunStatus
+  attempt: number
+  sourceRevision?: string
+  technologies: string[]
+  artifactCount: number
+  dependencyCount: number
+  contractCount: number
+  mismatchCount: number
+  changeCount: number
+  impactCount: number
+  generatedTaskCount: number
+  diagnostics: RepositoryAnalysisDiagnostic[]
+  errorCode?: string
+  errorMessage?: string
+  startedAt: string
+  updatedAt: string
+  completedAt?: string
+}
+
+export interface RepositoryAnalysisDetails {
+  request: RepositoryAnalysisRequest
+  run?: RepositoryAnalysisRun
+}
+
 export enum ComponentScopeKind {
   Frontend = 0,
   Backend = 1,
@@ -131,6 +290,17 @@ export enum ComponentScopeKind {
   Infrastructure = 5,
   SharedLibrary = 6,
   Service = 7,
+}
+
+export interface ProjectComponent {
+  id: string
+  projectId: string
+  repositoryId: string
+  name: string
+  scope: ComponentScopeKind
+  rootPath?: string
+  createdAt: string
+  createdBy: string
 }
 
 export interface ProjectFeature {
@@ -150,6 +320,7 @@ export enum TaskLifecycleStatus {
   Blocked = 4,
   Rejected = 5,
   Cancelled = 6,
+  Suggested = 7,
 }
 
 export enum TaskPriority {
@@ -179,6 +350,62 @@ export enum AiTrustLevel {
   UpdateTasks = 2,
   CodeGeneration = 3,
   PullRequestCreation = 4,
+}
+
+export interface AiPermissionPolicy {
+  id: string
+  projectId: string
+  trustLevel: AiTrustLevel
+  allowedPermissions: string[]
+  updatedBy: string
+  updatedAt: string
+}
+
+export enum AuthorityKnowledgeKind {
+  ApiContract = 0,
+  UiRequirement = 1,
+  BusinessLogic = 2,
+  Persistence = 3,
+}
+
+export enum AuthoritySourceKind {
+  Backend = 0,
+  Frontend = 1,
+  OpenApi = 2,
+  Database = 3,
+  Tests = 4,
+  Documentation = 5,
+}
+
+export interface AuthorityRule {
+  knowledge: AuthorityKnowledgeKind
+  source: AuthoritySourceKind
+}
+
+export interface AuthorityPolicy {
+  id: string
+  projectId: string
+  rules: AuthorityRule[]
+  updatedAt: string
+  updatedBy: string
+}
+
+export enum ConventionProfileStatus {
+  PendingAnalysis = 0,
+  Confirmed = 1,
+}
+
+export interface ConventionProfile {
+  id: string
+  projectId: string
+  status: ConventionProfileStatus
+  architectures: string[]
+  apiStyles: string[]
+  persistencePatterns: string[]
+  validationPatterns: string[]
+  dtoPatterns: string[]
+  updatedAt: string
+  updatedBy: string
 }
 
 export enum TaskReviewDecision {
@@ -339,6 +566,18 @@ export interface ProjectRole {
   }>
 }
 
+export interface ProjectMembership {
+  id: string
+  projectId: string
+  userId: string
+  isActive: boolean
+  roles: Array<{
+    roleId: string
+    assignedAt: string
+    assignedBy: string
+  }>
+}
+
 export interface AuditRecord {
   id: string
   projectId?: string
@@ -367,6 +606,7 @@ export const taskStatusLabel: Record<TaskLifecycleStatus, string> = {
   [TaskLifecycleStatus.Blocked]: 'Blocked',
   [TaskLifecycleStatus.Rejected]: 'Rejected',
   [TaskLifecycleStatus.Cancelled]: 'Cancelled',
+  [TaskLifecycleStatus.Suggested]: 'Suggested',
 }
 
 export const taskPriorityLabel: Record<TaskPriority, string> = {

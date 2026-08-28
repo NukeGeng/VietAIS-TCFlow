@@ -19,6 +19,9 @@ namespace VietAIS.TCFlow.WebApi.RepositoryIntelligence.IntegrationTests;
 public sealed class ProjectManagementIntegrationTests
 {
     [Theory]
+    [InlineData(TaskLifecycleStatus.Suggested, TaskLifecycleStatus.Upcoming)]
+    [InlineData(TaskLifecycleStatus.Suggested, TaskLifecycleStatus.Rejected)]
+    [InlineData(TaskLifecycleStatus.Suggested, TaskLifecycleStatus.Cancelled)]
     [InlineData(TaskLifecycleStatus.Upcoming, TaskLifecycleStatus.InProgress)]
     [InlineData(TaskLifecycleStatus.Upcoming, TaskLifecycleStatus.Cancelled)]
     [InlineData(TaskLifecycleStatus.InProgress, TaskLifecycleStatus.ReadyForReview)]
@@ -39,6 +42,7 @@ public sealed class ProjectManagementIntegrationTests
     }
 
     [Theory]
+    [InlineData(TaskLifecycleStatus.Suggested, TaskLifecycleStatus.InProgress)]
     [InlineData(TaskLifecycleStatus.Upcoming, TaskLifecycleStatus.Completed)]
     [InlineData(TaskLifecycleStatus.Blocked, TaskLifecycleStatus.Completed)]
     [InlineData(TaskLifecycleStatus.Completed, TaskLifecycleStatus.InProgress)]
@@ -435,12 +439,258 @@ public sealed class ProjectManagementIntegrationTests
         Assert.Contains("task.review", actions);
     }
 
+    [Fact]
+    public async Task Resource_lifecycle_enforces_permissions_references_persistence_and_audit()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        await using var app = await BuildApplicationAsync(postgres.GetConnectionString(), mapEndpoints: true);
+        await using var scope = app.Services.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<ISender>();
+        var ownerId = Guid.NewGuid();
+        var outsiderId = Guid.NewGuid();
+        var bootstrap = await mediator.Send(
+            new CreateProjectCommand(ownerId, "Lifecycle Project"),
+            TestContext.Current.CancellationToken);
+        var projectId = bootstrap.Project.Id;
+        var route = $"api/v1/projects/{projectId}";
+        using var client = new HttpClient { BaseAddress = new Uri(app.Urls.Single()) };
+
+        var unauthenticated = await client.PutAsJsonAsync(
+            route,
+            new UpdateProjectRequest("Lifecycle Project Updated"),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
+
+        client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, outsiderId.ToString());
+        var forbidden = await client.PutAsJsonAsync(
+            route,
+            new UpdateProjectRequest("Lifecycle Project Updated"),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        client.DefaultRequestHeaders.Remove(TestAuthenticationHandler.UserHeader);
+        client.DefaultRequestHeaders.Add(TestAuthenticationHandler.UserHeader, ownerId.ToString());
+        var authorized = await client.PutAsJsonAsync(
+            route,
+            new UpdateProjectRequest("Lifecycle Project Updated"),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, authorized.StatusCode);
+        Assert.Equal(
+            "Lifecycle Project Updated",
+            (await authorized.Content.ReadFromJsonAsync<Project>(
+                TestContext.Current.CancellationToken))!.Name);
+        var invalid = await client.PutAsJsonAsync(
+            route,
+            new UpdateProjectRequest(" "),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+
+        var repository = await mediator.Send(
+            new CreateProjectRepositoryCommand(
+                ownerId,
+                projectId,
+                "Lifecycle Repository",
+                RepositoryProviderKind.Local,
+                "/workspace/lifecycle",
+                null,
+                "main"),
+            TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<ForbiddenException>(() => mediator.Send(
+            new UpdateProjectRepositoryCommand(
+                outsiderId,
+                projectId,
+                repository.Id,
+                repository.Name,
+                repository.LocalPath,
+                repository.RemoteUrl,
+                repository.DefaultBranch,
+                repository.Status),
+            TestContext.Current.CancellationToken));
+        var updatedRepository = await mediator.Send(
+            new UpdateProjectRepositoryCommand(
+                ownerId,
+                projectId,
+                repository.Id,
+                "Lifecycle Repository Updated",
+                "/workspace/lifecycle-updated",
+                null,
+                "develop",
+                RepositoryLifecycleStatus.Active),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(RepositoryLifecycleStatus.Active, updatedRepository.Status);
+        Assert.Equal("develop", updatedRepository.DefaultBranch);
+        await Assert.ThrowsAsync<ProjectManagementValidationException>(() => mediator.Send(
+            new UpdateProjectRepositoryCommand(
+                ownerId,
+                projectId,
+                repository.Id,
+                updatedRepository.Name,
+                updatedRepository.LocalPath,
+                updatedRepository.RemoteUrl,
+                updatedRepository.DefaultBranch,
+                RepositoryLifecycleStatus.Disabled),
+            TestContext.Current.CancellationToken));
+
+        var referencedComponent = await mediator.Send(
+            new CreateProjectComponentCommand(
+                ownerId,
+                projectId,
+                repository.Id,
+                "Referenced Backend",
+                ComponentScopeKind.Backend,
+                "src/api"),
+            TestContext.Current.CancellationToken);
+        var referencedFeature = await mediator.Send(
+            new CreateProjectFeatureCommand(
+                ownerId,
+                projectId,
+                "Referenced Feature",
+                null),
+            TestContext.Current.CancellationToken);
+        await mediator.Send(
+            new CreateEngineeringTaskCommand(
+                ownerId,
+                projectId,
+                repository.Id,
+                referencedComponent.Id,
+                referencedFeature.Id,
+                "Keep referenced resources",
+                null,
+                TaskPriority.High,
+                null,
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                []),
+            TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<ProjectManagementValidationException>(() => mediator.Send(
+            new DeleteProjectComponentCommand(ownerId, projectId, referencedComponent.Id),
+            TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<ProjectManagementValidationException>(() => mediator.Send(
+            new DeleteProjectFeatureCommand(ownerId, projectId, referencedFeature.Id),
+            TestContext.Current.CancellationToken));
+
+        var evidenceComponent = await mediator.Send(
+            new CreateProjectComponentCommand(
+                ownerId,
+                projectId,
+                repository.Id,
+                "Evidence Component",
+                ComponentScopeKind.Backend,
+                "src/evidence"),
+            TestContext.Current.CancellationToken);
+        var documentSession = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+        documentSession.Store(new SourceArtifact(
+            Guid.NewGuid(),
+            projectId,
+            repository.Id,
+            evidenceComponent.Id,
+            "aspnet_endpoint",
+            "EvidenceEndpoint",
+            "src/evidence/Endpoint.cs"));
+        await documentSession.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<ProjectManagementValidationException>(() => mediator.Send(
+            new DeleteProjectComponentCommand(ownerId, projectId, evidenceComponent.Id),
+            TestContext.Current.CancellationToken));
+
+        var component = await mediator.Send(
+            new CreateProjectComponentCommand(
+                ownerId,
+                projectId,
+                repository.Id,
+                "Disposable Component",
+                ComponentScopeKind.Backend,
+                "src/old"),
+            TestContext.Current.CancellationToken);
+        var feature = await mediator.Send(
+            new CreateProjectFeatureCommand(
+                ownerId,
+                projectId,
+                "Disposable Feature",
+                "old description"),
+            TestContext.Current.CancellationToken);
+        var updatedComponent = await mediator.Send(
+            new UpdateProjectComponentCommand(
+                ownerId,
+                projectId,
+                component.Id,
+                "Disposable Component Updated",
+                ComponentScopeKind.Backend,
+                "src/new"),
+            TestContext.Current.CancellationToken);
+        var updatedFeature = await mediator.Send(
+            new UpdateProjectFeatureCommand(
+                ownerId,
+                projectId,
+                feature.Id,
+                "Disposable Feature Updated",
+                "new description"),
+            TestContext.Current.CancellationToken);
+        Assert.Equal("src/new", updatedComponent.RootPath);
+        Assert.Equal("new description", updatedFeature.Description);
+
+        await mediator.Send(
+            new DeleteProjectComponentCommand(ownerId, projectId, component.Id),
+            TestContext.Current.CancellationToken);
+        await mediator.Send(
+            new DeleteProjectFeatureCommand(ownerId, projectId, feature.Id),
+            TestContext.Current.CancellationToken);
+        var disabled = await mediator.Send(
+            new DisableProjectRepositoryCommand(ownerId, projectId, repository.Id),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(RepositoryLifecycleStatus.Disabled, disabled.Status);
+        await Assert.ThrowsAsync<ProjectManagementValidationException>(() => mediator.Send(
+            new UpdateProjectRepositoryCommand(
+                ownerId,
+                projectId,
+                repository.Id,
+                disabled.Name,
+                disabled.LocalPath,
+                disabled.RemoteUrl,
+                disabled.DefaultBranch,
+                RepositoryLifecycleStatus.Active),
+            TestContext.Current.CancellationToken));
+        await mediator.Send(
+            new DisableProjectRepositoryCommand(ownerId, projectId, repository.Id),
+            TestContext.Current.CancellationToken);
+
+        await using var verificationScope = app.Services.CreateAsyncScope();
+        await using var verification = verificationScope.ServiceProvider.GetRequiredService<IQuerySession>();
+        Assert.Null(await verification.LoadAsync<ProjectComponent>(
+            component.Id,
+            TestContext.Current.CancellationToken));
+        Assert.Null(await verification.LoadAsync<ProjectFeature>(
+            feature.Id,
+            TestContext.Current.CancellationToken));
+        Assert.Equal(
+            RepositoryLifecycleStatus.Disabled,
+            (await verification.LoadAsync<ProjectRepository>(
+                repository.Id,
+                TestContext.Current.CancellationToken))!.Status);
+        var actions = await verification.Query<AuditRecord>()
+            .Where(record => record.ProjectId == projectId)
+            .Select(record => record.Action)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("project.update", actions);
+        Assert.Contains("repository.update", actions);
+        Assert.Single(actions, action => action == "repository.disable");
+        Assert.Contains("component.update", actions);
+        Assert.Contains("component.delete", actions);
+        Assert.Contains("feature.update", actions);
+        Assert.Contains("feature.delete", actions);
+    }
+
     private static async Task<WebApplication> BuildApplicationAsync(
         string connectionString,
         bool mapEndpoints)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Configuration["DatabaseOptions:ConnectionString"] = connectionString;
+        builder.Configuration["RepositoryAnalysis:Enabled"] = "false";
         builder.RegisterRepositoryIntelligenceServices();
         builder.Services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssemblyContaining<CreateProjectCommand>());

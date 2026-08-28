@@ -45,12 +45,14 @@ backend remains authoritative for authorization.
 
 ## Verified contract boundaries
 
-- P3 exposes feature creation but no standalone feature-list endpoint. The
-  feature view therefore displays newly created features and confirmed feature
-  identities derived from task responses.
-- P3 exposes source trace through tasks but no analysis/impact query endpoint.
-  Analysis and impact views render only confirmed task trace data; P5 and later
-  analyzer APIs can replace that source without changing the UI state model.
+- Feature create, update, delete, and paged-list routes are persisted and the
+  feature view reloads their backend state after each mutation.
+- Repository analysis exposes latest and request-specific status routes. The
+  analysis view polls in-progress GitHub runs and displays supported,
+  unsupported, awaiting-reasoning, failed, diagnostic, and task-count states.
+- There is no standalone knowledge-graph query route. The impact view therefore
+  renders only confirmed impact identities already projected onto visible
+  source-aware tasks.
 - The effective-permission endpoint requires `role.view`. When a member cannot
   inspect that endpoint, privileged controls remain disabled and explain the
   missing permission instead of assuming access.

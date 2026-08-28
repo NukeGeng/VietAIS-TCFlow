@@ -21,6 +21,9 @@ public sealed record CreateProjectResponse(
 public sealed record GetProjectQuery(Guid ActorId, Guid ProjectId)
     : IRequest<Project>;
 
+public sealed record UpdateProjectCommand(Guid ActorId, Guid ProjectId, string Name)
+    : IRequest<Project>;
+
 public sealed record SearchProjectsQuery(
     Guid ActorId,
     int PageNumber,
@@ -37,6 +40,15 @@ public sealed class CreateProjectHandler(
         CreateProjectCommand request,
         CancellationToken cancellationToken)
     {
+        var platformPolicy = await session.LoadAsync<PlatformPolicy>(
+            SystemConfigurationIds.PlatformPolicy,
+            cancellationToken) ?? SystemConfigurationDefaults.Policy(timeProvider.GetUtcNow());
+        if (!platformPolicy.ProjectCreationEnabled)
+        {
+            throw new ProjectManagementValidationException(
+                "Project creation is disabled by the platform policy.");
+        }
+
         if (request.ActorId == Guid.Empty)
         {
             throw new ProjectManagementValidationException("Project owner identity is required.");
@@ -170,6 +182,52 @@ public sealed class GetProjectHandler(
 
         return await session.LoadAsync<Project>(request.ProjectId, cancellationToken)
             ?? throw new NotFoundException("Project not found.");
+    }
+}
+
+public sealed class UpdateProjectHandler(
+    IDocumentSession session,
+    IProjectPermissionEvaluator evaluator,
+    TimeProvider timeProvider)
+    : IRequestHandler<UpdateProjectCommand, Project>
+{
+    public async Task<Project> Handle(
+        UpdateProjectCommand request,
+        CancellationToken cancellationToken)
+    {
+        await evaluator.EnsureAuthorizedAsync(
+            request.ActorId,
+            ProjectPermissionCodes.ProjectUpdate,
+            new AuthorizationResourceContext(request.ProjectId),
+            cancellationToken);
+        var current = await session.LoadAsync<Project>(request.ProjectId, cancellationToken)
+            ?? throw new NotFoundException("Project not found.");
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ProjectManagementValidationException("Project name is required.");
+        }
+
+        var name = request.Name.Trim();
+        if (name.Length is < 2 or > 150)
+        {
+            throw new ProjectManagementValidationException(
+                "Project name must contain between 2 and 150 characters.");
+        }
+
+        var updated = current with { Name = name };
+        session.Store(updated);
+        session.Store(AuditRecordFactory.Create(
+            request.ProjectId,
+            request.ActorId,
+            "user",
+            "project.update",
+            nameof(Project),
+            request.ProjectId.ToString(),
+            current,
+            updated,
+            timeProvider));
+        await session.SaveChangesAsync(cancellationToken);
+        return updated;
     }
 }
 

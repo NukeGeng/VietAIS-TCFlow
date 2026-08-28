@@ -95,6 +95,7 @@ public sealed class ReasoningAndReconciliationTests
         Assert.Contains("\"projectId\": \"project-1\"", client.Prompt, StringComparison.Ordinal);
         Assert.Equal(JsonValueKind.Object, client.Schema.ValueKind);
         Assert.False(client.Schema.GetProperty("additionalProperties").GetBoolean());
+        Assert.DoesNotContain("\"uniqueItems\"", client.Schema.GetRawText(), StringComparison.Ordinal);
         Assert.Contains("inferred", client.Schema.GetProperty("properties")
             .GetProperty("evidenceLevel")
             .GetProperty("enum")
@@ -146,6 +147,53 @@ public sealed class ReasoningAndReconciliationTests
     }
 
     [Fact]
+    public async Task ConfiguredCodexAppServerCompletesStructuredReasoningTurn()
+    {
+        var executable = Environment.GetEnvironmentVariable("TCFLOW_CODEX_EXECUTABLE");
+        var runLiveTurn = Environment.GetEnvironmentVariable("TCFLOW_RUN_LIVE_CODEX");
+        if (string.IsNullOrWhiteSpace(executable) ||
+            !string.Equals(runLiveTurn, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var isolatedDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"tcflow-codex-reasoning-{Guid.NewGuid():N}");
+        try
+        {
+            await using var client = new CodexAppServerProcessClient(new CodexAppServerOptions(
+                executable,
+                isolatedDirectory));
+            var provider = new CodexAppServerReasoningProvider(client);
+
+            var result = await provider.AnalyzeImpactAsync(
+                EmptyReasoningContext(),
+                TestContext.Current.CancellationToken);
+
+            Assert.False(string.IsNullOrWhiteSpace(result.Summary));
+            Assert.InRange(result.Confidence, 0m, 1m);
+            Assert.True(result.EvidenceLevel is EvidenceLevel.Inferred or EvidenceLevel.Proposed);
+            Assert.Empty(result.EvidenceIds);
+            Assert.All(result.Tasks, task =>
+            {
+                Assert.False(string.IsNullOrWhiteSpace(task.Title));
+                Assert.InRange(task.Confidence, 0m, 1m);
+                Assert.True(task.EvidenceLevel is EvidenceLevel.Inferred or EvidenceLevel.Proposed);
+                Assert.Empty(task.ArtifactIds);
+                Assert.Empty(task.EvidenceIds);
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(isolatedDirectory))
+            {
+                Directory.Delete(isolatedDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void ProgressiveTrustRejectsUnauthorizedActionsAndLowConfidenceRemainsSuggestion()
     {
         var low = Proposal("low", 0.6m, EvidenceLevel.Proposed, TaskProposalDisposition.Suggested);
@@ -181,6 +229,109 @@ public sealed class ReasoningAndReconciliationTests
 
         Assert.Equal(TaskProposalDisposition.Suggested, prepared.Single(task => task.Id == "low").Disposition);
         Assert.Equal(TaskProposalDisposition.Create, prepared.Single(task => task.Id == "high").Disposition);
+    }
+
+    [Fact]
+    public void SuggestOnlyPolicyAuthorizesSuggestionLifecycleButNotAutomaticTaskCreation()
+    {
+        var service = new TaskReconciliationService();
+        var now = DateTimeOffset.Parse("2026-08-23T00:00:00Z");
+        var suggestion = Proposal(
+            "suggestion",
+            0.9m,
+            EvidenceLevel.Inferred,
+            TaskProposalDisposition.Suggested);
+        var suggestOnly = Policy(
+            AiTrustLevel.SuggestOnly,
+            AiPermissionCodes.AnalysisRun,
+            AiPermissionCodes.TaskSuggest);
+        var createSuggestion = service.Reconcile(suggestion, [], now);
+
+        Assert.Equal(AiTaskAction.Suggest, AiActionAuthorizer.RequiredAction(createSuggestion));
+        AiActionAuthorizer.EnsureAllowed(
+            suggestOnly,
+            AiActionAuthorizer.RequiredAction(createSuggestion));
+        var suggestedTask = Assert.Single(createSuggestion.Mutations).After;
+        Assert.Equal(SourceAwareTaskStatus.Suggested, suggestedTask.Status);
+
+        var cancelSuggestion = service.Reconcile(
+            suggestion with { ChangeState = SourceChangeState.Reverted },
+            [suggestedTask],
+            now.AddMinutes(1));
+        Assert.Equal(AiTaskAction.Suggest, AiActionAuthorizer.RequiredAction(cancelSuggestion));
+        var cancelledTask = Assert.Single(cancelSuggestion.Mutations).After;
+        var reopenSuggestion = service.Reconcile(
+            suggestion,
+            [cancelledTask],
+            now.AddMinutes(2));
+        Assert.Equal(SourceAwareTaskStatus.Suggested, Assert.Single(reopenSuggestion.Mutations).After.Status);
+        Assert.Equal(AiTaskAction.Suggest, AiActionAuthorizer.RequiredAction(reopenSuggestion));
+
+        var automatic = service.Reconcile(
+            suggestion with { Disposition = TaskProposalDisposition.Create },
+            [],
+            now);
+        Assert.Equal(AiTaskAction.Create, AiActionAuthorizer.RequiredAction(automatic));
+        Assert.Throws<AiPolicyViolationException>(() => AiActionAuthorizer.EnsureAllowed(
+            suggestOnly,
+            AiActionAuthorizer.RequiredAction(automatic)));
+
+        var promote = service.Reconcile(
+            suggestion with { Disposition = TaskProposalDisposition.Create },
+            [suggestedTask],
+            now.AddMinutes(3));
+        Assert.Equal(AiTaskAction.Create, AiActionAuthorizer.RequiredAction(promote));
+        var createPolicy = Policy(
+            AiTrustLevel.CreateTasks,
+            AiPermissionCodes.AnalysisRun,
+            AiPermissionCodes.TaskSuggest,
+            AiPermissionCodes.TaskCreate);
+        AiActionAuthorizer.EnsureAllowed(createPolicy, AiActionAuthorizer.RequiredAction(promote));
+        Assert.Equal(SourceAwareTaskStatus.Upcoming, Assert.Single(promote.Mutations).After.Status);
+    }
+
+    [Fact]
+    public async Task MartenPersistsSuggestedTaskWithSuggestOnlyPolicyAndSuggestionAudit()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        await postgres.StartAsync(TestContext.Current.CancellationToken);
+        using var store = DocumentStore.For(options =>
+        {
+            options.Connection(postgres.GetConnectionString());
+            options.DatabaseSchemaName = "suggestion_policy_test";
+            TaskReconciliationStorage.Configure(options);
+        });
+        await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync();
+        var proposal = Proposal(
+            "suggested-persistence",
+            0.9m,
+            EvidenceLevel.Inferred,
+            TaskProposalDisposition.Suggested);
+        var decision = new TaskReconciliationService().Reconcile(
+            proposal,
+            [],
+            DateTimeOffset.UtcNow);
+        var policy = Policy(
+            AiTrustLevel.SuggestOnly,
+            AiPermissionCodes.AnalysisRun,
+            AiPermissionCodes.TaskSuggest);
+
+        await using (var session = store.LightweightSession())
+        {
+            await new MartenTaskReconciliationWriter(session, TimeProvider.System).ApplyAsync(
+                decision,
+                policy,
+                "ai:codex",
+                TestContext.Current.CancellationToken);
+        }
+
+        await using var query = store.QuerySession();
+        var task = Assert.Single(await query.Query<SourceAwareEngineeringTask>()
+            .ToListAsync(TestContext.Current.CancellationToken));
+        var audit = Assert.Single(await query.Query<AiActionAudit>()
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(SourceAwareTaskStatus.Suggested, task.Status);
+        Assert.Equal(AiPermissionCodes.TaskSuggest, audit.Action);
     }
 
     [Fact]

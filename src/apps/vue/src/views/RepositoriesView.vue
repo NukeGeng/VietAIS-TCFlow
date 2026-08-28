@@ -7,8 +7,12 @@ import ResourceState from '../components/ResourceState.vue'
 import { externalNavigation } from '../services/external-navigation'
 import { tcflowApi } from '../services/tcflow-api'
 import { useWorkspaceStore } from '../stores/workspace'
-import type { GitHubAppInstallation, GitHubRepositorySummary } from '../types/contracts'
-import { RepositoryProviderKind } from '../types/contracts'
+import type {
+  GitHubAppInstallation,
+  GitHubRepositorySummary,
+  ProjectRepository,
+} from '../types/contracts'
+import { RepositoryLifecycleStatus, RepositoryProviderKind } from '../types/contracts'
 
 const route = useRoute()
 const workspace = useWorkspaceStore()
@@ -23,8 +27,13 @@ const selectedInstallationId = ref<number | null>(null)
 const selectedRepositoryId = ref<number | null>(null)
 const loadingGitHub = ref(false)
 const connectingRepository = ref(false)
+const analyzingRepositoryId = ref('')
 const formError = ref('')
 const successMessage = ref(route.query.github === 'connected' ? 'GitHub account connected.' : '')
+const editingRepositoryId = ref('')
+const editName = ref('')
+const editLocation = ref('')
+const editDefaultBranch = ref('')
 
 const canManageGitHub = computed(
   () =>
@@ -34,6 +43,7 @@ const canManageGitHub = computed(
 
 async function createLocalRepository(): Promise<void> {
   formError.value = ''
+  successMessage.value = ''
   try {
     await workspace.createRepository({
       name: localName.value,
@@ -43,8 +53,74 @@ async function createLocalRepository(): Promise<void> {
     })
     localName.value = ''
     localPath.value = ''
+    successMessage.value = 'Local repository added.'
   } catch (error) {
     formError.value = error instanceof Error ? error.message : 'Unable to add local repository.'
+  }
+}
+
+function startRepositoryEdit(repository: ProjectRepository): void {
+  editingRepositoryId.value = repository.id
+  editName.value = repository.name
+  editLocation.value = repository.remoteUrl ?? repository.localPath ?? ''
+  editDefaultBranch.value = repository.defaultBranch
+  formError.value = ''
+  successMessage.value = ''
+}
+
+function cancelRepositoryEdit(): void {
+  editingRepositoryId.value = ''
+}
+
+async function saveRepository(repository: ProjectRepository): Promise<void> {
+  formError.value = ''
+  successMessage.value = ''
+  try {
+    await workspace.updateRepository(repository.id, {
+      name: editName.value,
+      localPath:
+        repository.provider === RepositoryProviderKind.Local ? editLocation.value : undefined,
+      remoteUrl:
+        repository.provider === RepositoryProviderKind.GitHub ? editLocation.value : undefined,
+      defaultBranch: editDefaultBranch.value,
+      status: repository.status,
+    })
+    editingRepositoryId.value = ''
+    successMessage.value = `${editName.value.trim()} updated.`
+  } catch (error) {
+    formError.value = error instanceof Error ? error.message : 'Unable to update repository.'
+  }
+}
+
+async function disableRepository(repository: ProjectRepository): Promise<void> {
+  if (!window.confirm(`Disable ${repository.name}? Existing source trace will be preserved.`))
+    return
+  formError.value = ''
+  successMessage.value = ''
+  try {
+    await workspace.disableRepository(repository.id)
+    successMessage.value = `${repository.name} disabled.`
+  } catch (error) {
+    formError.value = error instanceof Error ? error.message : 'Unable to disable repository.'
+  }
+}
+
+async function queueInitialScan(repository: ProjectRepository): Promise<void> {
+  if (!selectedProjectId.value) return
+  analyzingRepositoryId.value = repository.id
+  formError.value = ''
+  successMessage.value = ''
+  try {
+    const analysis = await tcflowApi.triggerInitialGitHubScan(
+      selectedProjectId.value,
+      repository.id,
+    )
+    successMessage.value = `${repository.name} analysis queued (${analysis.id.slice(0, 8)}). Open Analysis to follow its result.`
+  } catch (error) {
+    formError.value =
+      error instanceof Error ? error.message : `Unable to analyze ${repository.name}.`
+  } finally {
+    analyzingRepositoryId.value = ''
   }
 }
 
@@ -128,8 +204,11 @@ async function connectSelectedRepository(): Promise<void> {
     successMessage.value = `${connected.repository.name} connected.`
     if (workspace.hasPermission('source.analyze')) {
       try {
-        await tcflowApi.triggerInitialGitHubScan(selectedProjectId.value, connected.repository.id)
-        successMessage.value += ' Initial analysis queued.'
+        const analysis = await tcflowApi.triggerInitialGitHubScan(
+          selectedProjectId.value,
+          connected.repository.id,
+        )
+        successMessage.value += ` Initial analysis queued (${analysis.id.slice(0, 8)}). Open Analysis to follow its result.`
       } catch (error) {
         formError.value =
           error instanceof Error
@@ -187,19 +266,80 @@ watch(
             :key="repository.id"
             class="list-row list-row--static"
           >
-            <span class="avatar-mark">{{
-              repository.provider === RepositoryProviderKind.GitHub ? 'GH' : 'LO'
-            }}</span>
-            <span>
-              <strong>{{ repository.name }}</strong>
-              <small
-                >{{ repository.remoteUrl || repository.localPath }} ·
-                {{ repository.defaultBranch }}</small
-              >
-            </span>
-            <span class="state-pill state-pill--planned">{{
-              repository.status === 0 ? 'pending' : repository.status === 1 ? 'active' : 'disabled'
-            }}</span>
+            <form
+              v-if="editingRepositoryId === repository.id"
+              class="resource-editor"
+              @submit.prevent="saveRepository(repository)"
+            >
+              <label>Name<input v-model="editName" required maxlength="150" /></label>
+              <label
+                >{{
+                  repository.provider === RepositoryProviderKind.GitHub
+                    ? 'Remote URL'
+                    : 'Local path'
+                }}<input v-model="editLocation" required
+              /></label>
+              <label>Default branch<input v-model="editDefaultBranch" required /></label>
+              <span class="lifecycle-actions">
+                <button class="primary-button" type="submit">Save</button>
+                <button class="secondary-button" type="button" @click="cancelRepositoryEdit">
+                  Cancel
+                </button>
+              </span>
+            </form>
+            <template v-else>
+              <span class="avatar-mark">{{
+                repository.provider === RepositoryProviderKind.GitHub ? 'GH' : 'LO'
+              }}</span>
+              <span>
+                <strong>{{ repository.name }}</strong>
+                <small
+                  >{{ repository.remoteUrl || repository.localPath }} ·
+                  {{ repository.defaultBranch }}</small
+                >
+              </span>
+              <span class="lifecycle-actions">
+                <span class="state-pill state-pill--planned">{{
+                  repository.status === RepositoryLifecycleStatus.Pending
+                    ? 'pending'
+                    : repository.status === RepositoryLifecycleStatus.Active
+                      ? 'active'
+                      : 'disabled'
+                }}</span>
+                <button
+                  v-if="
+                    repository.provider === RepositoryProviderKind.GitHub &&
+                    repository.status === RepositoryLifecycleStatus.Active &&
+                    workspace.hasPermission('source.analyze')
+                  "
+                  class="secondary-button"
+                  type="button"
+                  :disabled="analyzingRepositoryId === repository.id"
+                  @click="queueInitialScan(repository)"
+                >
+                  {{ analyzingRepositoryId === repository.id ? 'Analyzing…' : 'Analyze now' }}
+                </button>
+                <button
+                  v-if="workspace.hasPermission('repository.update')"
+                  class="secondary-button"
+                  type="button"
+                  @click="startRepositoryEdit(repository)"
+                >
+                  Edit
+                </button>
+                <button
+                  v-if="
+                    repository.status !== RepositoryLifecycleStatus.Disabled &&
+                    workspace.hasPermission('repository.delete')
+                  "
+                  class="danger-button"
+                  type="button"
+                  @click="disableRepository(repository)"
+                >
+                  Disable
+                </button>
+              </span>
+            </template>
           </article>
         </div>
       </ResourceState>

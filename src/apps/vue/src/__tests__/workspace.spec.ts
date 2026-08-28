@@ -2,7 +2,16 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { tcflowApi } from '../services/tcflow-api'
 import { useWorkspaceStore } from '../stores/workspace'
-import { TaskLifecycleStatus } from '../types/contracts'
+import {
+  AiTrustLevel,
+  AuthorityKnowledgeKind,
+  AuthoritySourceKind,
+  ComponentScopeKind,
+  ConventionProfileStatus,
+  RepositoryLifecycleStatus,
+  RepositoryProviderKind,
+  TaskLifecycleStatus,
+} from '../types/contracts'
 import { page, taskFixture } from './fixtures'
 
 describe('workspace store', () => {
@@ -34,5 +43,259 @@ describe('workspace store', () => {
     expect(tcflowApi.tasks).toHaveBeenCalledTimes(2)
     expect(workspace.tasks[0]?.status).toBe(TaskLifecycleStatus.ReadyForReview)
     expect(workspace.tasks[0]?.currentVersion).toBe(2)
+  })
+
+  it('loads persisted project administration resources from the backend', async () => {
+    setActivePinia(createPinia())
+    const projectId = '20000000-0000-0000-0000-000000000001'
+    const userId = '30000000-0000-0000-0000-000000000001'
+    const roleId = '40000000-0000-0000-0000-000000000001'
+    const now = '2026-08-23T00:00:00Z'
+    const permissionCodes = [
+      'role.view',
+      'member.view',
+      'component.view',
+      'ai.policy.update',
+      'authority.view',
+      'convention.view',
+      'audit.view',
+    ]
+    vi.spyOn(tcflowApi, 'permissionDefinitions').mockResolvedValue([
+      {
+        id: 'task.view',
+        description: 'View tasks',
+        scope: 1,
+        allowedResourceScopes: [1],
+        allowedComponentScopes: [ComponentScopeKind.Backend],
+      },
+    ])
+    vi.spyOn(tcflowApi, 'roles').mockResolvedValue([
+      {
+        id: roleId,
+        projectId,
+        name: 'Maintainer',
+        isSystemDefined: false,
+        isOwner: false,
+        permissions: [],
+      },
+    ])
+    vi.spyOn(tcflowApi, 'members').mockResolvedValue([
+      { id: '50000000-0000-0000-0000-000000000001', projectId, userId, isActive: true, roles: [] },
+    ])
+    vi.spyOn(tcflowApi, 'components').mockResolvedValue(
+      page([
+        {
+          id: '60000000-0000-0000-0000-000000000001',
+          projectId,
+          repositoryId: '70000000-0000-0000-0000-000000000001',
+          name: 'API',
+          scope: ComponentScopeKind.Backend,
+          createdAt: now,
+          createdBy: userId,
+        },
+      ]),
+    )
+    vi.spyOn(tcflowApi, 'aiPolicy').mockResolvedValue({
+      id: '80000000-0000-0000-0000-000000000001',
+      projectId,
+      trustLevel: AiTrustLevel.SuggestOnly,
+      allowedPermissions: ['ai.analysis.run'],
+      updatedBy: userId,
+      updatedAt: now,
+    })
+    vi.spyOn(tcflowApi, 'authorityPolicy').mockResolvedValue({
+      id: '90000000-0000-0000-0000-000000000001',
+      projectId,
+      rules: [
+        { knowledge: AuthorityKnowledgeKind.ApiContract, source: AuthoritySourceKind.Backend },
+      ],
+      updatedAt: now,
+      updatedBy: userId,
+    })
+    vi.spyOn(tcflowApi, 'conventionProfile').mockResolvedValue({
+      id: 'a0000000-0000-0000-0000-000000000001',
+      projectId,
+      status: ConventionProfileStatus.Confirmed,
+      architectures: ['vertical slices'],
+      apiStyles: ['minimal APIs'],
+      persistencePatterns: ['Marten'],
+      validationPatterns: ['FluentValidation'],
+      dtoPatterns: ['records'],
+      updatedAt: now,
+      updatedBy: userId,
+    })
+    vi.spyOn(tcflowApi, 'audit').mockResolvedValue([])
+
+    const workspace = useWorkspaceStore()
+    workspace.selectProject(projectId)
+    workspace.effectivePermissions = {
+      projectId,
+      userId,
+      grants: permissionCodes.map((permissionCode) => ({
+        permissionCode,
+        roleId,
+        roleName: 'Owner',
+        resourceScope: 1,
+        componentScopes: [],
+      })),
+    }
+
+    await workspace.loadAdministration()
+
+    expect(workspace.administrationState.status).toBe('ready')
+    expect(workspace.projectRoles[0]?.name).toBe('Maintainer')
+    expect(workspace.projectMembers[0]?.userId).toBe(userId)
+    expect(workspace.components[0]?.name).toBe('API')
+    expect(workspace.aiPolicy?.allowedPermissions).toEqual(['ai.analysis.run'])
+    expect(workspace.authorityPolicy?.rules[0]?.source).toBe(AuthoritySourceKind.Backend)
+    expect(workspace.conventionProfile?.architectures).toEqual(['vertical slices'])
+  })
+
+  it('reloads persisted features after creation', async () => {
+    setActivePinia(createPinia())
+    const projectId = '20000000-0000-0000-0000-000000000001'
+    const feature = {
+      id: '40000000-0000-0000-0000-000000000001',
+      projectId,
+      name: 'Repository analysis',
+      description: 'Produce traceable tasks.',
+      createdAt: '2026-08-23T00:00:00Z',
+      createdBy: '30000000-0000-0000-0000-000000000001',
+    }
+    vi.spyOn(tcflowApi, 'createFeature').mockResolvedValue(feature)
+    vi.spyOn(tcflowApi, 'features').mockResolvedValue(page([feature]))
+
+    const workspace = useWorkspaceStore()
+    workspace.selectProject(projectId)
+    await workspace.createFeature(feature.name, feature.description)
+
+    expect(tcflowApi.features).toHaveBeenCalledWith(projectId, undefined)
+    expect(workspace.features).toEqual([feature])
+    expect(workspace.featuresState.status).toBe('ready')
+  })
+
+  it('persists project resource lifecycle mutations and reloads backend state', async () => {
+    setActivePinia(createPinia())
+    const projectId = '20000000-0000-0000-0000-000000000001'
+    const actorId = '30000000-0000-0000-0000-000000000001'
+    const now = '2026-08-23T00:00:00Z'
+    const project = { id: projectId, name: 'TCFlow', primaryOwnerId: actorId, createdAt: now }
+    const repository = {
+      id: '40000000-0000-0000-0000-000000000001',
+      projectId,
+      name: 'Backend',
+      provider: RepositoryProviderKind.Local,
+      localPath: '/workspace/backend',
+      defaultBranch: 'main',
+      status: RepositoryLifecycleStatus.Active,
+      createdAt: now,
+      createdBy: actorId,
+    }
+    const updatedRepository = { ...repository, name: 'Backend API', defaultBranch: 'develop' }
+    const disabledRepository = {
+      ...updatedRepository,
+      status: RepositoryLifecycleStatus.Disabled,
+    }
+    const feature = {
+      id: '50000000-0000-0000-0000-000000000001',
+      projectId,
+      name: 'Analysis',
+      createdAt: now,
+      createdBy: actorId,
+    }
+    const updatedFeature = { ...feature, name: 'Repository analysis' }
+    const component = {
+      id: '60000000-0000-0000-0000-000000000001',
+      projectId,
+      repositoryId: repository.id,
+      name: 'API',
+      scope: ComponentScopeKind.Backend,
+      rootPath: 'src/api',
+      createdAt: now,
+      createdBy: actorId,
+    }
+    const updatedComponent = { ...component, name: 'Repository API' }
+    vi.spyOn(tcflowApi, 'updateProject').mockResolvedValue({ ...project, name: 'TCFlow Planner' })
+    const updateRepository = vi
+      .spyOn(tcflowApi, 'updateRepository')
+      .mockResolvedValue(updatedRepository)
+    const disableRepository = vi
+      .spyOn(tcflowApi, 'disableRepository')
+      .mockResolvedValue(disabledRepository)
+    vi.spyOn(tcflowApi, 'repositories')
+      .mockResolvedValueOnce(page([updatedRepository]))
+      .mockResolvedValueOnce(page([disabledRepository]))
+    const updateFeature = vi.spyOn(tcflowApi, 'updateFeature').mockResolvedValue(updatedFeature)
+    const deleteFeature = vi.spyOn(tcflowApi, 'deleteFeature').mockResolvedValue()
+    vi.spyOn(tcflowApi, 'features')
+      .mockResolvedValueOnce(page([updatedFeature]))
+      .mockResolvedValueOnce(page([]))
+    const updateComponent = vi
+      .spyOn(tcflowApi, 'updateComponent')
+      .mockResolvedValue(updatedComponent)
+    const deleteComponent = vi.spyOn(tcflowApi, 'deleteComponent').mockResolvedValue()
+    vi.spyOn(tcflowApi, 'components')
+      .mockResolvedValueOnce(page([component]))
+      .mockResolvedValueOnce(page([updatedComponent]))
+      .mockResolvedValueOnce(page([]))
+
+    const workspace = useWorkspaceStore()
+    workspace.projects = [project]
+    workspace.selectProject(projectId)
+    workspace.effectivePermissions = {
+      projectId,
+      userId: actorId,
+      grants: [
+        {
+          permissionCode: 'component.view',
+          roleId: '70000000-0000-0000-0000-000000000001',
+          roleName: 'Owner',
+          resourceScope: 1,
+          componentScopes: [],
+        },
+      ],
+    }
+
+    await workspace.updateProject('TCFlow Planner')
+    await workspace.updateRepository(repository.id, {
+      name: updatedRepository.name,
+      localPath: updatedRepository.localPath,
+      defaultBranch: updatedRepository.defaultBranch,
+      status: updatedRepository.status,
+    })
+    await workspace.disableRepository(repository.id)
+    await workspace.updateFeature(feature.id, updatedFeature.name)
+    await workspace.deleteFeature(feature.id)
+    await workspace.updateComponent(component.id, {
+      name: updatedComponent.name,
+      scope: updatedComponent.scope,
+      rootPath: updatedComponent.rootPath,
+    })
+    await workspace.deleteComponent(component.id)
+
+    expect(workspace.projects[0]?.name).toBe('TCFlow Planner')
+    expect(updateRepository).toHaveBeenCalledWith(projectId, repository.id, {
+      name: updatedRepository.name,
+      localPath: updatedRepository.localPath,
+      defaultBranch: updatedRepository.defaultBranch,
+      status: updatedRepository.status,
+    })
+    expect(disableRepository).toHaveBeenCalledWith(projectId, repository.id)
+    expect(workspace.repositories[0]?.status).toBe(RepositoryLifecycleStatus.Disabled)
+    expect(updateFeature).toHaveBeenCalledWith(
+      projectId,
+      feature.id,
+      updatedFeature.name,
+      undefined,
+    )
+    expect(deleteFeature).toHaveBeenCalledWith(projectId, feature.id)
+    expect(workspace.features).toEqual([])
+    expect(updateComponent).toHaveBeenCalledWith(projectId, component.id, {
+      name: updatedComponent.name,
+      scope: updatedComponent.scope,
+      rootPath: updatedComponent.rootPath,
+    })
+    expect(deleteComponent).toHaveBeenCalledWith(projectId, component.id)
+    expect(workspace.components).toEqual([])
   })
 })

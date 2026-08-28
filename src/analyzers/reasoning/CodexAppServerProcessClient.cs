@@ -98,7 +98,8 @@ public sealed class CodexAppServerProcessClient : ICodexAppServerClient, IAsyncD
             {
                 ["cwd"] = _options.IsolatedWorkingDirectory,
                 ["approvalPolicy"] = "never",
-                ["sandbox"] = "readOnly",
+                ["permissions"] = ":read-only",
+                ["runtimeWorkspaceRoots"] = new[] { _options.IsolatedWorkingDirectory },
                 ["serviceName"] = _options.ClientName,
                 ["model"] = _options.Model
             };
@@ -110,16 +111,8 @@ public sealed class CodexAppServerProcessClient : ICodexAppServerClient, IAsyncD
                 ["input"] = new[] { new { type = "text", text = prompt } },
                 ["cwd"] = _options.IsolatedWorkingDirectory,
                 ["approvalPolicy"] = "never",
-                ["sandboxPolicy"] = new
-                {
-                    type = "readOnly",
-                    access = new
-                    {
-                        type = "restricted",
-                        includePlatformDefaults = true,
-                        readableRoots = new[] { _options.IsolatedWorkingDirectory }
-                    }
-                },
+                ["permissions"] = ":read-only",
+                ["runtimeWorkspaceRoots"] = new[] { _options.IsolatedWorkingDirectory },
                 ["outputSchema"] = outputSchema.Clone(),
                 ["model"] = _options.Model
             };
@@ -217,7 +210,8 @@ public sealed class CodexAppServerProcessClient : ICodexAppServerClient, IAsyncD
                         name = _options.ClientName,
                         title = _options.ClientTitle,
                         version = _options.ClientVersion
-                    }
+                    },
+                    capabilities = new { experimentalApi = true }
                 },
                 cancellationToken);
             await SendNotificationAsync("initialized", new { }, cancellationToken);

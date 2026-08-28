@@ -129,7 +129,8 @@ public static class RepositoryIntelligenceModule
                 options.Schema.For<RepositoryReasoningJob>()
                     .UseOptimisticConcurrency(true)
                     .Index(job => job.Status)
-                    .Index(job => job.NextAttemptAt);
+                    .Index(job => job.NextAttemptAt)
+                    .Index(job => job.WorkItem.RequestId);
                 options.Schema.For<RepositoryTaskProjection>()
                     .UseOptimisticConcurrency(true)
                     .UniqueIndex(projection => projection.EngineeringTaskId)

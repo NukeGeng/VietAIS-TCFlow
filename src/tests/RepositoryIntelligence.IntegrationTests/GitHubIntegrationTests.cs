@@ -291,6 +291,11 @@ public sealed class GitHubIntegrationTests
                 TestContext.Current.CancellationToken)));
         Assert.DoesNotContain(raceReceipts, item => item is null || !item.Accepted);
         Assert.Equal(1, raceReceipts.Count(item => item!.Duplicate));
+        var raceRequestId = Assert.Single(raceReceipts.Where(item => !item!.Duplicate))!.AnalysisRequestId;
+        Assert.NotNull(raceRequestId);
+        Assert.Equal(
+            raceRequestId,
+            Assert.Single(raceReceipts.Where(item => item!.Duplicate))!.AnalysisRequestId);
 
         var unselectedPayload = JsonSerializer.SerializeToUtf8Bytes(new
         {

@@ -63,3 +63,44 @@ the application image does not automatically roll back database migrations.
 custom API image that contains the configured reasoning executable and a
 persisted working directory. A managed Codex worker is not part of this
 self-host bundle.
+
+## Live acceptance checklist
+
+The deterministic fixture and CI smoke test do not prove a live GitHub push or
+managed-account reasoning turn. Use this checklist only after the stack has a
+public HTTPS address and the GitHub App is installed on a supported Vue +
+ASP.NET Core + Marten repository.
+
+1. Set `TCFLOW_PUBLIC_URL` to the public origin, set all GitHub App values in
+   `.env`, and configure the App OAuth callback as
+   `TCFLOW_PUBLIC_URL/github/callback`.
+2. If testing incremental monitoring, configure the App webhook URL as
+   `TCFLOW_PUBLIC_URL/api/v1/github/webhooks`, set a random
+   `GITHUB_WEBHOOK_SECRET`, and subscribe to `Push` and `Pull request`.
+3. Start the stack and verify both the API health response and the frontend:
+
+   ```bash
+   docker compose up -d --build
+   curl --fail "${TCFLOW_PUBLIC_URL}/health"
+   curl --fail "${TCFLOW_PUBLIC_URL}/"
+   ```
+
+4. Sign in as the project owner, connect the GitHub account, select the
+   repository, and use **Analyze now**. The analysis detail must reach
+   `Completed` (or `Unsupported` with `ANALYSIS001` for an intentionally
+   unsupported repository); it must not remain pending.
+5. For the supported-repository gate, commit a meaningful contract change and
+   push it. Confirm the webhook response is accepted, the analysis request
+   references the before/after revisions, and the resulting run records changed
+   files, impacts, and a source-traceable task when the project AI policy
+   permits it. Repeat the same delivery to confirm idempotency.
+6. For the managed reasoning gate, set `REPOSITORY_REASONING_ENABLED=true`,
+   point `REPOSITORY_REASONING_EXECUTABLE` at an authenticated managed Codex
+   executable in the custom image, enable the Codex provider through the system
+   configuration API, and grant the project only the intended AI permissions.
+   Confirm the reasoning status progresses from `Pending`/`Processing` to
+   `Completed`, the task contains evidence and confidence, and the audit trail
+   records the AI action separately from human approval.
+7. Save the analysis detail, task history, audit entries, and delivery id as
+   acceptance evidence. Rotate webhook/client secrets after the test and do not
+   include tokens, private keys, or raw source payloads in the evidence.

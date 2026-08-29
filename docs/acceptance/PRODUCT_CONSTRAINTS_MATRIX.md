@@ -29,7 +29,8 @@ outside the current local-development acceptance boundary.
 ## Open external gates
 
 - A supported live Vue + ASP.NET + Marten GitHub repository must produce a
-  meaningful push through the installed GitHub App and webhook path.
+  meaningful push through the installed GitHub App and webhook path; see the
+  [`live acceptance checklist`](../../deploy/self-host/README.md#live-acceptance-checklist).
 - The full reasoning worker must be enabled explicitly with the managed Codex
   account and project AI policy; the provider handshake/structured-turn test
-  already passes locally.
+  already passes locally, and the same checklist records the required evidence.

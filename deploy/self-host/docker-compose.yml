@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vietais_tcflow}
+      POSTGRES_USER: ${POSTGRES_USER:-tcflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ${TCFLOW_IMAGE_PREFIX:-vietais-tcflow}/api:${TCFLOW_VERSION:-2.0.4-rc}
+    build:
+      context: ../..
+      dockerfile: deploy/self-host/Dockerfile.api
+    volumes:
+      - api-images:/app/assets/images
+      - api-files:/app/assets/others
+      - reasoning-data:/app/.tcflow/codex-reasoning
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__database: Host=postgres;Port=5432;Database=${POSTGRES_DB:-vietais_tcflow};Username=${POSTGRES_USER:-tcflow};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      ConnectionStrings__redis: redis:6379
+      DatabaseOptions__Provider: postgresql
+      OriginOptions__OriginUrl: ${TCFLOW_PUBLIC_URL:-http://localhost:8080}
+      CorsOptions__AllowedOrigins__0: ${TCFLOW_PUBLIC_URL:-http://localhost:8080}
+      JwtOptions__Key: ${JWT_KEY:?JWT_KEY must be set in .env}
+      HangfireOptions__Username: ${HANGFIRE_USERNAME:-admin}
+      HangfireOptions__Password: ${HANGFIRE_PASSWORD:?HANGFIRE_PASSWORD must be set in .env}
+      HangfireOptions__Route: ${HANGFIRE_ROUTE:-/jobs}
+      BootstrapAdminOptions__Password: ${BOOTSTRAP_ADMIN_PASSWORD:?BOOTSTRAP_ADMIN_PASSWORD must be set in .env}
+      GitHub__AppId: ${GITHUB_APP_ID:-0}
+      GitHub__AppSlug: ${GITHUB_APP_SLUG:-}
+      GitHub__ClientId: ${GITHUB_CLIENT_ID:-}
+      GitHub__ClientSecret: ${GITHUB_CLIENT_SECRET:-}
+      GitHub__PrivateKeyBase64: ${GITHUB_PRIVATE_KEY_BASE64:-}
+      GitHub__OAuthCallbackUrl: ${GITHUB_OAUTH_CALLBACK_URL:-http://localhost:8080/github/callback}
+      GitHub__WebhookSecret: ${GITHUB_WEBHOOK_SECRET:-}
+      RepositoryReasoning__Enabled: ${REPOSITORY_REASONING_ENABLED:-false}
+      RepositoryReasoning__ExecutablePath: ${REPOSITORY_REASONING_EXECUTABLE:-codex}
+      RepositoryReasoning__WorkingDirectory: ${REPOSITORY_REASONING_WORKING_DIRECTORY:-.tcflow/codex-reasoning}
+      RepositoryReasoning__Model: ${REPOSITORY_REASONING_MODEL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  frontend:
+    image: ${TCFLOW_IMAGE_PREFIX:-vietais-tcflow}/frontend:${TCFLOW_VERSION:-2.0.4-rc}
+    build:
+      context: ../..
+      dockerfile: deploy/self-host/Dockerfile.frontend
+    ports:
+      - ${TCFLOW_HTTP_PORT:-8080}:8080
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  api-images:
+  api-files:
+  postgres-data:
+  reasoning-data:
+  redis-data:

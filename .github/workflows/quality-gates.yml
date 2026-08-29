@@ -120,3 +120,20 @@ jobs:
 
       - name: Build
         run: npm run build-only
+
+  self-host:
+    name: Self-host bundle config and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Validate Compose configuration
+        run: docker compose --env-file deploy/self-host/.env.example -f deploy/self-host/docker-compose.yml config --quiet
+
+      - name: Build self-host images
+        run: docker compose --env-file deploy/self-host/.env.example -f deploy/self-host/docker-compose.yml build
+
+      - name: Validate Nginx configuration
+        run: docker run --rm --add-host api:127.0.0.1 vietais-tcflow/frontend:2.0.4-rc nginx -t

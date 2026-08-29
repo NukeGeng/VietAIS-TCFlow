@@ -153,7 +153,11 @@ jobs:
           }
           trap cleanup EXIT
 
-          "${compose[@]}" up -d
+          if ! "${compose[@]}" up -d; then
+            "${compose[@]}" ps
+            "${compose[@]}" logs api
+            exit 1
+          fi
           for attempt in $(seq 1 60); do
             if curl --fail --silent "http://localhost:${TCFLOW_HTTP_PORT}/health" >/dev/null; then
               break

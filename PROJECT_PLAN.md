@@ -23,8 +23,8 @@ updated.
 ### CONFIRMED
 
 - The repository contains the implemented backend, analyzers, Vue frontend,
-  Aspire host, acceptance fixtures, and verification documentation; the two
-  remaining P14 gates are explicitly external runtime gates.
+  Aspire host, acceptance fixtures, and verification documentation; the one
+  remaining P14 gate is the external GitHub-originated webhook runtime gate.
 - The remote has the required long-lived branches: `main`, `frontend`,
   `backend`, `mobile`, and `ai`.
 - The required backend baseline is FullStackHero dotnet-starter-kit

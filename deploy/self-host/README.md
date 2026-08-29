@@ -93,7 +93,9 @@ volumes in the host backup policy when they must survive host loss.
 `REPOSITORY_REASONING_ENABLED` is `false` by default. Enabling it requires a
 custom API image that contains the configured reasoning executable and a
 persisted working directory. A managed Codex worker is not part of this
-self-host bundle.
+self-host bundle. Leave `REPOSITORY_REASONING_MODEL` empty to use the managed
+account default; TCFlow omits the model field in that case instead of sending
+an empty model identifier.
 
 ## Live acceptance checklist
 

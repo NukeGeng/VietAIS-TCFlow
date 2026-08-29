@@ -31,6 +31,7 @@ outside the current local-development acceptance boundary.
 - A supported live Vue + ASP.NET + Marten GitHub repository must produce a
   meaningful push through the installed GitHub App and webhook path; see the
   [`live acceptance checklist`](../../deploy/self-host/README.md#live-acceptance-checklist).
-- The full reasoning worker must be enabled explicitly with the managed Codex
-  account and project AI policy; the provider handshake/structured-turn test
-  already passes locally, and the same checklist records the required evidence.
+
+The full managed-account reasoning worker is confirmed locally. Its non-secret
+runtime evidence is recorded in
+[`P14_LIVE_CODEX_WORKER_2026-08-29.json`](evidence/P14_LIVE_CODEX_WORKER_2026-08-29.json).

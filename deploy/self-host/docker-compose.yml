@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vietais_tcflow}
       POSTGRES_USER: ${POSTGRES_USER:-tcflow}
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
@@ -28,6 +30,7 @@ services:
 
   api:
     image: ${TCFLOW_IMAGE_PREFIX:-vietais-tcflow}/api:${TCFLOW_VERSION:-2.0.4-rc}
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: deploy/self-host/Dockerfile.api
@@ -73,6 +76,7 @@ services:
 
   frontend:
     image: ${TCFLOW_IMAGE_PREFIX:-vietais-tcflow}/frontend:${TCFLOW_VERSION:-2.0.4-rc}
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: deploy/self-host/Dockerfile.frontend

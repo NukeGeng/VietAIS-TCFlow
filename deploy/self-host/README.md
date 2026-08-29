@@ -57,6 +57,37 @@ Database migrations run during API startup. Review the release notes and keep
 a database backup before applying a version with schema changes; rolling back
 the application image does not automatically roll back database migrations.
 
+## Backup and restore
+
+Create a PostgreSQL custom-format backup from the running database container.
+The command reads the database name and user from the container environment, so
+the credentials are not written into the backup command or shell history:
+
+```bash
+mkdir -p backups
+backup_file="backups/vietais-tcflow-$(date -u +%Y%m%dT%H%M%SZ).dump"
+docker compose exec -T postgres sh -c \
+  'pg_dump --format=custom --no-owner --no-privileges -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+  > "$backup_file"
+```
+
+To restore, stop the API and frontend first, then restore into the existing
+PostgreSQL volume. This replaces the database contents; take a fresh backup
+before running it:
+
+```bash
+docker compose stop api frontend
+cat backups/vietais-tcflow-YYYYMMDDTHHMMSSZ.dump | \
+  docker compose exec -T postgres sh -c \
+  'pg_restore --clean --if-exists --no-owner --no-privileges -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+docker compose up -d api frontend
+curl --fail http://localhost:${TCFLOW_HTTP_PORT:-8080}/health
+```
+
+Keep backup files outside the repository and protect them as production data.
+The Redis AOF and uploaded files remain in named Docker volumes; include those
+volumes in the host backup policy when they must survive host loss.
+
 ## Optional reasoning worker
 
 `REPOSITORY_REASONING_ENABLED` is `false` by default. Enabling it requires a

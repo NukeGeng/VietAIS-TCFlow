@@ -2,6 +2,7 @@
   <form @submit.prevent="submit">
     <input v-model="name" required />
     <input v-model="traceCode" required maxlength="48" />
+    <input v-model="externalReference" required maxlength="64" />
     <button type="submit">Create order</button>
   </form>
 </template>
@@ -13,6 +14,7 @@ import { api } from '@/services/api'
 interface CreateLiveAcceptanceOrderRequest {
   name: string
   traceCode: string
+  externalReference: string
 }
 
 interface CreateLiveAcceptanceOrderResponse {
@@ -22,11 +24,13 @@ interface CreateLiveAcceptanceOrderResponse {
 
 const name = ref('')
 const traceCode = ref('')
+const externalReference = ref('')
 
 async function submit() {
   const request: CreateLiveAcceptanceOrderRequest = {
     name: name.value,
     traceCode: traceCode.value,
+    externalReference: externalReference.value,
   }
 
   await api.post<CreateLiveAcceptanceOrderResponse>(

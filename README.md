@@ -62,6 +62,11 @@ Configure both the **Setup URL** and **Callback URL** as
 set its webhook URL to the public HTTPS address that forwards to
 `/api/v1/github/webhooks`.
 
+For local onboarding and initial scans, the App may remain without subscribed
+events and without a webhook URL. Enable those events only when a publicly
+reachable webhook endpoint is available and live incremental monitoring is
+being verified.
+
 Store local credentials in the Aspire AppHost user-secrets store; never add the
 GitHub client secret, private key, or webhook secret to source control:
 

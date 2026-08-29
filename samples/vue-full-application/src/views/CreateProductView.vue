@@ -5,6 +5,7 @@
     <select v-model="categoryId" required>
       <option value="">Select a category</option>
     </select>
+    <input v-model="supplierCode" type="text" required maxlength="32" />
     <button type="submit" :disabled="loading">Create product</button>
     <p v-if="error">{{ error }}</p>
   </form>
@@ -19,6 +20,7 @@ interface CreateProductRequest {
   name: string
   price: number
   categoryId: string
+  supplierCode: string
 }
 
 interface CreateProductResponse {
@@ -40,6 +42,7 @@ const emit = defineEmits<{
 const name = ref('')
 const price = ref(0)
 const categoryId = ref(props.initialCategoryId ?? '')
+const supplierCode = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -48,6 +51,7 @@ async function submit() {
     name: name.value,
     price: price.value,
     categoryId: categoryId.value,
+    supplierCode: supplierCode.value,
   }
 
   loading.value = true

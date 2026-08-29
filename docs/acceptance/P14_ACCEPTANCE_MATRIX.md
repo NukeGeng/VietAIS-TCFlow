@@ -92,7 +92,7 @@ test, benchmark, or explicitly open external evidence.
 | Codex App Server managed-account handshake and structured turn | CONFIRMED (local provider) | Opt-in live reasoning test completed with the authenticated managed Codex executable on 2026-08-27 |
 | Live Codex managed-account reasoning worker | PROPOSED | `RepositoryReasoning.Enabled` is false in development defaults; enable only with managed account and explicit AI policy |
 | Long-lived branch protection | CONFIRMED (GitHub) | Active rulesets `main-owner-only-updates`, `protected-branches-pull-request`, and `protected-branches-safety` cover `main` and all long-lived branches; `main` updates are limited to the `NukeGeng` bypass actor through pull requests, all three quality gates are required, force-push/deletion are rejected, and collaborator readback shows only `NukeGeng` has admin/push access. |
-| Protected-branch integration | CONFIRMED (main) | PRs #94 and #95 passed all required checks; PRs #96–#98 and #100–#103 synchronized the domain branches, while PRs #99 and #104 refreshed the acceptance readback. The latest readback confirms all long-lived branch trees match `main`; the matrix intentionally avoids a commit hash that becomes stale after each documentation-only merge. |
+| Protected-branch integration | CONFIRMED (main) | PRs #94 and #95 passed all required checks, and the protected-branch readback confirms the domain branches are synchronized with `main`. The matrix intentionally avoids commit hashes and transient documentation PR numbers that become stale after each documentation-only merge. |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and
 protected integration are present, but the supported live-repository reasoning

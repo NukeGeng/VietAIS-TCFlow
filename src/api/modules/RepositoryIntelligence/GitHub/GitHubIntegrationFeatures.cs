@@ -469,11 +469,15 @@ public sealed class IngestGitHubWebhookHandler(
         }
         catch (DocumentAlreadyExistsException)
         {
+            var existingAnalysis = await session.Query<RepositoryAnalysisRequest>()
+                .SingleOrDefaultAsync(
+                    item => item.DeliveryId == deliveryId,
+                    cancellationToken);
             return new GitHubWebhookReceipt(
                 Accepted: true,
                 Duplicate: true,
                 "duplicate",
-                null);
+                existingAnalysis?.Id);
         }
 
         return new GitHubWebhookReceipt(

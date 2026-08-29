@@ -23,15 +23,17 @@ outside the current local-development acceptance boundary.
 | Progressive trust | CONFIRMED | AI trust levels and permission policy are enforced by `AiActionAuthorizer`; negative-path reasoning and governance tests pass. |
 | User control | CONFIRMED | AI actions are audited, policy-gated, reversible through reconciliation, and human approval remains distinct; authorization integration tests cover forbidden mutations. |
 | Quality decision rule | CONFIRMED | P14 acceptance matrix, benchmark thresholds, diff review, and CI quality gates make precision/explainability/permission checks explicit before merge. |
-| Acceptable product behavior | CONFIRMED (fixture) | End-to-end benchmark and source-aware task integration tests cover change → evidence → impact → task → verification → reconciliation. |
-| Developer trust is the priority | CONFIRMED (fixture) | Evidence boundaries, no-phantom retrieval facts, zero duplicate rate, audit assertions, and explicit unresolved gates prevent unsupported claims. |
+| Acceptable product behavior | CONFIRMED (fixture + live GitHub runtime) | End-to-end benchmark and source-aware task integration tests cover change → evidence → impact → task → verification → reconciliation; a signed GitHub push additionally proves the live webhook, revision fetch, analysis, reasoning, task, audit, and idempotency path. |
+| Developer trust is the priority | CONFIRMED (fixture + live GitHub runtime) | Evidence boundaries, no-phantom retrieval facts, zero duplicate rate, audit assertions, and signed-delivery evidence prevent unsupported claims. |
 
-## Open external gates
+## Deployment-environment boundary
 
-- A supported live Vue + ASP.NET + Marten GitHub repository must produce a
-  meaningful push through the installed GitHub App and webhook path; see the
-  [`live acceptance checklist`](../../deploy/self-host/README.md#live-acceptance-checklist).
+No product-acceptance gate remains open. Production TLS, image-registry,
+backup/restore, and operator rollout verification remain environment-specific
+deployment work rather than claims made by this local acceptance run.
 
-The full managed-account reasoning worker is confirmed locally. Its non-secret
-runtime evidence is recorded in
-[`P14_LIVE_CODEX_WORKER_2026-08-29.json`](evidence/P14_LIVE_CODEX_WORKER_2026-08-29.json).
+The managed-account reasoning worker and GitHub-originated flow are confirmed by
+the non-secret runtime evidence in
+[`P14_LIVE_CODEX_WORKER_2026-08-29.json`](evidence/P14_LIVE_CODEX_WORKER_2026-08-29.json)
+and
+[`P14_GITHUB_WEBHOOK_E2E_2026-08-30.json`](evidence/P14_GITHUB_WEBHOOK_E2E_2026-08-30.json).

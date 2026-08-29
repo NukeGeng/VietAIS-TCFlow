@@ -1,0 +1,85 @@
+{
+  "status": "CONFIRMED",
+  "verifiedAt": "2026-08-29T16:16:09.243199Z",
+  "scope": "Live managed-account repository reasoning worker",
+  "repository": "NukeGeng/VietAIS-TCFlow",
+  "installationId": 155925244,
+  "trigger": {
+    "kind": "signed-local-acceptance-delivery",
+    "githubOriginated": false,
+    "deliveryId": "live-codex-fixed-worker-20260829-2e006e9f2f87",
+    "baseRevision": "8e640bbd42b0f7e7bc02e7df9086f707c67598e6",
+    "headRevision": "2e006e9f2f87559b58f9fb59e86ca940428b991f",
+    "changedFiles": [
+      "samples/live-acceptance/src/frontend/LiveAcceptanceOrderView.vue"
+    ]
+  },
+  "analysis": {
+    "requestId": "83f6370d-b955-4274-8420-06ee10bc8ae8",
+    "statusTransition": [
+      "Pending",
+      "AwaitingReasoning",
+      "Completed"
+    ],
+    "technologies": [
+      "aspnet",
+      "marten",
+      "vue"
+    ],
+    "artifactCount": 1348,
+    "dependencyCount": 1278,
+    "contractCount": 199,
+    "mismatchCount": 335,
+    "changeCount": 13,
+    "impactCount": 165,
+    "generatedTaskCount": 1
+  },
+  "reasoning": {
+    "jobId": "3e9766f6bf25d14b6eae128d",
+    "statusTransition": [
+      "Pending",
+      "Processing",
+      "Completed"
+    ],
+    "attemptCount": 1,
+    "aiRequestCount": 1,
+    "reconciledTaskCount": 1,
+    "provider": "Codex App Server",
+    "accountType": "chatgpt",
+    "explicitModelConfigured": false
+  },
+  "task": {
+    "id": "3783029d-905e-0456-fcf2-18e67d1c8922",
+    "title": "Align frontend create-order request with backend contract",
+    "status": "Suggested",
+    "version": 1,
+    "sourceChangeId": "45238db6-efe6-186d-25b6-aeb4e5d98f82",
+    "artifactReferenceCount": 6,
+    "impactReferenceCount": 12,
+    "evidenceCount": 6,
+    "evidenceConfidenceMinimum": 1.0,
+    "evidenceConfidenceMaximum": 1.0,
+    "humanApproval": "Pending",
+    "aiVerification": "NotRun"
+  },
+  "auditActions": [
+    "github.webhook.ingest",
+    "repository.analysis.reasoning.queued",
+    "ai.task.suggest",
+    "repository.analysis.reasoning.completed"
+  ],
+  "idempotency": {
+    "duplicateAccepted": true,
+    "duplicateDisposition": "duplicate",
+    "persistedDeliveryCount": 1,
+    "persistedAnalysisCount": 1,
+    "persistedReasoningJobCount": 1,
+    "persistedTaskCount": 1
+  },
+  "security": {
+    "secretsIncluded": false,
+    "rawWebhookPayloadIncluded": false,
+    "rawRepositorySourceIncluded": false
+  },
+  "remainingBoundary": "This evidence confirms the live Codex worker only. The GitHub-originated webhook gate remains open because the GitHub App has no subscribed webhook events."
+}

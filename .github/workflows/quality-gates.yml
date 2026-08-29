@@ -172,3 +172,6 @@ jobs:
 
           curl --fail --silent "http://localhost:${TCFLOW_HTTP_PORT}/health" >/dev/null
           curl --fail --silent "http://localhost:${TCFLOW_HTTP_PORT}/alive" >/dev/null
+          curl --fail --silent "http://localhost:${TCFLOW_HTTP_PORT}/" | grep -qi "<html"
+          api_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "http://localhost:${TCFLOW_HTTP_PORT}/api/v1/projects")"
+          [[ "${api_status}" == "401" ]]

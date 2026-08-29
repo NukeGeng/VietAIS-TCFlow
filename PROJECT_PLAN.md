@@ -38,8 +38,6 @@ updated.
 - Marten + PostgreSQL is the persistence stack for new business modules.
 - .NET Aspire is the local orchestration stack.
 
-### CONFIRMED
-
 - The FullStackHero Blazor client is reference infrastructure, not the product
   frontend, because `GOAL.md` explicitly requires Vue 3.
 

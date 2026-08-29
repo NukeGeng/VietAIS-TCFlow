@@ -17,7 +17,7 @@ outside the current local-development acceptance boundary.
 | 08. Permissions remain understandable | CONFIRMED | Backend returns permission/scope failures, frontend uses effective-permission state, and project/system authorization tests cover 401/403/success paths. |
 | 09. Realtime analysis is responsive | CONFIRMED | Incremental fast path runs before deep reasoning; P14 benchmark records deterministic p95 below the 2-second target. |
 | 10. AI verification is separate from human approval | CONFIRMED | `RepositoryTaskVerificationService` updates `AiVerificationStatus` while preserving `HumanApprovalStatus`; dedicated integration test asserts both states. |
-| 11. Self-host/LAN operation is maintainable | INFERRED / PROPOSED | Aspire startup, migrations, health checks, configuration validation, and repeatable README commands are confirmed; production packaging and upgrade automation remain future work. |
+| 11. Self-host/LAN operation is maintainable | INFERRED / PROPOSED | Aspire startup, migrations, health checks, configuration validation, and repeatable README commands are confirmed. The versioned Docker Compose bundle, secret-safe environment template, health-gated services, backup/migration upgrade runbook, and CI startup smoke test are verified; production TLS, registry, and operator rollout remain external verification. |
 | 12. AI quality is measurable | CONFIRMED | Executable P14 benchmark reports precision, recall, false-positive/negative rates, duplication, reconciliation accuracy, and fast-path p95. |
 | 13. Product is not a thin LLM wrapper | CONFIRMED | Static Vue/ASP.NET/Marten analyzers, graph retrieval, governance, authority, reconciliation, and permission layers execute independently of Codex. |
 | Progressive trust | CONFIRMED | AI trust levels and permission policy are enforced by `AiActionAuthorizer`; negative-path reasoning and governance tests pass. |
@@ -29,7 +29,8 @@ outside the current local-development acceptance boundary.
 ## Open external gates
 
 - A supported live Vue + ASP.NET + Marten GitHub repository must produce a
-  meaningful push through the installed GitHub App and webhook path.
+  meaningful push through the installed GitHub App and webhook path; see the
+  [`live acceptance checklist`](../../deploy/self-host/README.md#live-acceptance-checklist).
 - The full reasoning worker must be enabled explicitly with the managed Codex
   account and project AI policy; the provider handshake/structured-turn test
-  already passes locally.
+  already passes locally, and the same checklist records the required evidence.

@@ -258,10 +258,23 @@ public sealed class GitHubIntegrationEndpoints : CarterModule
             return Results.Unauthorized();
         }
 
+        // GitHub sends a signed ping immediately after a webhook is created or
+        // updated. It is a handshake, not a source change, so acknowledge it
+        // without creating a delivery or analysis request.
+        var eventName = request.Headers["X-GitHub-Event"].FirstOrDefault() ?? string.Empty;
+        if (string.Equals(eventName.Trim(), "ping", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.Accepted(value: new GitHubWebhookReceipt(
+                Accepted: true,
+                Duplicate: false,
+                "ping-acknowledged",
+                null));
+        }
+
         var receipt = await mediator.Send(
             new IngestGitHubWebhookCommand(
                 request.Headers["X-GitHub-Delivery"].FirstOrDefault() ?? string.Empty,
-                request.Headers["X-GitHub-Event"].FirstOrDefault() ?? string.Empty,
+                eventName,
                 payload),
             cancellationToken);
         return Results.Accepted(value: receipt);

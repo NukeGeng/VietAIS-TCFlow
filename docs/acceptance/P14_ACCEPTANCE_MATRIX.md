@@ -3,7 +3,7 @@
 This matrix maps every criterion in `GOAL.md` sections 74–76 to direct
 verification evidence. `CONFIRMED (main)` means the automated evidence exists
 and passes on the protected integration branch. P14 remains incomplete only
-until the explicitly external gates at the end of this document pass.
+until the explicitly external gate at the end of this document passes.
 
 ## Core product — GOAL section 74
 
@@ -90,11 +90,12 @@ test, benchmark, or explicitly open external evidence.
 | GitHub App installation configuration | CONFIRMED (GitHub readback) | App `vietais-tcflow` installation `155925244` selects `NukeGeng/Portfolio` and `NukeGeng/VietAIS-TCFlow`; installation permissions are read-only for contents/metadata/pull requests and no webhook events are subscribed |
 | Source-driven task completion verification | CONFIRMED (main) | Deterministic and Marten integration coverage verifies AI policy, failed/inconclusive/passed outcomes, idempotency, evidence, versions, audit, and separation from human approval |
 | Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change; execution steps and evidence requirements are in [`deploy/self-host/README.md`](../../deploy/self-host/README.md#live-acceptance-checklist) |
-| Codex App Server managed-account handshake and structured turn | CONFIRMED (local provider) | Opt-in live reasoning test completed with the authenticated managed Codex executable on 2026-08-27 |
-| Live Codex managed-account reasoning worker | PROPOSED | `RepositoryReasoning.Enabled` is false in development defaults; enable only with managed account and explicit AI policy; the required configuration and evidence are in [`deploy/self-host/README.md`](../../deploy/self-host/README.md#live-acceptance-checklist) |
+| Codex App Server managed-account handshake and structured turn | CONFIRMED (local provider) | Opt-in live reasoning test completed with the authenticated managed Codex executable on 2026-08-29, including the default-model path |
+| Live Codex managed-account reasoning worker | CONFIRMED (local live runtime) | On 2026-08-29 the enabled worker processed real private-repository revisions after a signed local acceptance delivery: `Pending` → `Processing` → `Completed`, one structured Codex request, one suggested source-traceable task, six confidence-bearing evidence records, separate AI audits, and duplicate-delivery idempotency. The non-secret readback is versioned in [`P14_LIVE_CODEX_WORKER_2026-08-29.json`](evidence/P14_LIVE_CODEX_WORKER_2026-08-29.json). This does not claim the still-open GitHub-originated webhook gate. |
 | Long-lived branch protection | CONFIRMED (GitHub) | Active rulesets `main-owner-only-updates`, `protected-branches-pull-request`, and `protected-branches-safety` cover `main` and all long-lived branches; `main` updates are limited to the `NukeGeng` bypass actor through pull requests, all three quality gates are required, force-push/deletion are rejected, and collaborator readback shows only `NukeGeng` has admin/push access. |
 | Protected-branch integration | CONFIRMED (main) | PRs #94 and #95 passed all required checks, and the protected-branch readback confirms the domain branches are synchronized with `main`. The matrix intentionally avoids commit hashes and transient documentation PR numbers that become stale after each documentation-only merge. |
 
-Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and
-protected integration are present, but the supported live-repository reasoning
-run and enabled live reasoning-worker gates remain open.
+Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria,
+protected integration, and the live managed-account reasoning worker are
+confirmed; only the supported GitHub-originated repository webhook run remains
+open.

@@ -4,6 +4,7 @@
     <input v-model="price" type="number" required />
     <input v-model="categoryId" required />
     <input v-model="supplierCode" required />
+    <input v-model="liveAcceptanceCode" required />
     <button type="submit">Create</button>
     <p v-if="error">{{ error }}</p>
   </form>
@@ -19,6 +20,7 @@ interface CreateProductRequest {
   price: number
   categoryId: string
   supplierCode: string
+  liveAcceptanceCode: string
 }
 
 interface CreateProductResponse {
@@ -32,6 +34,7 @@ const name = ref('')
 const price = ref(0)
 const categoryId = ref('')
 const supplierCode = ref('')
+const liveAcceptanceCode = ref('')
 const error = ref<string | null>(null)
 
 async function submit() {
@@ -40,6 +43,7 @@ async function submit() {
     price: price.value,
     categoryId: categoryId.value,
     supplierCode: supplierCode.value,
+    liveAcceptanceCode: liveAcceptanceCode.value,
   }
 
   try {

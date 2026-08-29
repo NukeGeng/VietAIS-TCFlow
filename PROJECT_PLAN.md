@@ -22,33 +22,29 @@ updated.
 
 ### CONFIRMED
 
-- The repository is greenfield; only `README.md` exists in committed source.
+- The repository contains the implemented backend, analyzers, Vue frontend,
+  Aspire host, acceptance fixtures, and verification documentation; the two
+  remaining P14 gates are explicitly external runtime gates.
 - The remote has the required long-lived branches: `main`, `frontend`,
   `backend`, `mobile`, and `ai`.
 - The required backend baseline is FullStackHero dotnet-starter-kit
   `2.0.4-rc`.
 - FullStackHero `2.0.4-rc` targets .NET 9.
-- The current local machine has .NET SDK 8, Node.js 20, npm 10, and Docker.
+- A compatible .NET 9 SDK is available locally (`dotnet --version` reports
+  `9.0.120`). The verified frontend toolchain is Node.js `24.19.0` with npm
+  `11.17.0` (pinned in `.nvmrc` and used by CI); Docker is required for
+  persistence integration tests and Aspire.
 - Vue 3 + TypeScript + Vite is the product frontend stack.
 - Marten + PostgreSQL is the persistence stack for new business modules.
 - .NET Aspire is the local orchestration stack.
 
-### INFERRED
-
-- A .NET 9 SDK must be installed or made available before the FullStackHero
-  baseline can be built locally.
 - The FullStackHero Blazor client is reference infrastructure, not the product
   frontend, because `GOAL.md` explicitly requires Vue 3.
 
-### PROPOSED
-
-- Use `RepositoryIntelligence` as the initial business module name, matching
-  the example and terminology in `GOAL.md`.
-- Keep upstream FullStackHero identity/infrastructure modules on their existing
+- `RepositoryIntelligence` is the initial business module name, matching the
+  example and terminology in `GOAL.md`.
+- Upstream FullStackHero identity/infrastructure modules remain on their existing
   persistence mechanism while all new TCFlow business documents use Marten.
-
-These proposals must be validated against the imported FullStackHero source
-before implementation.
 
 ## 3. Target Repository Layout
 

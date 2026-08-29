@@ -54,7 +54,8 @@ public sealed class CodexAppServerProcessClient : ICodexAppServerClient, IAsyncD
         _options = options with
         {
             ExecutablePath = options.ExecutablePath.Trim(),
-            IsolatedWorkingDirectory = Path.GetFullPath(options.IsolatedWorkingDirectory)
+            IsolatedWorkingDirectory = Path.GetFullPath(options.IsolatedWorkingDirectory),
+            Model = string.IsNullOrWhiteSpace(options.Model) ? null : options.Model.Trim()
         };
     }
 
@@ -100,9 +101,9 @@ public sealed class CodexAppServerProcessClient : ICodexAppServerClient, IAsyncD
                 ["approvalPolicy"] = "never",
                 ["permissions"] = ":read-only",
                 ["runtimeWorkspaceRoots"] = new[] { _options.IsolatedWorkingDirectory },
-                ["serviceName"] = _options.ClientName,
-                ["model"] = _options.Model
+                ["serviceName"] = _options.ClientName
             };
+            AddConfiguredModel(threadParameters);
             var threadResult = await SendRequestAsync("thread/start", threadParameters, cancellationToken);
             var threadId = RequiredString(threadResult, "thread", "id");
             var turnParameters = new Dictionary<string, object?>
@@ -113,9 +114,9 @@ public sealed class CodexAppServerProcessClient : ICodexAppServerClient, IAsyncD
                 ["approvalPolicy"] = "never",
                 ["permissions"] = ":read-only",
                 ["runtimeWorkspaceRoots"] = new[] { _options.IsolatedWorkingDirectory },
-                ["outputSchema"] = outputSchema.Clone(),
-                ["model"] = _options.Model
+                ["outputSchema"] = outputSchema.Clone()
             };
+            AddConfiguredModel(turnParameters);
             var turnResult = await SendRequestAsync("turn/start", turnParameters, cancellationToken);
             var turnId = RequiredString(turnResult, "turn", "id");
             return await ReadTurnResultAsync(threadId, turnId, cancellationToken);
@@ -123,6 +124,14 @@ public sealed class CodexAppServerProcessClient : ICodexAppServerClient, IAsyncD
         finally
         {
             _turnGate.Release();
+        }
+    }
+
+    private void AddConfiguredModel(IDictionary<string, object?> parameters)
+    {
+        if (_options.Model is not null)
+        {
+            parameters["model"] = _options.Model;
         }
     }
 

@@ -92,7 +92,7 @@ test, benchmark, or explicitly open external evidence.
 | Codex App Server managed-account handshake and structured turn | CONFIRMED (local provider) | Opt-in live reasoning test completed with the authenticated managed Codex executable on 2026-08-27 |
 | Live Codex managed-account reasoning worker | PROPOSED | `RepositoryReasoning.Enabled` is false in development defaults; enable only with managed account and explicit AI policy |
 | Long-lived branch protection | CONFIRMED (GitHub) | Active rulesets `main-owner-only-updates`, `protected-branches-pull-request`, and `protected-branches-safety` cover `main` and all long-lived branches; `main` updates are limited to the `NukeGeng` bypass actor through pull requests, all three quality gates are required, force-push/deletion are rejected, and collaborator readback shows only `NukeGeng` has admin/push access. |
-| Protected-branch integration | CONFIRMED (main) | PRs #94 and #95 passed all required checks; PRs #96–#98 synchronized the domain branches. Current `main` is `06b57dcbfbd8c7ba6f47967af5438f502ff3c843`, and readback confirms all long-lived branch trees match it. |
+| Protected-branch integration | CONFIRMED (main) | PRs #94 and #95 passed all required checks; PRs #96–#98 synchronized the domain branches, and PRs #99–#104 synchronized the acceptance readback. Current `main` is `e297e70822c62e45eb1bd3524e23f11071c2b48f`, and readback confirms all long-lived branch trees match it. |
 
 Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria and
 protected integration are present, but the supported live-repository reasoning

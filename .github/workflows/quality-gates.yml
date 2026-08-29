@@ -120,3 +120,58 @@ jobs:
 
       - name: Build
         run: npm run build-only
+
+  self-host:
+    name: Self-host bundle config and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Validate Compose configuration
+        run: docker compose --env-file deploy/self-host/.env.example -f deploy/self-host/docker-compose.yml config --quiet
+
+      - name: Build self-host images
+        run: docker compose --env-file deploy/self-host/.env.example -f deploy/self-host/docker-compose.yml build
+
+      - name: Validate Nginx configuration
+        run: docker run --rm --add-host api:127.0.0.1 vietais-tcflow/frontend:2.0.4-rc nginx -t
+
+      - name: Smoke test self-host stack
+        env:
+          POSTGRES_PASSWORD: ci-postgres-password
+          JWT_KEY: ci-jwt-key-with-at-least-32-characters
+          HANGFIRE_PASSWORD: ci-hangfire-password
+          BOOTSTRAP_ADMIN_PASSWORD: ci-bootstrap-admin-password
+          TCFLOW_HTTP_PORT: 18080
+        run: |
+          set -euo pipefail
+          compose=(docker compose --env-file deploy/self-host/.env.example -f deploy/self-host/docker-compose.yml)
+          cleanup() {
+            "${compose[@]}" down --volumes --remove-orphans
+          }
+          trap cleanup EXIT
+
+          if ! "${compose[@]}" up -d; then
+            "${compose[@]}" ps
+            "${compose[@]}" logs api
+            exit 1
+          fi
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent "http://localhost:${TCFLOW_HTTP_PORT}/health" >/dev/null; then
+              break
+            fi
+            if [[ "${attempt}" -eq 60 ]]; then
+              "${compose[@]}" ps
+              "${compose[@]}" logs api frontend
+              exit 1
+            fi
+            sleep 2
+          done
+
+          curl --fail --silent "http://localhost:${TCFLOW_HTTP_PORT}/health" >/dev/null
+          curl --fail --silent "http://localhost:${TCFLOW_HTTP_PORT}/alive" >/dev/null
+          curl --fail --silent "http://localhost:${TCFLOW_HTTP_PORT}/" | grep -qi "<html"
+          api_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "http://localhost:${TCFLOW_HTTP_PORT}/api/v1/projects")"
+          [[ "${api_status}" == "401" ]]

@@ -19,6 +19,21 @@ The integrated baseline includes the FullStackHero backend, PostgreSQL, Redis,
 Marten document persistence, the Vue product workspace, and one .NET Aspire
 AppHost for local orchestration.
 
+## Local development
+
+The complete prerequisite, secret, Aspire startup, and verification steps are
+in [`src/README.md`](src/README.md). On macOS machines with multiple .NET
+installations, make sure `DOTNET_ROOT` and `PATH` point to the same .NET 9
+installation before running builds or tests; otherwise the test host can load a
+different runtime even when `dotnet --version` looks correct. For the pinned
+Homebrew SDK, use:
+
+```bash
+export DOTNET_ROOT="/opt/homebrew/opt/dotnet@9/libexec"
+export PATH="/opt/homebrew/opt/dotnet@9/bin:$DOTNET_ROOT:$PATH"
+dotnet --version
+```
+
 ## System administration contracts
 
 The root-tenant `Admin` role receives TCFlow's system permissions independently

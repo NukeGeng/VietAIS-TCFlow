@@ -2,8 +2,8 @@
 
 This matrix maps every criterion in `GOAL.md` sections 74–76 to direct
 verification evidence. `CONFIRMED (main)` means the automated evidence exists
-and passes on the protected integration branch. P14 remains incomplete only
-until the explicitly external gate at the end of this document passes.
+and passes on the protected integration branch. Live runtime evidence is
+versioned separately without secrets or raw repository payloads.
 
 ## Core product — GOAL section 74
 
@@ -87,15 +87,15 @@ test, benchmark, or explicitly open external evidence.
 | Self-host bundle configuration, image builds, and startup smoke test | CONFIRMED (local + CI) | `deploy/self-host/docker-compose.yml` renders with `.env.example`; Compose builds the API and Vue/Nginx images, `nginx -t` passes, and CI starts PostgreSQL/Redis/API/frontend, verifies `/health` and `/alive`, then removes the temporary stack |
 | Aspire starts API, PostgreSQL, Redis, and Vue | CONFIRMED (local runtime) | On 2026-08-27 all five resources reported healthy; API health, Vue, and Swagger returned 200, while an unauthenticated project API call returned 401 |
 | Private GitHub repository installation and initial scan | CONFIRMED (local runtime) | `NukeGeng/Portfolio` source revision was fetched; unsupported Next.js was correctly reported without invented facts |
-| GitHub App installation configuration | CONFIRMED (GitHub readback) | App `vietais-tcflow` installation `155925244` selects `NukeGeng/Portfolio` and `NukeGeng/VietAIS-TCFlow`; installation permissions are read-only for contents/metadata/pull requests and no webhook events are subscribed |
+| GitHub App installation configuration | CONFIRMED (GitHub readback) | App `vietais-tcflow` installation `155925244` selects `NukeGeng/Portfolio` and `NukeGeng/VietAIS-TCFlow`; permissions are read-only for contents/metadata/pull requests, `push` and `pull_request` are subscribed, and a signed ping returned 202 |
 | Source-driven task completion verification | CONFIRMED (main) | Deterministic and Marten integration coverage verifies AI policy, failed/inconclusive/passed outcomes, idempotency, evidence, versions, audit, and separation from human approval |
-| Supported Vue + ASP.NET + Marten GitHub repository end-to-end | PROPOSED | Requires an installed supported repository and a push producing a meaningful contract change; execution steps and evidence requirements are in [`deploy/self-host/README.md`](../../deploy/self-host/README.md#live-acceptance-checklist) |
+| Supported Vue + ASP.NET + Marten GitHub repository end-to-end | CONFIRMED (GitHub + local live runtime) | A GitHub-originated signed push changed one Vue request contract, returned 202, fetched the exact before/after revisions, detected Vue/ASP.NET/Marten, produced explainable impacts, completed one managed Codex request, reconciled two source-traceable suggested tasks, wrote evidence/version/audit records, and returned the original analysis for a GitHub redelivery without duplicating persistence. Non-secret evidence is versioned in [`P14_GITHUB_WEBHOOK_E2E_2026-08-30.json`](evidence/P14_GITHUB_WEBHOOK_E2E_2026-08-30.json). |
 | Codex App Server managed-account handshake and structured turn | CONFIRMED (local provider) | Opt-in live reasoning test completed with the authenticated managed Codex executable on 2026-08-29, including the default-model path |
-| Live Codex managed-account reasoning worker | CONFIRMED (local live runtime) | On 2026-08-29 the enabled worker processed real private-repository revisions after a signed local acceptance delivery: `Pending` → `Processing` → `Completed`, one structured Codex request, one suggested source-traceable task, six confidence-bearing evidence records, separate AI audits, and duplicate-delivery idempotency. The non-secret readback is versioned in [`P14_LIVE_CODEX_WORKER_2026-08-29.json`](evidence/P14_LIVE_CODEX_WORKER_2026-08-29.json). This does not claim the still-open GitHub-originated webhook gate. |
+| Live Codex managed-account reasoning worker | CONFIRMED (local live runtime) | On 2026-08-29 the enabled worker processed real private-repository revisions after a signed local acceptance delivery: `Pending` → `Processing` → `Completed`, one structured Codex request, one suggested source-traceable task, six confidence-bearing evidence records, separate AI audits, and duplicate-delivery idempotency. The provider-only readback is versioned in [`P14_LIVE_CODEX_WORKER_2026-08-29.json`](evidence/P14_LIVE_CODEX_WORKER_2026-08-29.json) and is complemented by the confirmed GitHub-originated evidence above. |
 | Long-lived branch protection | CONFIRMED (GitHub) | Active rulesets `main-owner-only-updates`, `protected-branches-pull-request`, and `protected-branches-safety` cover `main` and all long-lived branches; `main` updates are limited to the `NukeGeng` bypass actor through pull requests, all three quality gates are required, force-push/deletion are rejected, and collaborator readback shows only `NukeGeng` has admin/push access. |
 | Protected-branch integration | CONFIRMED (main) | PRs #94 and #95 passed all required checks, and the protected-branch readback confirms the domain branches are synchronized with `main`. The matrix intentionally avoids commit hashes and transient documentation PR numbers that become stale after each documentation-only merge. |
 
-Overall P14 status: `PROPOSED / NOT YET COMPLETE`. Deterministic criteria,
-protected integration, and the live managed-account reasoning worker are
-confirmed; only the supported GitHub-originated repository webhook run remains
-open.
+Overall P14 status: `CONFIRMED`. The deterministic criteria, protected
+integration, signed GitHub-originated repository flow, managed-account
+reasoning worker, source-traceable task persistence, audit trail, and delivery
+idempotency all have direct evidence.

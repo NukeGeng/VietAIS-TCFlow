@@ -82,6 +82,8 @@ The webhook endpoint is fail-closed and can remain unused while the GitHub App
 has no subscribed events. If `Push`, `Pull request`, or `Merge` events are
 enabled later, set `Parameters:github-webhook-secret` to the same App webhook
 secret and configure the webhook URL to the publicly reachable API endpoint.
+GitHub's signed `ping` handshake is acknowledged with `202 Accepted` and does
+not create an analysis request.
 The `.env` file is not an Aspire secrets store; a bare value in it is not read
 as GitHub configuration.
 

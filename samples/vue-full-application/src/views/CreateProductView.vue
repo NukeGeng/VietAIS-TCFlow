@@ -6,6 +6,7 @@
       <option value="">Select a category</option>
     </select>
     <input v-model="supplierCode" type="text" required maxlength="32" />
+    <input v-model="liveAcceptanceCode" type="text" required maxlength="40" />
     <button type="submit" :disabled="loading">Create product</button>
     <p v-if="error">{{ error }}</p>
   </form>
@@ -21,6 +22,7 @@ interface CreateProductRequest {
   price: number
   categoryId: string
   supplierCode: string
+  liveAcceptanceCode: string
 }
 
 interface CreateProductResponse {
@@ -43,6 +45,7 @@ const name = ref('')
 const price = ref(0)
 const categoryId = ref(props.initialCategoryId ?? '')
 const supplierCode = ref('')
+const liveAcceptanceCode = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -52,6 +55,7 @@ async function submit() {
     price: price.value,
     categoryId: categoryId.value,
     supplierCode: supplierCode.value,
+    liveAcceptanceCode: liveAcceptanceCode.value,
   }
 
   loading.value = true

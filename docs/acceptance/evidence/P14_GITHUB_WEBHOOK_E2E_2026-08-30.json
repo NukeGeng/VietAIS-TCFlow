@@ -1,0 +1,140 @@
+{
+  "status": "CONFIRMED",
+  "verifiedAt": "2026-08-30T00:31:03+07:00",
+  "scope": "GitHub-originated supported Vue, ASP.NET Core, and Marten repository flow",
+  "githubApp": {
+    "id": 4690491,
+    "slug": "vietais-tcflow",
+    "installationId": 155925244,
+    "subscribedEvents": [
+      "pull_request",
+      "push"
+    ],
+    "webhookEndpointPath": "/api/v1/github/webhooks",
+    "tlsEnabled": true,
+    "signedPingStatusCode": 202,
+    "signedPingDeliveryRecordId": "3839752951864246272"
+  },
+  "trigger": {
+    "kind": "github-originated-push",
+    "githubOriginated": true,
+    "repository": "NukeGeng/VietAIS-TCFlow",
+    "reference": "refs/heads/test/ai/live-reasoning-acceptance",
+    "deliveryId": "be2dd6f0-a3ce-11f1-82d5-84754ba803a4",
+    "githubDeliveryRecordId": "3839753115712774144",
+    "baseRevision": "2e006e9f2f87559b58f9fb59e86ca940428b991f",
+    "headRevision": "ffb65c6a619385fa12a0a91defcbea78a8f5e54a",
+    "changedFiles": [
+      "samples/live-acceptance/src/frontend/LiveAcceptanceOrderView.vue"
+    ],
+    "meaningfulChange": "The Vue create-order request added externalReference while the authoritative backend request contract accepts only name.",
+    "signatureHeaderPresent": true,
+    "responseStatusCode": 202,
+    "responseDisposition": "queued"
+  },
+  "analysis": {
+    "requestId": "84460ced-b406-4802-81b9-f03d45f17ce0",
+    "status": "Completed",
+    "trigger": "Push",
+    "fullScan": false,
+    "sourceRevision": "ffb65c6a619385fa12a0a91defcbea78a8f5e54a",
+    "technologies": [
+      "aspnet",
+      "marten",
+      "vue"
+    ],
+    "artifactCount": 1350,
+    "dependencyCount": 1280,
+    "contractCount": 199,
+    "mismatchCount": 336,
+    "changeCount": 14,
+    "impactCount": 175,
+    "generatedTaskCount": 2,
+    "diagnosticCodes": [
+      "ANALYSIS004",
+      "ANALYSIS005"
+    ]
+  },
+  "reasoning": {
+    "jobId": "4bf9e8e6ad027bcf20f07b30",
+    "finalStatus": "Completed",
+    "observedStatusTransition": [
+      "Processing",
+      "Completed"
+    ],
+    "attemptCount": 2,
+    "aiRequestCount": 1,
+    "reconciledTaskCount": 2,
+    "provider": "Codex App Server",
+    "accountType": "chatgpt",
+    "explicitModelConfigured": false,
+    "sourceChangeId": "6f29931605d26017c49e4fd8",
+    "contractMismatchId": "d9da0f10da399f973959c711"
+  },
+  "tasks": [
+    {
+      "sourceTaskId": "a590ca2ef46801a69cf63d10",
+      "engineeringTaskId": "160c102b-36ce-c1ef-0a73-beb281a3e3f4",
+      "title": "Resolve the frontend and backend route mismatch",
+      "status": "Suggested",
+      "sourceVersion": 2,
+      "engineeringVersion": 1,
+      "confidence": 0.74,
+      "artifactReferenceCount": 9,
+      "impactReferenceCount": 20,
+      "evidenceReferenceCount": 7,
+      "persistedEvidenceCount": 7,
+      "persistedEvidenceConfidenceMinimum": 0.72,
+      "persistedEvidenceConfidenceMaximum": 1.0,
+      "verificationSubject": "externalReference",
+      "humanApproval": "Pending",
+      "aiVerification": "NotRun"
+    },
+    {
+      "sourceTaskId": "d7cf21f9e819bf44e94b088f",
+      "engineeringTaskId": "bf48e249-79d2-08cf-1bdc-09e2ccc62969",
+      "title": "Add contract verification for create-order submission",
+      "status": "Suggested",
+      "sourceVersion": 1,
+      "engineeringVersion": 1,
+      "confidence": 0.8,
+      "artifactReferenceCount": 4,
+      "impactReferenceCount": 15,
+      "evidenceReferenceCount": 4,
+      "persistedEvidenceCount": 4,
+      "persistedEvidenceConfidenceMinimum": 1.0,
+      "persistedEvidenceConfidenceMaximum": 1.0,
+      "verificationSubject": "externalReference",
+      "humanApproval": "Pending",
+      "aiVerification": "NotRun"
+    }
+  ],
+  "audit": {
+    "actions": [
+      "github.webhook.ingest",
+      "repository.analysis.reasoning.queued",
+      "ai.task.suggest",
+      "repository.analysis.reasoning.completed"
+    ],
+    "sourceAiAuditCount": 3,
+    "projectTaskAuditCount": 2
+  },
+  "idempotency": {
+    "githubRedeliveryRecordId": "3839753634069880832",
+    "redeliveryStatusCode": 202,
+    "redeliveryDisposition": "duplicate",
+    "redeliveryReturnedOriginalAnalysisRequestId": true,
+    "persistedDeliveryCount": 1,
+    "persistedAnalysisCount": 1,
+    "persistedReasoningJobCount": 1,
+    "persistedSourceTaskCount": 2,
+    "persistedTaskProjectionCount": 2
+  },
+  "security": {
+    "secretsIncluded": false,
+    "signatureValueIncluded": false,
+    "rawWebhookPayloadIncluded": false,
+    "rawRepositorySourceIncluded": false
+  },
+  "remainingBoundary": "No P14 acceptance gate remains. Production TLS, registry, backup, and operator rollout remain deployment-environment verification outside this local acceptance run."
+}

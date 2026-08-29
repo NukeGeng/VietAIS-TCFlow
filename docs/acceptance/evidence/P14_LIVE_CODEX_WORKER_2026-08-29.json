@@ -81,5 +81,6 @@
     "rawWebhookPayloadIncluded": false,
     "rawRepositorySourceIncluded": false
   },
-  "remainingBoundary": "This evidence confirms the live Codex worker only. The GitHub-originated webhook gate remains open because the GitHub App has no subscribed webhook events."
+  "subsequentEvidence": "P14_GITHUB_WEBHOOK_E2E_2026-08-30.json",
+  "remainingBoundary": "At the time of this provider-only run, the GitHub-originated webhook gate was still open. The subsequent evidence file closes that boundary."
 }

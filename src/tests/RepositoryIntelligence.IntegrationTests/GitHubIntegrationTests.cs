@@ -183,6 +183,28 @@ public sealed class GitHubIntegrationTests
         var project = await CreateProjectAsync(app.Services, ownerId);
         var connected = await ConnectRepositoryAsync(app.Services, ownerId, project.Id);
         using var client = CreateClient(app);
+        var pingPayload = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            zen = "Keep it logically awesome.",
+            hook_id = 501,
+            installation = new { id = 101 },
+            repository = new { id = 303 }
+        });
+        var ping = await SendWebhookAsync(
+            client,
+            "delivery-ping",
+            "ping",
+            pingPayload,
+            Signature(pingPayload));
+        Assert.Equal(HttpStatusCode.Accepted, ping.StatusCode);
+        var pingReceipt = await ping.Content.ReadFromJsonAsync<GitHubWebhookReceipt>(
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(pingReceipt);
+        Assert.True(pingReceipt.Accepted);
+        Assert.False(pingReceipt.Duplicate);
+        Assert.Equal("ping-acknowledged", pingReceipt.Disposition);
+        Assert.Null(pingReceipt.AnalysisRequestId);
+
         var pushPayload = JsonSerializer.SerializeToUtf8Bytes(new
         {
             installation = new { id = 101 },

@@ -4,9 +4,13 @@
 
 ## 1. Purpose
 
-This document defines the product-level constraints that must be respected while implementing the Source-Aware Engineering Planner.
+This document defines the product-level constraints that must be respected while
+evolving VietAIS TCFlow into an Engineering System Intelligence and Living
+Architecture Platform.
 
-`GOAL.md` describes what the product should become.
+`GOAL2.md` defines the current product and architecture direction. `GOAL.md`
+retains the source-awareness, precision, explainability, permission, and task
+reconciliation principles that `GOAL2.md` extends.
 
 This file describes what must not go wrong while building it.
 
@@ -40,6 +44,10 @@ The product includes:
 - Component Scope.
 - AI Permissions.
 - Repository analysis.
+- Event Storming.
+- Architecture and ERD models.
+- Event Sourcing consistency.
+- Projection lag and rebuild behavior.
 
 If users must configure all of these before seeing value, onboarding becomes too difficult.
 
@@ -55,6 +63,8 @@ Scan
 Detect Technologies
     ↓
 Detect Conventions
+    ↓
+Detect Domains / Events / Aggregates / Projections
     ↓
 Suggest Authority
     ↓
@@ -73,6 +83,9 @@ The system should automatically detect where possible:
 - API patterns.
 - Naming conventions.
 - Common repository boundaries.
+- Domain event declarations.
+- Aggregate and module boundaries.
+- Projection declarations and dependencies.
 
 ## Forbidden implementation
 
@@ -282,7 +295,7 @@ Task versioning or equivalent change history is required.
 
 ---
 
-# 9. Constraint 07 — Do Not Become a Weak Jira/Linear Clone
+# 9. Constraint 07 — Do Not Become a Weak Engineering Management Clone
 
 ## Risk
 
@@ -290,19 +303,23 @@ A generic task-management UI is not enough to differentiate the product.
 
 ## Required behavior
 
-The product must remain centered on:
+The product must remain centered on the connected living system model:
 
 ```text
-Source
+Plan / Requirement
+→ Event Storming
+→ Architecture / Data Model
+→ Source
 → Impact
-→ Engineering Plan
+→ Engineering Plan / Task
 ```
 
 Kanban is only a presentation and workflow layer.
 
 ## Required design
 
-The source intelligence engine must remain the core differentiator.
+The connection between intended design, actual source, impact, and remaining
+engineering work must remain the core differentiator.
 
 The architecture should allow future synchronization with external task systems.
 
@@ -434,6 +451,10 @@ Database migration
 Health checks
 Versioned upgrades
 Configuration validation
+Projection daemon health and rebuild operations
+Wolverine durability diagnostics
+RabbitMQ setup and dead-letter diagnostics
+Event Store backup/restore and upgrade procedures
 ```
 
 ## Required design
@@ -463,6 +484,10 @@ False Positive Rate
 False Negative Rate
 Task Duplication Rate
 Task Reconciliation Accuracy
+Projection Rebuild Accuracy
+Projection Lag
+Durable Message Duplication Rate
+Dead-letter Rate
 ```
 
 ## Product priority
@@ -486,6 +511,8 @@ The product must own:
 ```text
 Static Analysis
 Repository Knowledge Graph
+Planning / Event Storming / Architecture Graph
+Domain and Projection Model
 Convention Profile
 Authority Policy
 Explainable Impact
@@ -498,7 +525,200 @@ AI reasoning is only one layer.
 
 ---
 
-# 16. Progressive Trust
+# 16. Constraint 14 — Living Architecture Must Not Become Static Documentation
+
+## Risk
+
+Planning boards, Event Storming, module maps, ERDs, and architecture documents
+can drift away from the source and become another disconnected documentation
+system.
+
+## Required behavior
+
+The product must maintain traceable relationships across:
+
+```text
+Requirement
+→ Feature
+→ Command / Domain Event / Aggregate
+→ Architecture Module / Data Model
+→ Source Artifact
+→ Impact
+→ Engineering Task / Pull Request
+```
+
+Source changes must be able to identify missing or divergent architecture
+documentation. Design changes must be traceable to their expected source
+implementation.
+
+## Forbidden implementation
+
+Do not store Event Storming, architecture, or ERD artifacts as isolated canvases
+with no stable identity or source mapping.
+
+---
+
+# 17. Constraint 15 — Event Sourcing Must Be Purposeful
+
+## Risk
+
+Event Sourcing every record creates unnecessary streams, replay cost, migration
+complexity, and operational burden.
+
+## Required behavior
+
+Every persisted concept must be classified as:
+
+```text
+Business truth → Event Store
+Derived query state → Projection
+Infrastructure/runtime state → Operational Document
+```
+
+Event Sourcing is justified by business history, invariants, concurrency, audit
+value, or temporal reasoning—not by architectural fashion.
+
+## Forbidden implementation
+
+Do not Event Source webhook deliveries, Wolverine inbox/outbox state, retries,
+projection checkpoints, caches, temporary analysis jobs, authentication tokens,
+or process state.
+
+---
+
+# 18. Constraint 16 — Projection Consistency Must Be Explicit
+
+## Risk
+
+Using Async views where immediate correctness is required can break authorization
+or command-followed-by-query flows. Making every view Inline can make writes slow
+and tightly coupled.
+
+## Required behavior
+
+Use Inline projections only for critical strongly-consistent current state.
+Use Async projections for dashboards, search, analytics, graphs, reporting, and
+cross-stream views where eventual consistency is acceptable.
+
+Every important projection must define:
+
+```text
+Consumer
+Consistency expectation
+Replay/rebuild strategy
+Failure behavior
+Lag observability
+```
+
+## Forbidden implementation
+
+Do not hide eventual consistency from API/UI consumers. Do not require hidden
+side effects that make a read model impossible to rebuild from history.
+
+---
+
+# 19. Constraint 17 — Durable Messaging Must Not Duplicate Business Effects
+
+## Risk
+
+At-least-once delivery, webhook redelivery, retries, or process restarts can
+duplicate events, impacts, tasks, audits, or external notifications.
+
+## Required behavior
+
+Wolverine durable handlers and external consumers must be idempotent where
+delivery may repeat. Event Store commits and outgoing integration messages must
+be coordinated through the durable outbox.
+
+Retries, failed messages, dead-letter messages, correlation, and causation must
+be observable and recoverable.
+
+## Forbidden implementation
+
+Do not use RabbitMQ as the mechanism for Marten Async Projections. Do not publish
+external integration messages before the owning business transaction commits.
+
+---
+
+# 20. Constraint 18 — Bounded Contexts Must Remain Isolated
+
+## Risk
+
+A modular monolith can become a distributed-looking monolith if modules access
+each other's implementation types, documents, or tables directly.
+
+## Required behavior
+
+Cross-module behavior must use stable Contracts, commands, integration events,
+or Wolverine messages. A module owns its aggregates, projections, and data.
+
+Repository Intelligence must not become the owner of generic project lifecycle,
+access control, platform administration, or GitHub provider mechanics.
+
+## Forbidden implementation
+
+Do not reference another module's implementation project or query its internal
+Marten storage directly merely to save time.
+
+---
+
+# 21. Constraint 19 — Migration Must Preserve Validated Behavior
+
+## Risk
+
+A clean FullStackHero v10 baseline or Event Sourcing rewrite can discard working
+authorization, audit, source analysis, GitHub integration, task reconciliation,
+or acceptance evidence.
+
+## Required behavior
+
+Every migrated component must receive an evidence-backed decision:
+
+```text
+KEEP
+PORT
+REWRITE
+REMOVE
+```
+
+Migration proceeds one bounded context and vertical slice at a time. The legacy
+path is removed only after behavioral parity or an intentional contract change,
+replay, projection rebuild, concurrency, and runtime verification pass.
+
+## Forbidden implementation
+
+Do not perform a big-bang rewrite or treat successful compilation as proof that
+a bounded context was migrated correctly.
+
+---
+
+# 22. Constraint 20 — Event-Driven Operations Must Be Observable
+
+## Risk
+
+An event-driven system can appear healthy while projections lag, messages retry,
+dead letters accumulate, or causal traces are lost.
+
+## Required behavior
+
+The platform must expose or collect, where applicable:
+
+```text
+Correlation ID
+Causation ID
+Event stream and version
+Projection lag / Async Daemon health
+Wolverine queue and failed-message health
+RabbitMQ queue / unacked / dead-letter health
+Analysis and AI reasoning latency
+```
+
+Production and self-host diagnostics must not depend solely on developer-only
+Aspire tooling.
+
+---
+
+# 23. Progressive Trust
 
 Automation should be configurable by trust level.
 
@@ -527,7 +747,7 @@ The exact model may evolve, but progressive trust must be preserved as a product
 
 ---
 
-# 17. User Control
+# 24. User Control
 
 The system must not take irreversible or high-impact actions without the configured permission and trust policy.
 
@@ -542,7 +762,7 @@ Can I reject or revert it?
 
 ---
 
-# 18. Quality Decision Rule
+# 25. Quality Decision Rule
 
 Before implementing a feature, ask:
 
@@ -556,13 +776,20 @@ Does this make permissions harder to understand?
 Does this increase dependency on raw LLM reasoning?
 Does this make source traceability weaker?
 Does this make tasks easier to become stale?
+Does this create an event stream without business value?
+Can every affected projection be rebuilt?
+Is the selected consistency mode correct for its consumer?
+Can redelivery duplicate a business effect?
+Does this cross a module implementation boundary?
+Does this remove validated behavior before migration proof exists?
+Can operators trace event, projection, and message failures?
 ```
 
 If yes, the design should be reconsidered.
 
 ---
 
-# 19. Definition of Acceptable Product Behavior
+# 26. Definition of Acceptable Product Behavior
 
 The product is behaving correctly when:
 
@@ -580,11 +807,17 @@ Existing tasks are reconciled before new ones are created
 Automation respects trust and permission policies
         ↓
 AI verification remains distinct from human approval
+        ↓
+Architecture and source mappings remain traceable
+        ↓
+Read models converge and can be rebuilt
+        ↓
+Durable redelivery does not duplicate business effects
 ```
 
 ---
 
-# 20. Final Product Constraint
+# 27. Final Product Constraint
 
 The product must optimize for developer trust.
 

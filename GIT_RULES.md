@@ -6,7 +6,7 @@
 
 This document defines the mandatory Git branching, pull request, merge, and synchronization rules for VietAIS TCFlow.
 
-The repository uses long-lived domain integration branches:
+The repository uses long-lived delivery-domain integration branches:
 
 ```text
 main
@@ -89,18 +89,20 @@ Frontend feature branches must branch from `frontend`.
 
 ## `backend`
 
-Long-lived integration branch for ASP.NET Core / FullStackHero / Marten work.
+Long-lived integration branch for ASP.NET Core, FullStackHero, Marten,
+Wolverine, RabbitMQ, and bounded-context backend work.
 
 Typical scope:
 
 ```text
 ASP.NET endpoints
-Marten documents
+Commands, queries, aggregates, and domain events
+Marten event streams, documents, and inline/async projections
+Wolverine handlers, durable inbox/outbox, and RabbitMQ integration messages
 Authorization
 Permission engine
-Project management
-Repository APIs
-Task APIs
+Projects, AccessControl, Planning, TaskFlow, EventStorming, Architecture,
+Integrations, and PlatformAdministration
 Audit
 Backend tests
 ```
@@ -129,6 +131,8 @@ Impact Engine
 Task Reconciliation
 AI / Codex integration
 Benchmarks
+RepositoryIntelligence bounded-context logic
+Aggregate, event, projection, and message detection
 ```
 
 AI feature branches must branch from `ai`.
@@ -226,6 +230,17 @@ mobile
 ai
 ```
 
+The branch domain is a delivery owner, not a bounded-context name. Include the
+bounded context in the description when useful:
+
+```text
+feat/backend/projects-event-stream
+feat/backend/taskflow-inline-projection
+feat/backend/integrations-rabbitmq-outbox
+feat/ai/repository-intelligence-event-analyzer
+feat/frontend/event-storming-board
+```
+
 Examples:
 
 ```text
@@ -267,6 +282,23 @@ Backend task  → backend
 Mobile task   → mobile
 AI task       → ai
 ```
+
+GOAL2 backend bounded contexts map to delivery branches as follows:
+
+| Bounded context or concern | Delivery branch |
+| --- | --- |
+| Projects, AccessControl, Planning, TaskFlow | `backend` |
+| EventStorming, Architecture, PlatformAdministration | `backend` |
+| Marten/Wolverine infrastructure and RabbitMQ integration | `backend` |
+| RepositoryIntelligence analyzers, graph, reasoning, reconciliation | `ai` |
+| GitHub HTTP, OAuth, webhook, and provider infrastructure | `backend` |
+| GitHub-to-analyzer mapping and source reasoning | `ai` |
+| Vue views, routes, stores, and API clients | `frontend` |
+
+Cross-cutting architecture/governance documentation that changes no runtime
+source may branch from `main` as `docs/ai/...` and target `main`. This is a
+documentation-only exception; implementation still follows its delivery
+branch.
 
 Do not create a backend feature branch from `frontend`, or an AI feature branch from `backend`.
 
@@ -396,6 +428,12 @@ Authorization impact reviewed
 ✓
 
 Persistence impact reviewed
+✓
+
+Event, projection, replay/rebuild, and concurrency impact reviewed
+✓
+
+Wolverine/RabbitMQ durability and idempotency reviewed when applicable
 ✓
 
 Final diff reviewed
@@ -610,6 +648,15 @@ Contracts
 Permissions
 - Any authorization changes?
 
+Persistence / Events
+- Event Store, projection, or operational-document changes?
+
+Projections
+- Inline/async choice and rebuild verification?
+
+Messaging
+- Wolverine/RabbitMQ/outbox/inbox/idempotency changes?
+
 Dependencies
 - Any new dependency?
 
@@ -624,7 +671,8 @@ Known Limitations
 Before a PR is considered complete, the implementation must remain consistent with:
 
 ```text
-GOAL.md
+GOAL2.md
+GOAL.md (retained behavior and historical context)
 PRODUCT_CONSTRAINTS.md
 PROJECT_PLAN.md
 AGENTS.md
@@ -634,7 +682,9 @@ GIT_RULES.md
 
 `WORKFLOW.md` defines how work must be verified.
 
-`GOAL.md` defines what the system is building.
+`GOAL2.md` defines the current product direction and target architecture.
+
+`GOAL.md` retains the source-aware v0.1 behavior that GOAL2 does not supersede.
 
 `PRODUCT_CONSTRAINTS.md` defines product risks that must not be violated.
 
@@ -851,6 +901,8 @@ Explainability
 Task Reconciliation
 Codex integration
 Benchmarks
+RepositoryIntelligence domain analysis
+Aggregate/event/projection/message detection
 ```
 
 If a feature also requires backend API or Vue UI changes, split those changes into `backend` and `frontend` branches.
@@ -870,7 +922,12 @@ Examples:
 ```text
 docs/backend/permission-model
 docs/ai/impact-engine
+docs/ai/goal2-governance
 ```
+
+Documentation limited to one delivery domain targets that domain branch.
+Cross-cutting governing documents may use the `main` exception defined in
+section 7.
 
 ---
 
@@ -1062,6 +1119,9 @@ Before merging a feature branch into its domain branch:
 [ ] Authorization reviewed
 [ ] Public contracts reviewed
 [ ] Persistence reviewed
+[ ] Event streams and expected-version concurrency reviewed when applicable
+[ ] Inline/async projections and rebuild behavior reviewed when applicable
+[ ] Wolverine/RabbitMQ durability and idempotency reviewed when applicable
 [ ] Diff reviewed
 [ ] No unrelated changes
 [ ] No secrets
@@ -1080,6 +1140,7 @@ Before merging a domain branch into `main`:
 [ ] Cross-domain contracts compatible
 [ ] Required migrations known
 [ ] Required configuration known
+[ ] Projection daemon/rebuild and message-broker operational changes known
 [ ] No blocking regressions
 [ ] Review approved
 ```

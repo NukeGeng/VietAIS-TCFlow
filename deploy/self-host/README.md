@@ -1,5 +1,10 @@
 # Self-host deployment
 
+> **v0.1 deployment only:** This bundle deploys the current .NET 9 baseline.
+> It is not the GOAL2 topology and does not yet include Wolverine durable
+> messaging, the Marten async daemon operational model, or RabbitMQ. Keep these
+> instructions for v0.1 rollback until milestone M13 verifies a vNext bundle.
+
 This bundle runs VietAIS TCFlow on a single Docker host with the same service
 topology used by local development: the ASP.NET API, Vue frontend, PostgreSQL,
 and Redis. The compose file defaults to release `2.0.4-rc`; set

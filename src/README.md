@@ -1,5 +1,10 @@
 # VietAIS TCFlow backend foundation
 
+> **Current runtime — v0.1:** The commands and contracts in this file describe
+> the existing .NET 9 / FullStackHero `2.0.4-rc` implementation. The GOAL2
+> .NET 10 / FullStackHero v10/Event Sourcing/Wolverine/RabbitMQ target is
+> documented separately and must not be assumed available yet.
+
 This directory contains the ASP.NET Core backend, based on FullStackHero
 `2.0.4-rc`, and the .NET Aspire development host.
 

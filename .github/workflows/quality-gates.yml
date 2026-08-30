@@ -83,6 +83,36 @@ jobs:
           --no-restore
           --logger "console;verbosity=minimal"
 
+  backend-vnext:
+    name: GOAL2 vNext .NET 10 baseline and Projects slice
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: src/vnext
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore vNext baseline
+        run: dotnet restore FSH.Starter.slnx
+
+      - name: Build vNext baseline
+        run: dotnet build FSH.Starter.slnx --configuration Release --no-restore
+
+      - name: Test vNext baseline
+        run: >-
+          dotnet test FSH.Starter.slnx
+          --configuration Release
+          --no-build
+          --no-restore
+          --logger "console;verbosity=minimal"
+
   frontend:
     name: Frontend typecheck, tests, lint, and build
     runs-on: ubuntu-latest

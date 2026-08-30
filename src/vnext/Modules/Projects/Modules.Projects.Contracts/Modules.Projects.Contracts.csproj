@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Modules.Projects.Contracts</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Modules.Projects.Contracts</AssemblyName>
+  </PropertyGroup>
+</Project>

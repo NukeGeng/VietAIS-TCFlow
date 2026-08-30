@@ -589,6 +589,21 @@ code {
   font-weight: 700;
 }
 
+.language-switcher {
+  flex: 0 0 auto;
+}
+
+.language-switcher select {
+  width: 7.5rem;
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-color: var(--border-base-1);
+  border-radius: 0.55rem;
+  color: var(--text-base-2);
+  background: var(--bg-base-2);
+  font-size: 0.74rem;
+}
+
 .account-menu {
   display: flex;
   gap: 0.65rem;
@@ -1742,6 +1757,10 @@ legend {
 
   .project-switcher select {
     width: 100%;
+  }
+
+  .language-switcher select {
+    width: 6.5rem;
   }
 
   .page-heading {

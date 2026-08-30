@@ -17,6 +17,69 @@ import { page, taskFixture } from './fixtures'
 describe('workspace store', () => {
   afterEach(() => vi.restoreAllMocks())
 
+  it('coalesces concurrent project loads so the selected project is stable', async () => {
+    setActivePinia(createPinia())
+    const project = {
+      id: '20000000-0000-0000-0000-000000000001',
+      name: 'TCFlow',
+      primaryOwnerId: '30000000-0000-0000-0000-000000000001',
+      createdAt: '2026-08-20T00:00:00Z',
+    }
+    const projects = vi.spyOn(tcflowApi, 'projects').mockResolvedValue(page([project]))
+    const workspace = useWorkspaceStore()
+
+    await Promise.all([workspace.loadProjects(), workspace.loadProjects()])
+
+    expect(projects).toHaveBeenCalledTimes(1)
+    expect(workspace.selectedProjectId).toBe(project.id)
+    expect(workspace.selectedProject?.name).toBe(project.name)
+  })
+
+  it('coalesces concurrent permission loads for the selected project', async () => {
+    setActivePinia(createPinia())
+    const projectId = '20000000-0000-0000-0000-000000000001'
+    const userId = '30000000-0000-0000-0000-000000000001'
+    const permissions = vi.spyOn(tcflowApi, 'effectivePermissions').mockResolvedValue({
+      projectId,
+      userId,
+      grants: [],
+    })
+    const workspace = useWorkspaceStore()
+    workspace.selectProject(projectId)
+
+    await Promise.all([workspace.loadPermissions(userId), workspace.loadPermissions(userId)])
+
+    expect(permissions).toHaveBeenCalledTimes(1)
+    expect(workspace.permissionsState.status).toBe('ready')
+  })
+
+  it('preserves hydrated permissions when the active project is selected again', () => {
+    setActivePinia(createPinia())
+    const projectId = '20000000-0000-0000-0000-000000000001'
+    const userId = '30000000-0000-0000-0000-000000000001'
+    const workspace = useWorkspaceStore()
+    workspace.selectProject(projectId)
+    workspace.effectivePermissions = {
+      projectId,
+      userId,
+      grants: [
+        {
+          permissionCode: 'task.view',
+          roleId: '40000000-0000-0000-0000-000000000001',
+          roleName: 'Owner',
+          resourceScope: 1,
+          componentScopes: [],
+        },
+      ],
+    }
+    workspace.permissionsState = { status: 'ready' }
+
+    workspace.selectProject(projectId)
+
+    expect(workspace.hasPermission('task.view')).toBe(true)
+    expect(workspace.permissionsState.status).toBe('ready')
+  })
+
   it('reloads the board from backend state after a task transition', async () => {
     setActivePinia(createPinia())
     const before = taskFixture()

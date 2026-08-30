@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import ResourceState from '../components/ResourceState.vue'
 import { useSessionStore } from '../stores/session'
 import { useWorkspaceStore } from '../stores/workspace'
 
 const session = useSessionStore()
 const workspace = useWorkspaceStore()
+const router = useRouter()
 const { profile } = storeToRefs(session)
 const { projects, selectedProjectId, projectsState } = storeToRefs(workspace)
 const name = ref('')
@@ -23,7 +25,15 @@ async function createProject(): Promise<void> {
   }
 }
 
-workspace.loadProjects()
+async function openProject(projectId: string): Promise<void> {
+  if (!profile.value) return
+  await workspace.activateProject(projectId, profile.value.id)
+  await router.push(`/projects/${projectId}/tasks`)
+}
+
+onMounted(() => {
+  if (!projects.value.length) void workspace.loadProjects()
+})
 </script>
 
 <template>
@@ -56,7 +66,7 @@ workspace.loadProjects()
             :key="project.id"
             :class="['list-row', { 'list-row--selected': project.id === selectedProjectId }]"
             :to="`/projects/${project.id}/tasks`"
-            @click="workspace.selectProject(project.id)"
+            @click.prevent="openProject(project.id)"
           >
             <span class="avatar-mark">{{ project.name.slice(0, 2).toUpperCase() }}</span>
             <span

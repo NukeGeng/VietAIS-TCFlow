@@ -69,6 +69,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const tasksState = ref<ResourceState>({ status: 'idle' })
   const taskState = ref<ResourceState>({ status: 'idle' })
   const administrationState = ref<ResourceState>({ status: 'idle' })
+  let projectsRequest: Promise<void> | null = null
+  let permissionsRequest: {
+    projectId: string
+    userId: string
+    promise: Promise<void>
+  } | null = null
 
   const selectedProject = computed(
     () => projects.value.find((project) => project.id === selectedProjectId.value) ?? null,
@@ -82,6 +88,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   function selectProject(projectId: string | null): void {
+    // Selecting the already active project is a no-op. Clearing its hydrated
+    // permissions here leaves the sidebar disabled because the selected id did
+    // not change, so no reactive reload is triggered.
+    if (selectedProjectId.value === projectId) return
+
     selectedProjectId.value = projectId
     effectivePermissions.value = null
     permissionsState.value = { status: 'idle' }
@@ -108,6 +119,23 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   async function loadProjects(keyword?: string): Promise<void> {
+    if (!keyword && projectsRequest) return projectsRequest
+
+    const request = loadProjectsFromApi(keyword)
+    if (keyword) {
+      await request
+      return
+    }
+
+    projectsRequest = request
+    try {
+      await request
+    } finally {
+      if (projectsRequest === request) projectsRequest = null
+    }
+  }
+
+  async function loadProjectsFromApi(keyword?: string): Promise<void> {
     projectsState.value = { status: 'loading' }
     try {
       const response = await tcflowApi.projects(keyword)
@@ -141,15 +169,44 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   async function loadPermissions(userId: string): Promise<void> {
     if (!selectedProjectId.value) return
+    const projectId = selectedProjectId.value
+    if (permissionsRequest?.projectId === projectId && permissionsRequest.userId === userId) {
+      return permissionsRequest.promise
+    }
+
+    const request = loadPermissionsFromApi(projectId, userId)
+    permissionsRequest = { projectId, userId, promise: request }
+    try {
+      await request
+    } finally {
+      if (permissionsRequest?.promise === request) permissionsRequest = null
+    }
+  }
+
+  async function activateProject(projectId: string, userId: string): Promise<void> {
+    selectProject(projectId)
+
+    if (
+      effectivePermissions.value?.projectId === projectId &&
+      effectivePermissions.value.userId === userId &&
+      permissionsState.value.status === 'ready'
+    ) {
+      return
+    }
+
+    await loadPermissions(userId)
+  }
+
+  async function loadPermissionsFromApi(projectId: string, userId: string): Promise<void> {
     permissionsState.value = { status: 'loading' }
     effectivePermissions.value = null
     try {
-      effectivePermissions.value = await tcflowApi.effectivePermissions(
-        selectedProjectId.value,
-        userId,
-      )
+      const permissions = await tcflowApi.effectivePermissions(projectId, userId)
+      if (selectedProjectId.value !== projectId) return
+      effectivePermissions.value = permissions
       permissionsState.value = { status: 'ready' }
     } catch (error) {
+      if (selectedProjectId.value !== projectId) return
       permissionsState.value = stateFromError(
         error,
         'Project permissions are unavailable. Actions remain disabled for safety.',
@@ -505,6 +562,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     loadProjects,
     createProject,
     updateProject,
+    activateProject,
     loadPermissions,
     loadRepositories,
     createRepository,

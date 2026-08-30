@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from './stores/session'
@@ -12,6 +12,7 @@ const workspace = useWorkspaceStore()
 const { profile, isAuthenticated } = storeToRefs(session)
 const { projects, selectedProjectId, selectedProject } = storeToRefs(workspace)
 const isPublic = computed(() => Boolean(route.meta.public))
+const isSidebarOpen = ref(false)
 
 const projectNavigation = computed(() => {
   const projectId = selectedProjectId.value
@@ -64,6 +65,20 @@ function logout(): void {
   router.replace('/login')
 }
 
+const mobileNavigation = computed(() => {
+  const projectId = selectedProjectId.value
+  return [
+    { label: 'Dashboard', to: '/', icon: '⌂' },
+    { label: 'Projects', to: '/projects', icon: '▦' },
+    ...(projectId
+      ? [
+          { label: 'Tasks', to: `/projects/${projectId}/tasks`, icon: '✓' },
+          { label: 'Sources', to: `/projects/${projectId}/repositories`, icon: '◈' },
+        ]
+      : []),
+  ]
+})
+
 watch(
   () => route.params.projectId,
   async (routeProjectId) => {
@@ -90,30 +105,65 @@ watch(isAuthenticated, (authenticated) => {
   <template v-else>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="app-shell">
-      <aside class="sidebar">
-        <RouterLink class="brand" to="/" aria-label="VietAIS TCFlow home">
-          <span class="brand-mark" aria-hidden="true">TC</span>
-          <span><strong>VietAIS</strong><small>TCFlow</small></span>
-        </RouterLink>
+      <aside class="sidebar" :class="{ 'sidebar--open': isSidebarOpen }">
+        <div class="sidebar-head">
+          <RouterLink
+            class="brand"
+            to="/"
+            aria-label="VietAIS TCFlow home"
+            @click="isSidebarOpen = false"
+          >
+            <span class="brand-mark" aria-hidden="true">TC</span>
+            <span><strong>VietAIS</strong><small>TCFlow</small></span>
+          </RouterLink>
+          <span class="brand-status" aria-label="Workspace online"></span>
+        </div>
+
+        <div v-if="selectedProject" class="sidebar-project">
+          <span class="sidebar-project__label">Active project</span>
+          <strong>{{ selectedProject.name }}</strong>
+        </div>
 
         <nav aria-label="Primary navigation">
           <span class="nav-label">Workspace</span>
-          <RouterLink to="/">Dashboard</RouterLink>
-          <RouterLink to="/projects">Projects</RouterLink>
+          <RouterLink to="/" @click="isSidebarOpen = false">
+            <span class="nav-icon" aria-hidden="true">⌂</span>Dashboard
+          </RouterLink>
+          <RouterLink to="/projects" @click="isSidebarOpen = false">
+            <span class="nav-icon" aria-hidden="true">▦</span>Projects
+          </RouterLink>
 
           <template v-if="selectedProjectId">
             <span class="nav-label">Project</span>
             <template v-for="item in projectNavigation" :key="item.to">
-              <RouterLink v-if="canNavigate(item)" :to="item.to">{{ item.label }}</RouterLink>
-              <span v-else class="nav-disabled" :title="`Requires ${item.permission}`"
-                >{{ item.label }}<small>{{ item.permission }}</small></span
-              >
+              <RouterLink v-if="canNavigate(item)" :to="item.to" @click="isSidebarOpen = false">
+                <span class="nav-icon" aria-hidden="true">{{
+                  item.label === 'Task board'
+                    ? '✓'
+                    : item.label === 'Repositories'
+                      ? '◈'
+                      : item.label === 'Analysis'
+                        ? '◌'
+                        : item.label === 'Impact graph'
+                          ? '⌁'
+                          : item.label === 'Features'
+                            ? '✦'
+                            : '⚙'
+                }}</span>
+                {{ item.label }}
+              </RouterLink>
+              <span v-else class="nav-disabled" :title="`Requires ${item.permission}`">
+                <span><span class="nav-icon" aria-hidden="true">·</span>{{ item.label }}</span>
+                <small>{{ item.permission }}</small>
+              </span>
             </template>
           </template>
 
           <template v-if="session.hasSystemPermission('Permissions.Users.View')">
             <span class="nav-label">Platform</span>
-            <RouterLink to="/system">System admin</RouterLink>
+            <RouterLink to="/system" @click="isSidebarOpen = false">
+              <span class="nav-icon" aria-hidden="true">◉</span>System admin
+            </RouterLink>
           </template>
         </nav>
 
@@ -125,6 +175,15 @@ watch(isAuthenticated, (authenticated) => {
 
       <div class="workspace">
         <header class="topbar">
+          <button
+            class="sidebar-toggle"
+            type="button"
+            aria-label="Toggle navigation"
+            :aria-expanded="isSidebarOpen"
+            @click="isSidebarOpen = !isSidebarOpen"
+          >
+            ☰
+          </button>
           <label class="project-switcher">
             <span class="sr-only">Selected project</span>
             <select :value="selectedProjectId || ''" @change="changeProject">
@@ -135,21 +194,33 @@ watch(isAuthenticated, (authenticated) => {
             </select>
           </label>
           <div class="topbar-context">
-            <span class="eyebrow">Source-aware planner</span
-            ><strong>{{ selectedProject?.name || 'Portfolio' }}</strong>
+            <span class="eyebrow">Source-aware planner</span>
+            <strong>{{ selectedProject?.name || 'Portfolio' }}</strong>
           </div>
           <div class="account-menu">
             <span class="avatar-mark">{{
               (profile?.firstName || profile?.userName || 'U').slice(0, 2).toUpperCase()
-            }}</span
-            ><span
-              ><strong>{{ profile?.firstName || profile?.userName }}</strong
-              ><small>{{ profile?.email }}</small></span
-            ><button type="button" @click="logout">Sign out</button>
+            }}</span>
+            <span>
+              <strong>{{ profile?.firstName || profile?.userName }}</strong>
+              <small>{{ profile?.email }}</small>
+            </span>
+            <button type="button" @click="logout">Sign out</button>
           </div>
         </header>
 
         <main id="main-content"><RouterView /></main>
+        <nav v-if="mobileNavigation.length" class="mobile-nav" aria-label="Quick navigation">
+          <RouterLink
+            v-for="item in mobileNavigation"
+            :key="item.to"
+            :to="item.to"
+            class="mobile-nav__item"
+          >
+            <span aria-hidden="true">{{ item.icon }}</span>
+            <small>{{ item.label }}</small>
+          </RouterLink>
+        </nav>
       </div>
     </div>
   </template>

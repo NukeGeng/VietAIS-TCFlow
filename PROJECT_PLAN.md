@@ -214,6 +214,10 @@ Gate:
 
 Owner: `backend`.
 
+Status: `CONFIRMED` for the source baseline and the first `Projects` reference
+slice. The complete GOAL2 migration is not complete; later milestones still
+own the remaining bounded contexts and cutover.
+
 Deliverables:
 
 - Create a clean FullStackHero v10 baseline; do not blindly upgrade the
@@ -225,7 +229,9 @@ Deliverables:
 Gate:
 
 - Clean restore/build/test passes on .NET 10.
-- Aspire starts the baseline resources.
+- The v10 AppHost builds with the migration API wired beside the historical
+  API; direct API startup was verified against PostgreSQL with Marten schema
+  setup and the async daemon running.
 - Dependency inventory has no accidental duplicate framework abstraction.
 
 ### M2 — Shared event-driven building blocks

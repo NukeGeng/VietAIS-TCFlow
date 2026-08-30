@@ -1,6 +1,8 @@
 # P14 Quality Benchmark Report
 
-Status: `CONFIRMED` for the checked-in deterministic fixture and this machine.
+Status: `CONFIRMED` for the historical v0.1 deterministic fixture and this
+machine. These values are regression baselines for GOAL2, not evidence that the
+vNext event-driven architecture has been implemented.
 
 Measured on 2026-08-27 with .NET SDK 9.0.120 on macOS arm64. The executable
 benchmark is

@@ -13,6 +13,8 @@ Understand
     ↓
 Inspect
     ↓
+Classify Current State
+    ↓
 Plan
     ↓
 Define Verification
@@ -36,6 +38,10 @@ The workflow exists to reduce:
 - Hallucinated implementations.
 - Unverified code.
 - Contract mismatches.
+- Incorrect bounded-context ownership.
+- Event/projection consistency errors.
+- Non-rebuildable read models.
+- Duplicate durable-message effects.
 - Authorization bugs.
 - Duplicate logic.
 - Regression risk.
@@ -48,11 +54,13 @@ The workflow exists to reduce:
 Before touching code:
 
 ```text
-Read GOAL.md
+Read GOAL2.md
     ↓
-Read AGENTS.md
+Read retained GOAL.md requirements
     ↓
-Read WORKFLOW.md
+Read PRODUCT_CONSTRAINTS.md + PROJECT_PLAN.md
+    ↓
+Read AGENTS.md + WORKFLOW.md + GIT_RULES.md
     ↓
 Read Task / Feature Spec
 ```
@@ -62,7 +70,10 @@ The agent must understand:
 - Product goal.
 - Current scope.
 - Architecture.
+- Current-state versus target-state architecture.
 - Technology constraints.
+- Bounded contexts and module contracts.
+- Event Store, projection, operational-document, and messaging boundaries.
 - Permission model.
 - Authority model.
 - Acceptance criteria.
@@ -108,12 +119,18 @@ Do not assume the implementation approach before inspecting the repository.
 Find:
 
 - Relevant module.
+- Owning bounded context.
+- Contracts project and cross-module consumers.
 - Feature folder.
 - Endpoint.
 - Vue component.
 - DTO.
 - Validator.
 - Marten document.
+- Event stream and aggregate.
+- Inline and async projections.
+- Wolverine messages, inbox/outbox, and handlers.
+- RabbitMQ integration boundary where applicable.
 - Authorization policy.
 - Tests.
 - Configuration.
@@ -123,6 +140,18 @@ Find:
 Do not inspect only the target file.
 
 Inspect enough neighboring code to understand the local convention.
+
+Then classify each affected legacy component:
+
+```text
+KEEP
+PORT
+REWRITE
+REMOVE
+```
+
+Existing code is evidence of validated behavior. During migration it is not
+automatically the target architectural pattern.
 
 ---
 
@@ -138,6 +167,10 @@ Existing request DTO
 Existing response DTO
 Existing validator
 Existing Marten usage
+Existing aggregate and stream convention
+Existing domain events and event metadata
+Existing inline/async projection convention
+Existing Wolverine handler and durable-message convention
 Existing authorization
 Existing error handling
 Existing tests
@@ -169,6 +202,8 @@ Document mentally:
 
 ```text
 Pattern to follow
+or
+Migration pattern to establish from GOAL2.md
 ```
 
 ---
@@ -185,6 +220,12 @@ Request contracts
 Response contracts
 Permissions
 Database/Marten documents
+Event streams and stream consumers
+Inline and async projections
+Domain and integration events
+Wolverine messages and outbox behavior
+RabbitMQ consumers/publishers
+Replay, rebuild, concurrency, and idempotency
 Frontend consumers
 Backend consumers
 Tests
@@ -236,34 +277,49 @@ Authorized
 
 # 8. Phase 6 — Persistence Analysis
 
-If Marten is involved, determine:
+Classify every persisted concept:
 
 ```text
-Read or Write?
+EVENT STORE
+PROJECTION
+OPERATIONAL DOCUMENT
 ```
 
-Reads generally use:
+For Event Store work, determine:
 
 ```text
-IQuerySession
+Aggregate and stream boundary
+Historical events
+Command and invariants
+Decide / Apply behavior
+Expected stream version
+Event metadata
+Transaction boundary
 ```
 
-Writes generally use:
+For projections, determine:
 
 ```text
-IDocumentSession
+Read-model purpose
+Inline or Async mode
+Consistency expectation
+Replay/rebuild strategy
+Failure and lag behavior
 ```
 
-Determine:
+For operational documents, determine:
 
-- Document type.
-- Identity.
-- Query requirements.
-- Transaction boundary.
-- SaveChanges requirement.
-- Concurrency considerations where relevant.
+```text
+Document identity
+IQuerySession or IDocumentSession usage
+SaveChanges requirement
+Retention and cleanup
+Concurrency
+```
 
-Do not introduce repository abstractions by default.
+Do not Event Source inbox/outbox, webhook delivery, retries, projection
+checkpoints, caches, temporary work items, or process state. Do not introduce
+repository abstractions by default.
 
 ---
 
@@ -277,9 +333,9 @@ Example:
 Given an authenticated Project Owner
 When POST /api/projects is called with valid input
 Then:
-- project is stored in Marten
-- creator becomes Project Owner
-- default project state is initialized
+- ProjectCreated is appended with actor/correlation metadata
+- ProjectCurrent is updated inline
+- creator membership and ownership invariants hold
 - audit entry is created
 - response is 201
 ```
@@ -291,6 +347,7 @@ Invalid input → 400
 Unauthorized → 401
 Forbidden → 403
 Missing resource → 404
+Expected-version conflict → defined concurrency response/retry behavior
 ```
 
 Acceptance criteria must be observable.
@@ -309,6 +366,12 @@ Integration test
 API test
 Authorization test
 Marten persistence test
+Event-sourced aggregate Given/When/Then test
+Inline projection consistency test
+Async projection convergence and rebuild test
+Optimistic concurrency test
+Wolverine durability/outbox/idempotency test
+RabbitMQ contract test
 Frontend test
 Analyzer fixture test
 Runtime verification
@@ -341,12 +404,13 @@ Example:
 
 ```text
 1. Add permission definition.
-2. Add request model.
-3. Add endpoint.
-4. Add Marten persistence.
-5. Add audit record.
-6. Add authorization tests.
-7. Add API integration tests.
+2. Define command, aggregate invariant, and domain event.
+3. Add request/response contract and endpoint.
+4. Append through Marten with expected stream version.
+5. Add critical inline read model.
+6. Add async read model only when its use case permits eventual consistency.
+7. Add audit and observability metadata.
+8. Add aggregate, projection, authorization, concurrency, and API tests.
 ```
 
 Avoid a plan containing unrelated refactoring.
@@ -416,12 +480,19 @@ For backend features, verify as applicable:
 
 ```text
 ASP.NET pipeline
-Marten persistence
+Marten Event Store append and aggregate reconstruction
+Operational document persistence
 PostgreSQL behavior
+Inline projection transaction consistency
+Async projection convergence and rebuild
+Optimistic concurrency
+Wolverine handler, inbox, outbox, retries, and idempotency
+RabbitMQ contract, delivery, retry, and dead-letter behavior
 Authorization
 Serialization
 OpenAPI
 Audit
+Event/message metadata and tracing
 ```
 
 If Aspire is relevant:
@@ -430,6 +501,9 @@ If Aspire is relevant:
 Start resources
 Verify service health
 Verify dependencies
+Verify Async Daemon health and projection lag
+Verify Wolverine durability health
+Verify RabbitMQ health where configured
 ```
 
 ---
@@ -449,6 +523,7 @@ Error behavior
 Permission visibility
 Navigation
 State update
+Eventual-consistency loading and refresh behavior where applicable
 ```
 
 Do not rely only on visual rendering.
@@ -481,6 +556,9 @@ Check:
 - Pagination.
 - Validation.
 - Authorization.
+- Domain event version/schema.
+- Integration event or Wolverine message schema.
+- Projection/read-model fields and consistency semantics.
 
 Do not mark complete when only one side matches the specification.
 
@@ -513,6 +591,9 @@ Method
 Input
 Output
 Dependency
+Domain Event
+Aggregate
+Projection
 Evidence level
 ```
 
@@ -591,6 +672,10 @@ Retry behavior
 Memory
 CPU
 Queue length
+Projection lag
+Async daemon failures
+Wolverine retry/dead-letter count
+RabbitMQ unacked/dead-letter count
 Connection failures
 ```
 
@@ -604,6 +689,8 @@ Check:
 
 - Secrets are not logged.
 - Tokens are not exposed.
+- Events, projections, durable messages, and audit metadata contain no secrets
+  or unnecessary sensitive payloads.
 - Permission checks exist server-side.
 - Frontend-only permission hiding is not relied upon.
 - Project Owner cannot access system permission definitions beyond allowed project permissions.
@@ -638,6 +725,9 @@ Target
 Before
 After
 ```
+
+Do not assume Event Store history fully replaces audit. Also verify denied
+attempts and administrative/request context when required.
 
 ---
 
@@ -734,7 +824,15 @@ Any permission or scope changes.
 
 ## Persistence
 
-Any Marten document/query/write changes.
+Event Store, operational document, stream, event metadata, and concurrency changes.
+
+## Projections
+
+Inline/Async mode, consistency, replay, rebuild, and lag verification.
+
+## Messaging
+
+Wolverine, inbox/outbox, RabbitMQ, retry, dead-letter, and idempotency changes.
 
 ## Dependencies
 
@@ -777,6 +875,10 @@ For a feature:
 ```text
 Understand capability
     ↓
+Identify owning bounded context
+    ↓
+Classify legacy behavior: KEEP / PORT / REWRITE / REMOVE
+    ↓
 Identify contract
     ↓
 Identify authority
@@ -784,6 +886,8 @@ Identify authority
 Identify permissions
     ↓
 Identify persistence
+    ↓
+Identify events / projections / messages
     ↓
 Define acceptance criteria
     ↓
@@ -822,6 +926,101 @@ Audit if administrative
 
 ---
 
+# 31A. Event-Sourced Feature Workflow
+
+For an event-sourced business capability:
+
+```text
+Identify aggregate invariant
+    ↓
+Define historical Given events
+    ↓
+Define command
+    ↓
+Decide expected domain events
+    ↓
+Apply events to state
+    ↓
+Append with expected stream version
+    ↓
+Update Inline projection in the transaction
+    ↓
+Converge Async projections after commit
+```
+
+Required verification:
+
+```text
+Valid command → expected events
+Invalid invariant → no event append
+Concurrent command → explicit conflict behavior
+Replay → same aggregate/read-model state
+Event metadata → actor/correlation/causation preserved
+```
+
+---
+
+# 31B. Projection Workflow
+
+For every new read model:
+
+1. Define its consumer and consistency requirement.
+2. Choose Inline only when same-transaction consistency is necessary.
+3. Choose Async for dashboards, search, analytics, graphs, reporting, or
+   cross-stream views.
+4. Implement projection tests from events to expected state.
+5. Verify idempotent application where required.
+6. Verify replay/rebuild from an empty projection store.
+7. Define lag, failure, and daemon-health observability for Async mode.
+
+Do not organize the business folder around `Inline` or `Async`; organize it
+around the read-model purpose.
+
+---
+
+# 31C. Durable Messaging and Integration Workflow
+
+```text
+Domain Event
+    ↓
+Map to stable Integration Event when boundary crossing is required
+    ↓
+Wolverine transactional outbox
+    ↓
+RabbitMQ only for external/system integration
+    ↓
+Idempotent consumer
+```
+
+Verify commit/outbox coordination, at-least-once duplicate delivery, retries,
+dead-letter behavior, correlation/causation metadata, and recovery after process
+restart. Marten Async Projection processing must not be routed through RabbitMQ.
+
+---
+
+# 31D. Bounded-Context Migration Workflow
+
+```text
+Inventory current behavior and evidence
+    ↓
+Classify KEEP / PORT / REWRITE / REMOVE
+    ↓
+Document target aggregate/module boundary
+    ↓
+Introduce contracts and compatibility seam
+    ↓
+Port one vertical slice
+    ↓
+Verify behavior, replay, projections, concurrency, and runtime
+    ↓
+Remove legacy path only after readback proves replacement
+```
+
+A migrated bounded context must pass every applicable gate in `GOAL2.md`
+section 84. A clean build alone is not migration completion.
+
+---
+
 # 32. Project Owner Workflow
 
 When creating a project:
@@ -829,15 +1028,15 @@ When creating a project:
 ```text
 User creates project
     ↓
-Project persisted
+ProjectCreated appended to the Project stream
     ↓
-Creator becomes Project Owner
+ProjectCurrent updated inline
     ↓
-Default project state created
+Creator membership/ownership events appended under their aggregate invariants
     ↓
-Default AI policy created
+Critical authorization projections updated inline
     ↓
-Default authority/convention state created
+Default AI and authority/convention streams initialized where owned
     ↓
 Audit entry created
 ```
@@ -919,15 +1118,17 @@ ASP.NET Analyzer
     ↓
 Marten Analyzer
     ↓
+Domain Event / Aggregate / Projection Detection
+    ↓
 Artifact Extraction
     ↓
 Dependency Extraction
     ↓
 Convention Detection
     ↓
-Knowledge Graph Build
+Source Facts Persisted
     ↓
-Persist Analysis
+Knowledge Graph Async Projection
 ```
 
 ---
@@ -938,6 +1139,8 @@ After the first scan:
 
 ```text
 Git Event
+    ↓
+Normalized integration event / durable Wolverine message
     ↓
 Changed Files
     ↓
@@ -958,7 +1161,8 @@ AI Reasoning if required
 Task Reconciliation
 ```
 
-Do not re-scan the full repository unless required.
+Do not re-scan the full repository unless required. Durable redelivery must not
+duplicate source facts, impacts, tasks, versions, or audit effects.
 
 ---
 
@@ -1092,6 +1296,9 @@ Feature-based folders
 Minimal APIs
 Static validators
 Marten sessions
+Domain Events
+Aggregates
+Inline/Async projections
 Request/Response naming
 Vue composables
 API service pattern
@@ -1148,6 +1355,11 @@ Cancelled
 ```
 
 State transitions must respect project permissions.
+
+In the migrated TaskFlow context, transitions are domain events on the
+EngineeringTask stream. `TaskCurrent` is the critical Inline view; boards,
+search, progress, workload, and analytics are Async views unless a documented
+consistency requirement proves otherwise.
 
 ---
 
@@ -1295,10 +1507,25 @@ Authorization verified where applicable
 Persistence verified where applicable
 ✓
 
+Correct persistence category selected
+✓
+
+Aggregate invariants and optimistic concurrency verified where applicable
+✓
+
+Inline/Async consistency, replay, and rebuild verified where applicable
+✓
+
+Wolverine/RabbitMQ durability and idempotency verified where applicable
+✓
+
 Public contracts reviewed
 ✓
 
 Audit behavior reviewed
+✓
+
+Observability for event streams, projection lag, and durable messages reviewed
 ✓
 
 Final diff reviewed

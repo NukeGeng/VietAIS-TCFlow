@@ -1,494 +1,480 @@
-# PROJECT_PLAN.md
+# VietAIS TCFlow GOAL2 Implementation Plan
 
-# VietAIS TCFlow Implementation Plan
+## 1. Purpose and authority
 
-## 1. Purpose
+This plan turns `GOAL2.md` into an ordered, verifiable migration program. It
+preserves validated v0.1 behavior from `GOAL.md` while moving the product to
+.NET 10, FullStackHero v10, bounded contexts, CQRS, Marten Event Sourcing,
+inline and async projections, Wolverine, RabbitMQ, and .NET Aspire.
 
-This plan turns `GOAL.md` into an ordered, verifiable implementation program.
+Authority order:
 
-It is governed by:
+1. Explicit task acceptance criteria.
+2. `GOAL2.md`.
+3. Retained requirements in `GOAL.md`.
+4. `PRODUCT_CONSTRAINTS.md`.
+5. This plan.
+6. `WORKFLOW.md`, `AGENTS.md`, and `GIT_RULES.md`.
 
-1. `GOAL.md`
-2. `PRODUCT_CONSTRAINTS.md`
-3. `WORKFLOW.md`
-4. `AGENTS.md`
-5. `GIT_RULES.md`
+If a higher-priority source conflicts with this plan, implementation stops
+until the conflict is recorded and resolved.
 
-The plan does not replace those documents. If this plan conflicts with a
-higher-priority source, the higher-priority source wins and this plan must be
-updated.
+## 2. State labels
 
-## 2. Current Baseline
+- `CONFIRMED`: demonstrated by current source and direct verification.
+- `INFERRED`: supported by evidence but not directly verified.
+- `PROPOSED`: target behavior not yet implemented or verified.
+- `BLOCKED`: cannot proceed without an external decision or dependency.
 
-### CONFIRMED
+Target-state prose must not be reported as current runtime behavior.
 
-- The repository contains the implemented backend, analyzers, Vue frontend,
-  Aspire host, acceptance fixtures, and verification documentation. All P14
-  gates are confirmed, including a signed GitHub-originated push through live
-  analysis, managed reasoning, source-traceable tasks, audit, and redelivery
-  idempotency.
-- The remote has the required long-lived branches: `main`, `frontend`,
-  `backend`, `mobile`, and `ai`.
-- The required backend baseline is FullStackHero dotnet-starter-kit
-  `2.0.4-rc`.
-- FullStackHero `2.0.4-rc` targets .NET 9.
-- A compatible .NET 9 SDK is available locally (`dotnet --version` reports
-  `9.0.120`). The verified frontend toolchain is Node.js `24.19.0` with npm
-  `11.17.0` (pinned in `.nvmrc` and used by CI); Docker is required for
-  persistence integration tests and Aspire.
-- Vue 3 + TypeScript + Vite is the product frontend stack.
-- Marten + PostgreSQL is the persistence stack for new business modules.
-- .NET Aspire is the local orchestration stack.
+## 3. Current baseline
 
-- The FullStackHero Blazor client is reference infrastructure, not the product
-  frontend, because `GOAL.md` explicitly requires Vue 3.
+### CONFIRMED — v0.1
 
-- `RepositoryIntelligence` is the initial business module name, matching the
-  example and terminology in `GOAL.md`.
-- Upstream FullStackHero identity/infrastructure modules remain on their existing
-  persistence mechanism while all new TCFlow business documents use Marten.
+- Release `v0.1.0` is based on .NET 9 and FullStackHero `2.0.4-rc`.
+- The repository contains the ASP.NET Core API, Vue 3 application, Aspire 9
+  host, PostgreSQL, Redis, Marten document persistence, deterministic source
+  analyzers, GitHub App integration, reasoning/reconciliation, and P14 evidence.
+- The current source targets `net9.0`; it does not contain Wolverine or
+  RabbitMQ package references.
+- Existing Repository Intelligence business state is primarily Marten
+  document state. It is not proof of event-sourced aggregates or rebuildable
+  read models.
+- P14 proves the v0.1 source-aware workflow. It does not prove GOAL2 migration
+  gates.
 
-## 3. Target Repository Layout
+### PROPOSED — vNext
 
-The exact names must follow the imported FullStackHero baseline, but the target
-ownership boundaries are:
+- A clean FullStackHero v10/.NET 10 baseline.
+- Modular Monolith with the bounded contexts defined in GOAL2.
+- DDD aggregates and vertical command/query slices.
+- Marten Event Store for business history where event sourcing is valuable.
+- Explicit inline and async projection ownership.
+- Wolverine handlers, durable inbox/outbox, retry, and idempotency.
+- RabbitMQ only for external/system integration messages.
+- Replay/rebuild operations, projection lag observability, and migration
+  reconciliation.
+
+## 4. Target request and event flow
+
+```text
+Client / API
+    ↓
+Command / message
+    ↓
+Wolverine handler
+    ↓
+Application use case
+    ↓
+Aggregate / domain invariants
+    ↓
+Domain events
+    ↓
+Marten Event Store
+    ├─ same transaction → inline critical read model
+    └─ after commit → Marten async daemon → reporting/search/cross-stream model
+
+Optional external integration event
+    ↓
+Wolverine outbox → RabbitMQ → other system
+```
+
+Marten async projections are not RabbitMQ consumers. RabbitMQ does not replace
+the Marten async daemon.
+
+## 5. Persistence decision rule
+
+Every persistent model must be classified before implementation:
+
+| Category | Use | Required checks |
+| --- | --- | --- |
+| Event Store | Aggregate history and business decisions | stream identity, expected version, event metadata, upcasting/version policy, invariant tests |
+| Projection | Read/query models derived from events | inline/async choice, idempotency, rebuild test, lag/daemon observability |
+| Operational Document | Credentials metadata, leases, delivery receipts, configuration, transient coordination | ownership, concurrency, retention, explicit save semantics |
+
+Event sourcing is selected for business history, auditability, temporal
+reasoning, or replay value. Simple operational data remains a document when an
+event stream adds no product value.
+
+## 6. Target repository ownership
 
 ```text
 src/
-  api/
-    framework/                  FullStackHero framework infrastructure
-    modules/
-      RepositoryIntelligence/  TCFlow backend business module
-    server/                     API composition root
-  apps/
-    vue/                        Vue 3 product frontend
-  aspire/
-    Host/                       Aspire orchestration
-    service-defaults/           Shared Aspire defaults
-  analyzers/
-    core/                       Technology-neutral analysis contracts
-    vue/                        Vue-specific analyzer
-    aspnet/                     ASP.NET-specific analyzer
-    marten/                     Marten-specific analyzer
-  tests/
-samples/
-  vue-full-application/         Ground-truth analyzer fixture
+  Host/
+  BuildingBlocks/
+    Domain/
+    Application/
+    Infrastructure/
+    Web/
+  Modules/
+    PlatformAdministration/
+    Projects/
+    AccessControl/
+    Planning/
+    EventStorming/
+    Architecture/
+    TaskFlow/
+    RepositoryIntelligence/
+    Integrations/
+  apps/vue/
+tests/
+  Unit/
+  Integration/
+  Architecture/
+  Fixtures/
+docs/
+  architecture/
+  migration/
+  acceptance/
+deploy/
 ```
 
-No new architectural layer may be introduced merely to match this diagram.
-Imported source conventions take precedence over illustrative folder names.
+The exact physical layout must follow the clean FullStackHero v10 baseline and
+can be refined through an ADR. Bounded-context ownership and dependency
+direction are mandatory even if folder names differ.
 
-## 4. Domain and Branch Ownership
+## 7. Cross-cutting quality gates
 
-| Work area | Base branch | Feature branch examples |
-|---|---|---|
-| Vue product UI | `frontend` | `feat/frontend/project-shell` |
-| ASP.NET/Marten business APIs | `backend` | `feat/backend/project-core` |
-| Repository analyzers and reasoning | `ai` | `feat/ai/vue-analyzer` |
-| Mobile | `mobile` | Deferred; not an initial product goal |
-| Cross-cutting documentation | Owning domain | `docs/ai/project-governance` |
+Every migration phase must prove, where applicable:
 
-Cross-domain capabilities must be split into separate branches and connected
-through explicit contract dependencies.
+1. Aggregate Given/When/Then behavior and invalid decisions.
+2. Expected-version optimistic concurrency.
+3. Event metadata and backward-compatible contracts.
+4. Inline projection visibility in the command transaction.
+5. Async projection convergence, idempotency, replay, and rebuild.
+6. Wolverine handler, inbox/outbox, retry, and duplicate-delivery behavior.
+7. RabbitMQ routing and dead-letter behavior for external messages.
+8. Permission plus resource/component scope, including 401/403/success paths.
+9. Security-sensitive and AI mutations produce audit information.
+10. OpenTelemetry/logging exposes stream identity, message correlation, daemon
+    health, projection lag, retries, and dead letters without secrets.
+11. Public contract producers and consumers are updated together.
+12. Existing v0.1 behavior is reconciled before legacy code is removed.
 
-## 5. Delivery Principles
-
-Every milestone must:
-
-1. Define observable acceptance criteria before coding.
-2. Prefer deterministic analysis over AI reasoning.
-3. Preserve `CONFIRMED`, `INFERRED`, and `PROPOSED` evidence levels.
-4. Keep authority and authorization independent.
-5. Reconcile existing tasks before creating new tasks.
-6. Audit security-sensitive and AI-driven changes.
-7. Optimize for precision and explainability over task volume.
-8. Build and test the affected domain.
-9. Perform runtime verification when behavior crosses process or persistence
-   boundaries.
-10. Use a short-lived branch and Draft PR targeting the owning domain branch.
-
-## 6. Phase and Dependency Map
+## 8. Migration sequence
 
 ```text
-P0 Governance and Toolchain
-  ↓
-P1 FullStackHero + Aspire + PostgreSQL + Marten Foundation
-  ↓
-P2 Identity, Project Ownership, Permissions, Audit
-  ↓
-P3 Project, Repository, Task, Assignment, Review Core
-  ├──────────────────────────────┐
-  ↓                              ↓
-P4 Vue Product Shell             P5 Analyzer Core + Vue Analyzer
-  ↓                              ↓
-P4b Administration UI            P6 ASP.NET Analyzer
-                                 ↓
-                              P7 Marten Analyzer
-                                 ↓
-                              P8 Contract Comparison
-                                 ↓
-                              P9 Knowledge Graph + Retrieval
-                                 ↓
-                              P10 Convention + Authority
-                                 ↓
-                              P11 AI/Codex + Reconciliation
-                                 ↓
-                              P12 GitHub Integration
-                                 ↓
-                              P13 Incremental Monitoring
-                                 ↓
-                              P14 End-to-End Acceptance and Benchmarks
+M0 Documentation and inventory
+    ↓
+M1 Clean .NET 10 / FullStackHero v10 baseline
+    ↓
+M2 Eventing, CQRS, Marten, Wolverine, and observability building blocks
+    ↓
+M3 Projects
+    ↓
+M4 AccessControl
+    ↓
+M5 Planning
+    ↓
+M6 TaskFlow
+    ↓
+M7 EventStorming
+    ↓
+M8 Architecture
+    ↓
+M9 RepositoryIntelligence
+    ↓
+M10 Integrations and RabbitMQ
+    ↓
+M11 PlatformAdministration
+    ↓
+M12 Vue bounded-context workspace
+    ↓
+M13 Data migration, cutover, and self-host operations
+    ↓
+M14 GOAL2 end-to-end acceptance
 ```
 
-## 7. Milestones
+Modules may be developed in parallel only after their upstream contracts and
+building blocks are stable. Cross-context state changes use contracts/events,
+not direct writes into another context's store.
 
-### P0 — Governance and Toolchain
+## 9. Milestones
 
-Deliverables:
+### M0 — Documentation and migration inventory
 
-- Commit the governing documents through a documentation feature branch.
-- Establish and protect all long-lived branches.
-- Add `.gitignore`, editor settings, solution-level build entry points, and
-  version pinning when the baseline source is imported.
-- Make .NET 9 available without removing or modifying unrelated machine data.
-- Record repeatable bootstrap commands in `README.md`.
-
-Verification:
-
-- All five long-lived branches exist remotely.
-- No implementation commit is made directly on a protected branch.
-- Required build tools report compatible versions.
-- Governance Draft PR targets the correct domain branch.
-
-### P1 — Backend Foundation
-
-Owner: `backend`
+Owner: `ai` for cross-cutting architecture documentation.
 
 Deliverables:
 
-- Import FullStackHero `2.0.4-rc` as the backend foundation.
-- Preserve its module, dependency injection, validation, authorization, error,
-  logging, testing, and Aspire conventions.
-- Add PostgreSQL and Marten registration for new TCFlow business modules.
-- Add Aspire resources for API, PostgreSQL, required framework services, and
-  the Vue frontend placeholder.
-- Add health checks and configuration validation.
+- Align all governing documents with GOAL2.
+- Mark v0.1 evidence as historical and vNext behavior as proposed.
+- Inventory current components as `KEEP`, `PORT`, `REWRITE`, or `REMOVE`.
+- Record module ownership, dependency direction, public contracts, persistence
+  categories, and migration risks.
 
-Acceptance evidence:
+Gate:
 
-- Full solution builds with the pinned SDK.
-- Aspire host starts required resources.
-- API health endpoint reports healthy with PostgreSQL available.
-- A Marten smoke document can be stored and loaded in an integration test.
-- Existing FullStackHero infrastructure remains operational.
+- Markdown structure and links validate.
+- No document claims GOAL2 runtime completion.
+- Migration matrix covers every current top-level component.
 
-### P2 — Identity, Authorization, and Audit
+### M1 — Clean FullStackHero v10 / .NET 10 baseline
 
-Owner: `backend`
+Owner: `backend`.
 
 Deliverables:
 
-- System Admin and Project Owner remain separate principals/scopes.
-- Project, membership, system-defined permission definition, project role,
-  role permission, member role, component scope, and resource scope models.
-- Effective-permission calculation with grant trace.
-- AI permission policy and progressive trust level.
-- Ownership transfer with confirmation and audit.
-- Audit records capturing actor, action, time, target, before, and after.
+- Create a clean FullStackHero v10 baseline; do not blindly upgrade the
+  existing package graph.
+- Establish .NET 10 SDK pinning, central package management, Aspire, health,
+  configuration validation, testing, and CI.
+- Preserve the v0.1 branch/tag as rollback and behavioral reference.
 
-Required tests:
+Gate:
 
-- Unauthenticated requests return `401`.
-- Authenticated requests lacking permission/scope return `403`.
-- Authorized requests succeed.
-- Project Owner cannot manage another project or grant system permissions.
+- Clean restore/build/test passes on .NET 10.
+- Aspire starts the baseline resources.
+- Dependency inventory has no accidental duplicate framework abstraction.
+
+### M2 — Shared event-driven building blocks
+
+Owner: `backend`.
+
+Deliverables:
+
+- Domain event, aggregate, command/query, result, metadata, clock/identity,
+  authorization, and validation conventions.
+- Marten Event Store registration and inline/async daemon topology.
+- Wolverine local handlers, durable inbox/outbox, retries, correlation, and
+  idempotency.
+- Projection administration and observability contracts.
+
+Gate:
+
+- Reference aggregate append/reload/concurrency tests pass.
+- Reference inline and async projections rebuild from an empty projection
+  store and converge to identical results.
+- Duplicate durable messages cause no duplicate business effect.
+
+### M3 — Projects
+
+Owner: `backend`.
+
+Candidate aggregates/events:
+
+- `Project` with create, rename, lifecycle, ownership-reference, and policy
+  changes where business history is valuable.
+- `ProjectCreated`, `ProjectRenamed`, `ProjectSuspended`, `ProjectActivated`.
+
+Read models:
+
+- Inline `ProjectCurrent` for immediate authorization and command feedback.
+- Async portfolio/reporting/search views.
+
+Gate:
+
+- Atomic project creation behavior from v0.1 is retained.
+- Existing project identities map deterministically to streams.
+- Authorization, audit, replay, and concurrency tests pass.
+
+### M4 — AccessControl
+
+Owner: `backend`.
+
+Deliverables:
+
+- Project membership, roles, grants, scopes, ownership transfer, AI policy,
+  authority policy, and convention policy with system/project separation.
+- Effective-permission projection with grant trace.
+
+Gate:
+
+- Project Owner cannot grant system permissions or manage another project.
 - System Admin does not implicitly become Project Owner.
-- Role and permission mutations create audit entries.
-- Effective permission output identifies source role and scope.
+- Permission changes are auditable and effective reads meet the documented
+  consistency requirement.
 
-### P3 — Project Management Core
+### M5 — Planning
 
-Owner: `backend`
-
-Deliverables:
-
-- Project creation initializes owner, default state, authority, convention,
-  AI policy, and audit data atomically.
-- Repository, component, feature, task, assignment, review, task evidence, and
-  task version/history documents.
-- Task lifecycle: Upcoming, In Progress, Ready for Review, Completed, Blocked,
-  Rejected, and Cancelled.
-- Pagination, filtering, and search using repository conventions.
-- Source traceability from task to change, artifact, evidence, and impact.
-
-Required tests:
-
-- Marten write paths call `SaveChangesAsync`.
-- Read paths use `IQuerySession`; write paths use `IDocumentSession`.
-- Task transition permissions and invalid transitions are tested.
-- AI verification and human approval are separate state.
-- Task changes preserve version/history and audit records.
-
-### P4 — Vue Product Frontend
-
-Owner: `frontend`
-
-Dependencies: P2 and P3 API contracts.
+Owner: `backend`.
 
 Deliverables:
 
-- Vue 3 + TypeScript + Vite application using established project patterns.
-- Login/session integration, dashboard, projects, repositories, analysis view,
-  impact graph, features, task board, task detail/review.
-- Project Administration and System Administration surfaces.
-- Effective-permission-aware navigation/actions with useful missing-access
-  explanations.
-- Loading, empty, error, forbidden, and retry states.
+- Product intent, requirements, capabilities, roadmap, and planning decisions
+  represented as living domain state with source/evidence links.
+- Query models for current plan and roadmap views.
 
-Verification:
+Gate:
 
-- Type checking, unit/component tests, and production build pass.
-- Direct unauthorized API calls remain blocked by backend `403`.
-- Frontend contracts match generated/verified backend contracts.
-- Task board transitions reflect backend state after reload.
+- Planning history replays deterministically.
+- Requirement/capability links do not cross context boundaries through direct
+  persistence access.
 
-### P5 — Analyzer Core and Vue Analyzer
+### M6 — TaskFlow
 
-Owner: `ai`
+Owner: `backend`.
 
 Deliverables:
 
-- Technology-neutral Artifact, Dependency, Evidence, Capability, Contract,
-  Change, Impact, and analyzer contracts.
-- File discovery and technology detection.
-- Vue analyzer for components, script setup, props, emits, form fields, API
-  calls, request bodies, response usage, TypeScript types, Pinia, Router,
-  validation, loading/error state, permissions, filters, and pagination.
-- Meaningful-change filter that ignores cosmetic-only changes.
-- Ground-truth Vue fixture and expected artifact JSON.
+- Event-sourced task lifecycle, assignment, review, source verification,
+  reconciliation, AI verification, and human approval separation.
+- Inline task-current view; async board/search/analytics views.
 
-Verification:
+Gate:
 
-- Deterministic fixture tests prove paths, methods, fields, and evidence level.
-- Cosmetic-only changes produce zero cross-layer impact/AI requests.
-- Analyzer output never upgrades inferred UI intent to confirmed API evidence.
+- Invalid transitions fail without appending events.
+- duplicate AI/source proposals reconcile rather than create duplicate tasks.
+- Existing v0.1 tasks, versions, evidence, and audit reconcile to the new model.
 
-### P6 — ASP.NET Analyzer
+### M7 — EventStorming
 
-Owner: `ai`
+Owner: `backend`, with `frontend` consumer work.
 
 Deliverables:
 
-- Endpoint, method, route, request, response, validation, authorization,
-  handler/service dependency, and OpenAPI extraction.
-- Fixtures based on the actual FullStackHero/TCFlow module convention.
+- Boards, domains, commands, events, policies, aggregates, actors, hotspots,
+  notes, links, and ordering.
+- Traceability to planning, architecture, tasks, and source evidence.
 
-Verification:
+Gate:
 
-- Fixture output proves exact endpoint contracts and evidence locations.
-- Literal deterministic facts are produced without AI.
+- Board changes preserve ordered history and concurrency semantics.
+- Read models rebuild and linked identities remain stable.
 
-### P7 — Marten Analyzer
+### M8 — Architecture
 
-Owner: `ai`
-
-Deliverables:
-
-- Detection of documents, `IQuerySession`, `IDocumentSession`, query, load,
-  store, delete, and `SaveChangesAsync` calls.
-- Dependency edges connecting endpoints/handlers to Marten documents.
-
-Verification:
-
-- Fixture tests cover read, write, delete, pagination, and missing-save cases.
-- Event sourcing is not introduced.
-
-### P8 — Contract Comparison
-
-Owner: `ai`
+Owner: `backend`, with `frontend` visualization work.
 
 Deliverables:
 
-- Match Vue expected contracts to ASP.NET actual contracts.
-- Compare method, route, request/response fields and types, optionality,
-  validation, errors, pagination, and authorization.
-- Emit explainable mismatch records with evidence and confidence.
+- Bounded contexts, modules, dependencies, services, data models, ERDs,
+  decisions, violations, and source mappings.
+- Living architecture projections derived from user decisions and repository
+  intelligence.
 
-Verification:
+Gate:
 
-- The canonical `categoryId` mismatch is detected.
-- Matching contracts produce no task noise.
-- Ambiguous matches remain inferred/proposed.
+- Architecture views distinguish confirmed source facts, inferred structure,
+  and proposed design.
+- Violations and drift are explainable and traceable.
 
-### P9 — Repository Knowledge Graph and Retrieval
+### M9 — RepositoryIntelligence
 
-Owner: `ai`
-
-Deliverables:
-
-- Persist artifacts, dependencies, capabilities, contracts, changes, and
-  impacts in Marten.
-- Graph-neighborhood traversal for changed artifacts.
-- Targeted retrieval context with explicit evidence provenance.
-
-Verification:
-
-- Frontend API call connects to backend endpoint and persistence artifact.
-- Retrieval excludes unrelated repository content in fixture cases.
-- Initial full scan and incremental graph update produce equivalent affected
-  neighborhoods for the same source state.
-
-### P10 — Convention and Authority Engine
-
-Owner: `ai` with backend API support.
+Owner: `ai`, with backend adapters separated by contract.
 
 Deliverables:
 
-- Detect and persist repository conventions.
-- Project-configurable authority per knowledge type.
-- Apply authority independently of actor permissions.
-- Suggest defaults during onboarding without requiring full manual setup.
+- Port deterministic Vue/ASP.NET/Marten analysis, graph, contracts,
+  conventions, impacts, reasoning, and reconciliation.
+- Extend analyzers to recognize aggregates, domain events, projections,
+  messages, and bounded-context dependencies.
+- Async knowledge graph/search/analytics projections.
 
-Verification:
+Gate:
 
-- Frontend-authority and backend-authority mismatch cases lead to different,
-  explainable impacts.
-- Unauthorized authority mutation returns `403` and is audited when allowed.
-- Generated plans follow detected module/naming conventions.
+- Static analysis remains before AI.
+- v0.1 precision, recall, duplication, and latency baselines do not regress
+  without recorded evidence and approval.
+- Rebuild and incremental processing converge for equivalent source state.
 
-### P11 — AI/Codex Reasoning and Task Reconciliation
+### M10 — Integrations and RabbitMQ
 
-Owner: `ai`
-
-Deliverables:
-
-- Vendor-neutral `IAiReasoningProvider` abstraction.
-- Codex/App Server-managed authentication; no cookie/token extraction.
-- Structured impact/task schema with evidence and confidence.
-- Progressive trust and AI action permission enforcement.
-- Separate task generation and reconciliation services supporting Create,
-  Update, Merge, Close, Reopen, and Ignore.
-- Task version history and AI audit entries.
-
-Verification:
-
-- AI receives only targeted graph context.
-- Low-confidence results remain suggestions.
-- Existing related tasks are reconciled before creation.
-- Reverts make obsolete tasks explainably close/cancel/re-evaluate.
-- AI action without policy permission is rejected.
-
-### P12 — GitHub Integration
-
-Owner: `backend` plus `ai` analysis adapters.
-
-Dependencies: local analyzer and reconciliation are stable.
+Owner: `backend` for GitHub/provider adapters; `ai` for analyzer adapters.
 
 Deliverables:
 
-- Separate GitHub identity/repository access from Codex authentication.
-- GitHub App installation and selected-repository access.
-- Initial scan trigger and push/pull-request/merge event ingestion.
-- Secure webhook validation and idempotency.
+- GitHub App OAuth/installation/webhook flows ported behind integration
+  contracts.
+- RabbitMQ external event topology using Wolverine outbox/inbox.
+- delivery receipts, idempotency, retry, poison/dead-letter handling.
 
-Verification:
+Gate:
 
-- Invalid webhook signatures are rejected.
-- Duplicate deliveries are idempotent.
-- Installation scope cannot read an unselected repository.
-- Repository access changes are audited.
+- Invalid signatures fail closed.
+- duplicate webhook and broker deliveries cause zero duplicate business
+  effects.
+- no token/private key/raw sensitive payload reaches events, messages, logs,
+  audit, or projections.
 
-### P13 — Incremental Monitoring
+### M11 — PlatformAdministration
 
-Owner: `ai`
+Owner: `backend`.
 
 Deliverables:
 
-- Changed-file ingestion, incremental parse, graph update, fast deterministic
-  path, queued deep reasoning path, impact generation, and reconciliation.
-- Revert detection and re-analysis.
+- Platform policies, settings, AI provider availability, usage, tenant/user
+  administration, audit query, projection status, replay/rebuild controls.
 
-Measurable acceptance targets for the fixture repository:
+Gate:
 
-- Cosmetic-only commit: no AI request and no cross-layer task.
-- Incremental deterministic analysis p95: under 2 seconds for up to 20 changed
-  files on the reference development machine.
-- Duplicate webhook delivery: zero duplicate changes/tasks.
-- Reconciliation fixture accuracy: 100% for the checked-in canonical cases.
+- Administrative actions are permission-checked and audited.
+- Projection rebuild controls cannot corrupt event history or expose secrets.
 
-Targets may be revised only with recorded benchmark evidence.
+### M12 — Vue bounded-context workspace
 
-### P14 — End-to-End Acceptance and Quality Benchmarks
+Owner: `frontend`.
 
-Owners: `backend`, `frontend`, and `ai` through separate branches/PRs.
+Deliverables:
 
-The sample Vue + ASP.NET + Marten repository must prove all 19 core product
-acceptance criteria in `GOAL.md` section 74, all 15 permission criteria in
-section 75, and all 12 AI criteria in section 76.
+- Reorganize routes, stores, clients, and views by product bounded context.
+- Vietnamese remains the default UI language; English remains selectable.
+- Surface consistency/loading/retry/forbidden/projection-lag states.
 
-Required benchmark reporting:
+Gate:
 
-- Precision
-- Recall
-- False-positive rate
-- False-negative rate
-- Task duplication rate
-- Task reconciliation accuracy
-- Fast-path latency
+- Typecheck, unit/component tests, lint, and production build pass.
+- Frontend authorization remains UX only; backend is authoritative.
+- Navigation updates immediately when project/session context changes.
 
-Completion requires an acceptance matrix linking every criterion to an
-automated test or an explicit runtime verification artifact.
+### M13 — Data migration, cutover, and self-host operations
 
-## 8. Public Contract Strategy
+Owner: `backend`, with all domains verifying their data.
 
-- Backend contract is defined through the existing FullStackHero endpoint and
-  OpenAPI conventions.
-- Frontend API types must be generated from or mechanically checked against the
-  backend contract when the baseline supports it.
-- Analyzer fixture schemas are versioned public contracts.
-- Permission codes use `resource.action` and are system-defined.
-- Breaking changes require producer, consumer, tests, documentation, and
-  analyzer fixtures to change together.
+Deliverables:
 
-## 9. Persistence Strategy
+- Versioned migration from v0.1 documents to event streams, projections, or
+  retained operational documents according to the migration matrix.
+- Dry-run, reconciliation, rollback, backup/restore, replay/rebuild, and
+  cutover runbooks.
+- Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,
+  async daemon, and observability.
 
-- New TCFlow business persistence uses Marten documents.
-- Reads use `IQuerySession`.
-- Writes use `IDocumentSession` and explicitly call
-  `SaveChangesAsync(cancellationToken)`.
-- Existing FullStackHero infrastructure persistence remains intact unless a
-  concrete requirement proves migration is necessary.
-- Marten event sourcing and a standalone graph database are out of initial
-  scope.
+Gate:
 
-## 10. Security and Audit Gates
+- Pre/post counts and business invariants reconcile.
+- Migration is repeatable and idempotent.
+- Backup restore plus projection rebuild is demonstrated in an isolated stack.
 
-No milestone may pass if it:
+### M14 — GOAL2 end-to-end acceptance
 
-- hard-codes role-name authorization;
-- trusts frontend authorization;
-- mixes system and project scope;
-- lets Project Owners grant system permissions;
-- stores or logs secrets, GitHub tokens, or Codex credentials;
-- performs an administrative or AI mutation without required audit evidence;
-- allows cross-project access outside effective resource/component scope.
+Owners: `backend`, `frontend`, and `ai` through separate branches and PRs.
 
-## 11. Definition of Program Completion
+Required evidence:
 
-The program is complete only when:
+- All GOAL2 quality gates and product constraints have direct tests or explicit
+  runtime artifacts.
+- Full stack starts through Aspire and self-host smoke tests.
+- Event append, inline visibility, async convergence, replay/rebuild,
+  concurrency, durable messaging, RabbitMQ failure handling, authorization,
+  audit, GitHub ingestion, analyzer precision, task reconciliation, and UI
+  workflows pass end to end.
+- A new GOAL2 acceptance matrix is published without rewriting historical P14
+  evidence.
 
-1. P0 through P14 are delivered through the required domain branch workflow.
-2. All acceptance criteria from `GOAL.md` sections 74–76 have direct evidence.
-3. All product constraints have an automated or documented verification.
-4. Backend, frontend, analyzer, integration, and end-to-end suites pass.
-5. Aspire runtime verification proves the local system starts as one stack.
-6. The final diff and dependency inventory contain no unexplained changes.
+## 10. Public contract strategy
+
+Public contracts include HTTP APIs, commands, domain events, integration
+events, messages, permission codes, configuration, projection schemas, and
+analyzer fixtures. Breaking changes require producer, consumer, migration,
+tests, and documentation to change together. Domain events are immutable
+history; use additive evolution, versioned contracts, or explicit upcasters.
+
+## 11. Program completion
+
+GOAL2 is complete only when:
+
+1. M0 through M14 pass their gates.
+2. Every legacy component has a final migration classification and disposition.
+3. All bounded contexts enforce dependency and persistence ownership.
+4. Event streams reconstruct aggregates and all projections rebuild.
+5. Durable messages are idempotent and operational failure paths are visible.
+6. Backend, frontend, analyzer, architecture, integration, and end-to-end tests pass.
 7. No relevant test is disabled or weakened.
-8. No known blocker is represented as completed.
+8. No proposed or inferred behavior is reported as confirmed.
 
-## 12. Milestone Reporting Template
-
-Each milestone report must contain:
+## 12. Milestone report
 
 ```text
 Summary
@@ -496,7 +482,9 @@ Affected Areas
 Verification
 Contracts
 Permissions
-Persistence
+Persistence / Events
+Projections
+Messaging
 Dependencies
 Known Limitations
 Acceptance Criteria Matrix

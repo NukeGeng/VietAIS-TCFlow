@@ -1,5 +1,9 @@
 # VietAIS TCFlow web
 
+> **Current runtime — v0.1:** This workspace remains the Vue 3 frontend during
+> GOAL2 migration. Its future route/store/client reorganization by bounded
+> context is proposed, not yet complete.
+
 Vue 3 + TypeScript + Vite product shell for VietAIS TCFlow.
 
 The product workspace consumes the verified P2/P3 identity, project,

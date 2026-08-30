@@ -29,6 +29,7 @@ x86/
 bld/
 [Bb]in/
 [Oo]bj/
+src/vnext/Host/FSH.Starter.Api/audit-dlq/
 [Ll]og/
 [Ll]ogs/
 [Ii]mages/

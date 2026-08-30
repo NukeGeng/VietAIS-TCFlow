@@ -1,5 +1,10 @@
 # P14 Acceptance Matrix
 
+> **Historical v0.1 evidence:** This matrix confirms the source-aware planner
+> released before GOAL2. It remains valid for regression comparison, but it
+> does not confirm .NET 10, FullStackHero v10, Event Sourcing, Wolverine,
+> inline/async projection rebuild, RabbitMQ, or the new bounded contexts.
+
 This matrix maps every criterion in `GOAL.md` sections 74–76 to direct
 verification evidence. `CONFIRMED (main)` means the automated evidence exists
 and passes on the protected integration branch. Live runtime evidence is
@@ -95,7 +100,8 @@ test, benchmark, or explicitly open external evidence.
 | Long-lived branch protection | CONFIRMED (GitHub) | Active rulesets `main-owner-only-updates`, `protected-branches-pull-request`, and `protected-branches-safety` cover `main` and all long-lived branches; `main` updates are limited to the `NukeGeng` bypass actor through pull requests, all three quality gates are required, force-push/deletion are rejected, and collaborator readback shows only `NukeGeng` has admin/push access. |
 | Protected-branch integration | CONFIRMED (main) | PRs #94 and #95 passed all required checks, and the protected-branch readback confirms the domain branches are synchronized with `main`. The matrix intentionally avoids commit hashes and transient documentation PR numbers that become stale after each documentation-only merge. |
 
-Overall P14 status: `CONFIRMED`. The deterministic criteria, protected
+Overall v0.1 P14 status: `CONFIRMED`. The deterministic criteria, protected
 integration, signed GitHub-originated repository flow, managed-account
 reasoning worker, source-traceable task persistence, audit trail, and delivery
-idempotency all have direct evidence.
+idempotency all have direct evidence. GOAL2 will publish a separate acceptance
+matrix after milestones M0–M14 pass.

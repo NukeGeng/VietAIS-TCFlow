@@ -1,123 +1,94 @@
 # VietAIS TCFlow
 
-VietAIS TCFlow is a source-aware engineering planner that turns repository
-evidence and source changes into explainable engineering impact and tasks.
+VietAIS TCFlow is evolving from a source-aware engineering planner into an
+Engineering System Intelligence and Living Architecture Platform. It connects
+planning, Event Storming, architecture, data models, tasks, repositories,
+source evolution, documentation, and AI-assisted workflows through explicit
+domain events and traceable evidence.
 
-The product baseline is Vue 3 + TypeScript + Vite, ASP.NET Core on
-FullStackHero `2.0.4-rc`, Marten + PostgreSQL, and .NET Aspire.
+## Current and target state
+
+| State | Status | Architecture |
+| --- | --- | --- |
+| v0.1 baseline | `CONFIRMED` and released | .NET 9, FullStackHero `2.0.4-rc`, Vue 3, Marten documents, PostgreSQL, Redis, Aspire 9 |
+| GOAL2 vNext | `PROPOSED` / in migration | .NET 10, FullStackHero v10 clean baseline, DDD, Vertical Slice, CQRS, Marten Event Store, inline and async projections, Wolverine, RabbitMQ, Aspire |
+
+The current source tree still runs the v0.1 baseline. Target-state documents do
+not imply that .NET 10, event streams, projection daemons, Wolverine, or
+RabbitMQ have already been implemented.
 
 ## Governing documents
 
-- [`GOAL.md`](GOAL.md) — product and architecture source of truth
-- [`PRODUCT_CONSTRAINTS.md`](PRODUCT_CONSTRAINTS.md) — product risk controls
-- [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — implementation order and evidence gates
-- [`AGENTS.md`](AGENTS.md) — repository rules for implementation agents
-- [`WORKFLOW.md`](WORKFLOW.md) — mandatory implementation lifecycle
-- [`GIT_RULES.md`](GIT_RULES.md) — branch, pull request, and merge workflow
+Read these in order before implementation:
 
-The integrated baseline includes the FullStackHero backend, PostgreSQL, Redis,
-Marten document persistence, the Vue product workspace, and one .NET Aspire
-AppHost for local orchestration.
+1. [`GOAL2.md`](GOAL2.md) — current product evolution and target architecture.
+2. [`GOAL.md`](GOAL.md) — retained v0.1 behavior and historical acceptance baseline.
+3. [`PRODUCT_CONSTRAINTS.md`](PRODUCT_CONSTRAINTS.md) — product and migration risk controls.
+4. [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — ordered migration program and quality gates.
+5. [`AGENTS.md`](AGENTS.md) — mandatory repository rules for agents.
+6. [`WORKFLOW.md`](WORKFLOW.md) — implementation and verification lifecycle.
+7. [`GIT_RULES.md`](GIT_RULES.md) — branch, pull request, and integration workflow.
 
-## Local development
+Architecture and migration summaries are maintained in:
 
-The complete prerequisite, secret, Aspire startup, and verification steps are
-in [`src/README.md`](src/README.md). On macOS machines with multiple .NET
-installations, make sure `DOTNET_ROOT` and `PATH` point to the same .NET 9
-installation before running builds or tests; otherwise the test host can load a
-different runtime even when `dotnet --version` looks correct. For the pinned
-Homebrew SDK, use:
+- [`docs/architecture/GOAL2_TARGET_ARCHITECTURE.md`](docs/architecture/GOAL2_TARGET_ARCHITECTURE.md)
+- [`docs/migration/GOAL2_MIGRATION_MATRIX.md`](docs/migration/GOAL2_MIGRATION_MATRIX.md)
+
+## Target bounded contexts
+
+```text
+PlatformAdministration
+Projects
+AccessControl
+Planning
+EventStorming
+Architecture
+TaskFlow
+RepositoryIntelligence
+Integrations
+```
+
+The migration is behavior-preserving. Every existing component must be
+classified as `KEEP`, `PORT`, `REWRITE`, or `REMOVE`; none is migrated merely
+because a newer framework exists.
+
+## Current local development
+
+The current v0.1 tree requires .NET 9, Docker, and the Node version pinned by
+`src/apps/vue/.nvmrc`. Full setup, local secrets, Aspire startup, and current
+API contracts are documented in [`src/README.md`](src/README.md).
 
 ```bash
 export DOTNET_ROOT="/opt/homebrew/opt/dotnet@9/libexec"
 export PATH="/opt/homebrew/opt/dotnet@9/bin:$DOTNET_ROOT:$PATH"
-dotnet --version
+dotnet run --project src/aspire/Host/Host.csproj
 ```
 
-## System administration contracts
+Do not change these commands to .NET 10 until the clean vNext baseline has been
+created and its runtime gate has passed.
 
-The root-tenant `Admin` role receives TCFlow's system permissions independently
-from project membership. System Admin access does not grant Project Owner access.
-
-- `GET /api/v1/system/projects` requires `project.inspect`.
-- `PUT /api/v1/system/projects/{projectId}/status` requires `project.suspend`
-  and accepts only `Active` or `Suspended`.
-- `GET /api/v1/system/permission-definitions` requires
-  `permission-definition.manage` and returns both FullStackHero identity
-  permissions and TCFlow project/system definitions.
-- `GET /api/v1/system/audit` requires `system-audit.view`.
-- `GET/PUT /api/v1/system/ai-providers` requires `ai-provider.manage`; the
-  contract stores only Codex availability and display name, never account
-  credentials.
-- `GET/PUT /api/v1/system/settings` requires `system-settings.manage`.
-- `GET/PUT /api/v1/system/policies` requires `platform-policy.manage`.
-- `GET /api/v1/system/usage` requires `platform-usage.view` and reports
-  persisted project, repository, task, AI-task, and audit counts.
-
-Suspending a project removes its project-scoped effective grants until a System
-Admin activates it again. Each lifecycle change records the System Admin actor,
-target, before state, and after state in the Marten audit store. User activation
-and suspension remains protected by `Permissions.Users.Update`.
-Assigning platform roles to a user requires `Permissions.UserRoles.Update`.
-Built-in `Admin` and `Basic` roles cannot be renamed, deleted, or have their
-permission claims changed.
-
-Global settings, AI provider configuration, and platform policies are
-optimistically-concurrent Marten documents. Their successful mutations record
-system-wide audit entries with no project scope. Platform policy disables are
-enforced by backend project/repository creation handlers, including the
-configured repository-per-project limit.
-
-## GitHub App for private repositories
-
-Create a GitHub App owned by the account or organization that will install it.
-Configure both the **Setup URL** and **Callback URL** as
-`http://localhost:5173/github/callback`. Give it read-only **Contents** and
-**Metadata** repository permissions, subscribe to `push` and `pull_request`, and
-set its webhook URL to the public HTTPS address that forwards to
-`/api/v1/github/webhooks`.
-
-For local onboarding and initial scans, the App may remain without subscribed
-events and without a webhook URL. Enable those events only when a publicly
-reachable webhook endpoint is available and live incremental monitoring is
-being verified.
-
-Store local credentials in the Aspire AppHost user-secrets store; never add the
-GitHub client secret, private key, or webhook secret to source control:
+## Current verification
 
 ```bash
-dotnet user-secrets set --project src/aspire/Host/Host.csproj "Parameters:github-app-id" "YOUR_APP_ID"
-dotnet user-secrets set --project src/aspire/Host/Host.csproj "Parameters:github-app-slug" "YOUR_APP_SLUG"
-dotnet user-secrets set --project src/aspire/Host/Host.csproj "Parameters:github-client-id" "YOUR_CLIENT_ID"
-dotnet user-secrets set --project src/aspire/Host/Host.csproj "Parameters:github-client-secret" "YOUR_CLIENT_SECRET"
-dotnet user-secrets set --project src/aspire/Host/Host.csproj "Parameters:github-private-key-base64" "BASE64_ENCODED_PEM"
-dotnet user-secrets set --project src/aspire/Host/Host.csproj "Parameters:github-webhook-secret" "YOUR_WEBHOOK_SECRET"
-```
-
-The OAuth user token and installation token are short-lived process memory only.
-TCFlow persists the verified installation and selected repository identities,
-but never persists those tokens or includes them in audit records.
-
-## Project resource lifecycle
-
-Project-scoped authenticated APIs expose permission-checked updates for projects,
-repositories, components, and features. Repository deletion is a recoverable
-disable operation (`RepositoryLifecycleStatus.Disabled`). Components are deleted
-only when neither engineering tasks nor source artifacts reference them, and
-features are deleted only when no engineering task references them. Every
-successful lifecycle mutation is persisted explicitly through Marten and emits
-an audit record containing its before/after state.
-
-Technology-neutral analyzer contracts, deterministic analyzers,
-knowledge/governance engines, and bounded AI task reconciliation are documented
-in [`src/analyzers/README.md`](src/analyzers/README.md).
-
-## Analyzer verification
-
-With the repository's .NET 9 SDK available:
-
-```bash
-dotnet restore src/analyzers/VietAIS.TCFlow.Analyzers.sln
-dotnet build src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-restore
+dotnet restore src/VietAIS.TCFlow.sln
+dotnet build src/VietAIS.TCFlow.sln --no-restore
+dotnet test src/tests/RepositoryIntelligence.IntegrationTests/RepositoryIntelligence.IntegrationTests.csproj --no-build --no-restore
 dotnet test src/analyzers/VietAIS.TCFlow.Analyzers.sln --no-build --no-restore
+cd src/apps/vue
+npm run type-check
+npm run test:unit -- --run
+npm run lint
+npm run build
 ```
+
+The v0.1 acceptance evidence remains in [`docs/acceptance/`](docs/acceptance/).
+GOAL2 completion requires a new vNext acceptance matrix; historical P14 results
+must not be reused as proof that event sourcing, replay, projection rebuild,
+durable messaging, or bounded-context migration is complete.
+
+## Security boundary
+
+Never commit GitHub App secrets, private keys, webhook secrets, access tokens,
+bootstrap credentials, or Codex authentication material. Domain events,
+projections, audit records, logs, and integration messages must not contain
+credentials or unnecessary sensitive payloads.

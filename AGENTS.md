@@ -1,6 +1,6 @@
 # AGENTS.md
 
-# Agent Rules for Source-Aware Engineering Planner
+# Agent Rules for the TCFlow Engineering System Intelligence Platform
 #IMPORTANT
 không được xoá hay sửa file ngoài folder project này trong máy dù có full access mà không có sự cho phép của tôi
 khi muốn xoá gì ngoài phạm vi project thì phải stop process và hỏi tôi khi tôi trả lời thì mới được làm tiếp
@@ -14,9 +14,15 @@ They are repository-level constraints.
 
 The agent must treat:
 
-- `GOAL.md` as the product and architecture source of truth.
+- `GOAL2.md` as the current product-evolution and target-architecture source of truth.
+- `GOAL.md` as the source of truth for retained source-awareness, authorization,
+  explainability, reconciliation, and historical product context where it does
+  not conflict with `GOAL2.md`.
+- `PRODUCT_CONSTRAINTS.md` as the mandatory product-risk boundary.
+- `PROJECT_PLAN.md` as the GOAL2 implementation-order and evidence-gate plan.
 - `WORKFLOW.md` as the mandatory implementation lifecycle.
-- Existing source code as the primary source for current repository conventions.
+- Existing source code as evidence of current behavior and conventions, not as
+  automatic authority for the target architecture during migration.
 - Feature/task acceptance criteria as the definition of completion.
 
 The agent must not begin implementation before completing the required preparation steps.
@@ -27,16 +33,19 @@ The agent must not begin implementation before completing the required preparati
 
 Before implementing any task, the agent must:
 
-1. Read `GOAL.md`.
-2. Read `WORKFLOW.md`.
-3. Read the task or feature specification.
-4. Inspect the affected source code.
-5. Inspect neighboring code in the same module.
-6. Identify the existing implementation convention.
-7. Identify the relevant authorization, persistence, validation, API, and testing conventions.
-8. Identify the acceptance criteria.
-9. Identify affected dependencies and public contracts.
-10. Only then begin implementation.
+1. Read `GOAL2.md`.
+2. Read the relevant retained requirements in `GOAL.md`.
+3. Read `PRODUCT_CONSTRAINTS.md`.
+4. Read `PROJECT_PLAN.md`.
+5. Read `WORKFLOW.md` and `GIT_RULES.md`.
+6. Read the task or feature specification.
+7. Inspect the affected source code and neighboring code.
+8. Identify the owning bounded context and affected module contracts.
+9. Classify affected legacy components as `KEEP`, `PORT`, `REWRITE`, or `REMOVE`.
+10. Identify authorization, persistence category, event, projection, messaging,
+    validation, API, observability, and testing implications.
+11. Identify the acceptance criteria and affected dependencies/public contracts.
+12. Only then begin implementation.
 
 The agent must not skip this sequence merely because the requested change appears small.
 
@@ -46,13 +55,16 @@ The agent must not skip this sequence merely because the requested change appear
 
 When information conflicts, use this priority:
 
-1. Explicit task acceptance criteria.
-2. `GOAL.md`.
-3. `WORKFLOW.md`.
-4. Existing repository architecture and conventions.
-5. Existing tests.
-6. Existing documentation.
-7. Agent assumptions.
+1. Explicit task acceptance criteria that do not violate repository-level safety rules.
+2. `GOAL2.md` for the current product direction and target architecture.
+3. `GOAL.md` for retained product behavior not superseded by `GOAL2.md`.
+4. `PRODUCT_CONSTRAINTS.md`.
+5. `PROJECT_PLAN.md`.
+6. `WORKFLOW.md` and `GIT_RULES.md`.
+7. Existing tests as evidence of validated behavior.
+8. Existing repository architecture and conventions as current-state evidence.
+9. Other existing documentation.
+10. Agent assumptions.
 
 If two higher-priority sources conflict, the agent must not silently choose one.
 
@@ -62,70 +74,197 @@ The agent must report the conflict explicitly.
 
 # 4. Architecture Rules
 
-The agent must not invent a new architecture when the repository already has an established pattern.
+The target backend architecture is:
+
+```text
+Modular Monolith
++ Domain-Driven Design
++ Vertical Slice Architecture
++ CQRS
++ Event Sourcing where domain history has business value
+```
 
 The agent must:
 
-- Preserve the FullStackHero-based backend structure.
-- Preserve module boundaries.
-- Follow existing feature/module organization.
-- Follow existing naming conventions.
-- Follow existing dependency injection patterns.
-- Follow existing request/response conventions.
-- Follow existing validation conventions.
-- Follow existing authorization conventions.
-- Follow existing error handling conventions.
-- Follow existing logging conventions.
-- Follow existing testing conventions.
+- Organize business code by bounded context first.
+- Keep technical layers inside the owning module where useful.
+- Preserve validated business behavior while migrating away from legacy structure.
+- Follow the target module boundaries and dependency direction in `GOAL2.md`.
+- Use contracts, commands, integration events, or Wolverine messages for
+  cross-module communication.
+- Keep domain logic independent from ASP.NET, Wolverine, RabbitMQ, Vue, GitHub
+  SDKs, and HTTP.
+- Follow established target conventions after a bounded context has migrated.
+- Treat legacy conventions as migration evidence when the affected context has
+  not yet migrated.
 
 The agent must not introduce:
 
 - A new architectural layer.
 - A new repository pattern.
-- A new mediator abstraction.
-- A new CQRS framework.
+- A mediator abstraction around Wolverine.
+- A second CQRS or messaging framework.
 - A new service layer.
 - A new persistence abstraction.
 - A new dependency.
 
-unless the task requires it and the existing architecture cannot satisfy the requirement.
+unless `GOAL2.md`, the migration plan, and the task explicitly justify it.
 
 ---
 
 # 5. FullStackHero Rules
 
-The backend foundation is FullStackHero dotnet-starter-kit release `2.0.4-rc`.
+The target backend foundation is FullStackHero v10 on .NET 10.
 
-The agent must preserve the overall structure and conventions of the starter kit.
+Migration must use a clean FullStackHero v10 baseline and port validated TCFlow
+bounded contexts into it. It must not be treated as a blind package-version
+upgrade over the FullStackHero `2.0.4-rc` layout.
 
-The agent must not replace existing framework infrastructure only to make implementation easier.
+The existing .NET 9 / FullStackHero `2.0.4-rc` source remains current-state
+behavioral evidence until its replacement is verified. The agent must not delete
+or bypass validated behavior merely to make the new baseline easier to adopt.
 
-Existing infrastructure should be reused whenever reasonable.
-
-If a business module is added, it should fit the current module architecture instead of bypassing it.
+Framework infrastructure should be reused when it fits the target architecture.
+Business logic must not be pushed into framework infrastructure.
 
 ---
 
 # 6. Marten Rules
 
-New business-domain persistence should use Marten according to the project conventions.
+Every persisted concept must be classified before implementation:
 
-The agent must understand the difference between:
-
-- `IQuerySession` for read-oriented operations.
-- `IDocumentSession` for write-oriented operations.
-
-The agent must persist writes explicitly where required using:
-
-```csharp
-await session.SaveChangesAsync(cancellationToken);
+```text
+1. EVENT STORE          Business truth and domain history
+2. PROJECTION           Derived query/read state
+3. OPERATIONAL DOCUMENT Infrastructure and runtime state
 ```
 
-The agent must not introduce another persistence mechanism into a Marten-based business module without a concrete requirement.
+Business aggregates selected by the migration plan use Marten Event Store.
+Commands decide domain events; state changes by applying those events. Event
+streams must use optimistic concurrency and useful metadata.
 
-The agent must not create an unnecessary repository abstraction over Marten merely to imitate Entity Framework patterns.
+Queries should use `IQuerySession` and read projections. Operational document
+writes may use `IDocumentSession` and must call
+`SaveChangesAsync(cancellationToken)` where required.
 
-Marten Event Sourcing must not be introduced unless explicitly required by the task or current project specification.
+The agent must not:
+
+- Event source infrastructure-only state such as webhook deliveries, inboxes,
+  outboxes, retries, projection checkpoints, caches, or process state.
+- Reconstruct an aggregate for an ordinary query when a read model is appropriate.
+- Add a repository abstraction over Marten merely to imitate Entity Framework.
+- Treat the Knowledge Graph or Impact Graph as primary write aggregates.
+- Introduce another persistence mechanism without a bounded-context requirement.
+
+Old document write models may be removed only after event streams, projections,
+replay, compatibility, and behavior preservation have been verified.
+
+---
+
+# 6A. Event Sourcing Rules
+
+For an event-sourced feature, the agent must identify:
+
+- Aggregate and stream boundary.
+- Commands and business invariants.
+- Domain events in past-tense business language.
+- `Decide` and `Apply` behavior.
+- Expected stream version and concurrency behavior.
+- Event metadata, including actor, correlation, causation, project, and source
+  identifiers where applicable.
+- Replay and upcasting/versioning implications.
+
+Handlers should prefer returning events instead of directly mutating fetched
+aggregate state. Domain events are public contracts when consumed outside their
+own implementation boundary and must be evolved deliberately.
+
+---
+
+# 6B. Projection Rules
+
+Projection folders must be organized by read-model purpose, not by `Inline` or
+`Async` infrastructure folders.
+
+Use Inline projections for strongly consistent critical views such as current
+aggregate state, command-followed-by-query behavior, and authorization-related
+state.
+
+Use Marten Async Daemon projections for dashboards, search, analytics,
+cross-stream views, Knowledge Graph, Impact Graph, architecture views, and
+reporting where eventual consistency is acceptable.
+
+Every important projection must be independently testable and rebuildable from
+event history. Async features must expose or verify projection lag and daemon
+health where operationally relevant.
+
+---
+
+# 6C. Wolverine and Messaging Rules
+
+Wolverine is the command, durable-message, and transactional-messaging runtime.
+The agent must not retain or add custom polling/queue infrastructure when
+Wolverine durability solves the same requirement, unless a measured constraint
+justifies it.
+
+Domain Events and Integration Events must remain distinct. When business events
+produce messages for another module or external system, use a stable integration
+contract and the Wolverine durable outbox.
+
+Durable handlers must be idempotent under at-least-once delivery. Failed-message,
+retry, dead-letter, correlation, and causation behavior must be considered.
+
+---
+
+# 6D. RabbitMQ Rules
+
+RabbitMQ is for external or system integration boundaries. It is not the
+transport for Marten Async Projections and must not be introduced merely for
+in-process module communication.
+
+RabbitMQ work must define exchange/queue ownership, routing contracts,
+delivery semantics, retries, dead-letter behavior, idempotency, and health
+checks. Event Store commits and outgoing integration messages must be coordinated
+through the outbox.
+
+---
+
+# 6E. Module Boundary Rules
+
+Target business modules are:
+
+```text
+PlatformAdministration
+Projects
+AccessControl
+Planning
+EventStorming
+Architecture
+TaskFlow
+RepositoryIntelligence
+Integrations
+```
+
+Modules may depend on another module's Contracts project but must not reference
+another module's implementation internals or access its Marten documents/tables
+directly. `RepositoryIntelligence` must not continue owning generic project
+management, platform administration, or GitHub provider mechanics.
+
+---
+
+# 6F. Migration Rules
+
+Before moving a legacy capability, record a `KEEP`, `PORT`, `REWRITE`, or
+`REMOVE` decision with evidence. Migration should proceed one bounded context at
+a time behind verifiable contracts.
+
+`PROJECT_PLAN.md` defines the active GOAL2 migration sequence. Agents must treat
+stale .NET 9, FullStackHero `2.0.4-rc`, or document-only assumptions elsewhere
+as v0.1 current-state evidence, not migration authority.
+
+The agent must not perform a big-bang rewrite, remove a legacy write model before
+its replacement is proven, or claim migration completion based only on
+compilation. A migrated bounded context must satisfy the migration quality gates
+in `GOAL2.md` section 84.
 
 ---
 
@@ -260,8 +399,10 @@ Before adding a dependency, verify:
 1. The repository does not already provide equivalent functionality.
 2. The standard library/framework cannot reasonably handle the requirement.
 3. The dependency is actively maintained and compatible with the project.
-4. The dependency does not conflict with existing architecture.
-5. The dependency is justified by the task.
+4. The dependency supports the target .NET 10 / FullStackHero v10 baseline and
+   does not duplicate Marten, Wolverine, or framework capability.
+5. The dependency does not conflict with existing architecture.
+6. The dependency is justified by the task.
 
 The final task report must mention any newly added dependency and why it was necessary.
 
@@ -277,6 +418,8 @@ Public contracts include, but are not limited to:
 - OpenAPI contracts.
 - Permission codes.
 - Domain event contracts.
+- Integration event and Wolverine message contracts.
+- Projection and read-model contracts.
 - Configuration contracts.
 - Public interfaces.
 - API error responses.
@@ -309,6 +452,11 @@ Before creating a new component, composable, store, service, or type:
 - Preserve validation conventions.
 - Preserve routing conventions.
 
+New frontend modules should mirror backend bounded-context names where
+practical. Shared UI code belongs in explicit shared components, composables,
+API clients, or utilities; business behavior belongs to the owning frontend
+module.
+
 The agent must not introduce an alternative frontend state-management or API-client pattern without a requirement.
 
 ---
@@ -329,6 +477,9 @@ Do not use AI reasoning merely to determine facts that can be parsed directly, i
 - Method calls.
 - DTO fields.
 - Marten session calls.
+- Domain event declarations.
+- Aggregate declarations.
+- Projection declarations.
 
 AI should be used for:
 
@@ -372,6 +523,12 @@ Depending on the task, verification may include:
 - Runtime checks.
 - UI tests.
 - Analyzer fixture tests.
+- Event-sourced aggregate Given/When/Then tests.
+- Inline and async projection tests.
+- Replay/rebuild tests.
+- Optimistic concurrency tests.
+- Wolverine durability/outbox tests.
+- RabbitMQ integration and idempotency tests.
 - Manual verification when automation is not practical.
 
 The agent must not:
@@ -416,6 +573,11 @@ Examples:
 - Task reconciliation.
 - Analyzer output.
 - Frontend/backend contract compatibility.
+- Event append and aggregate reconstruction.
+- Inline consistency and async projection convergence.
+- Projection rebuild and daemon health.
+- Wolverine inbox/outbox durability and failed-message behavior.
+- RabbitMQ delivery, retry, dead-letter, and idempotency behavior.
 
 The agent must not assume that compilation proves runtime correctness.
 
@@ -438,6 +600,10 @@ packet loss
 dropped frames
 CPU usage
 error rate
+projection lag
+queue depth
+message retry rate
+dead-letter count
 ```
 
 A feature that "runs" is not sufficient evidence of correctness.
@@ -458,8 +624,10 @@ A task is not complete until the agent has:
 8. Checked authorization implications.
 9. Checked public contract implications.
 10. Checked persistence implications.
-11. Checked audit implications where relevant.
-12. Confirmed no relevant test was disabled or weakened.
+11. Checked event, projection, replay, and concurrency implications where relevant.
+12. Checked messaging, idempotency, and outbox implications where relevant.
+13. Checked audit and observability implications where relevant.
+14. Confirmed no relevant test was disabled or weakened.
 
 ---
 
@@ -479,6 +647,12 @@ The agent must ask:
 - Did I forget audit logging?
 - Did I forget cancellation tokens?
 - Did I forget persistence commit semantics?
+- Did I choose the correct persistence category?
+- Can the affected projection be replayed and rebuilt?
+- Did I define consistency expectations and handle concurrency?
+- Is durable message handling idempotent?
+- Did I confuse a Domain Event with an Integration Event?
+- Did I misuse RabbitMQ for internal projection processing?
 - Did I introduce an unnecessary dependency?
 
 ---
@@ -506,7 +680,9 @@ What remains incomplete
 
 # 23. Conflict Handling
 
-If `GOAL.md`, `WORKFLOW.md`, source code, tests, or task requirements conflict materially:
+If `GOAL2.md`, retained `GOAL.md` behavior, `PRODUCT_CONSTRAINTS.md`,
+`PROJECT_PLAN.md`, `WORKFLOW.md`, source code, tests, or task requirements
+conflict materially:
 
 Do not guess.
 
@@ -539,6 +715,10 @@ Do update documentation for:
 - New analyzer capability.
 - New AI policy.
 - New deployment/setup requirement.
+- New aggregate, event stream, or public domain event.
+- New projection and its consistency/rebuild behavior.
+- New integration event, Wolverine durable workflow, or RabbitMQ contract.
+- A `KEEP`, `PORT`, `REWRITE`, or `REMOVE` migration decision.
 
 ---
 
@@ -558,6 +738,10 @@ Examples:
 
 The agent must not implement sensitive administrative actions without considering audit requirements.
 
+Event history does not automatically replace audit history. Domain events record
+business facts; audit may additionally need denied attempts, actor context,
+administrative before/after state, source, and request metadata.
+
 ---
 
 # 26. Security Rules
@@ -569,6 +753,9 @@ The agent must not:
 - Log access tokens.
 - Log passwords.
 - Log sensitive authentication data.
+- Persist secrets, access tokens, private source payloads, or sensitive
+  authentication data in immutable events, projections, durable messages, or
+  audit metadata.
 - Expose system permissions to project owners.
 - Trust frontend authorization checks.
 
@@ -635,6 +822,15 @@ Permissions
 Dependencies
 - Any packages added/removed
 
+Persistence and Events
+- Event Store, operational documents, streams, events, and concurrency impact
+
+Projections
+- Inline/async choice, consistency, replay, rebuild, and lag verification
+
+Messaging
+- Wolverine/RabbitMQ/outbox/idempotency impact
+
 Known Limitations
 - Anything not fully verified
 ```
@@ -653,5 +849,7 @@ The goal is to produce the smallest verified change that:
 - Follows repository conventions.
 - Satisfies acceptance criteria.
 - Preserves architecture.
+- Moves the affected bounded context toward the accepted `GOAL2.md` architecture
+  without discarding validated behavior.
 - Passes verification.
 - Can be explained and audited.

@@ -1,5 +1,10 @@
 # TCFlow analyzers
 
+> **Current runtime — v0.1:** This document describes the verified analyzer
+> implementation before GOAL2 migration. The current Marten analyzer is
+> document-oriented. GOAL2 will port it and add aggregate, domain-event,
+> projection, Wolverine-message, and RabbitMQ integration detection.
+
 This directory contains the technology-neutral source-analysis contracts and
 the deterministic source analyzers, contract comparison, knowledge graph,
 repository-governance engine, bounded AI reasoning/reconciliation engine,
@@ -65,12 +70,12 @@ MediatR handlers and constructor dependencies; and records operation name,
 summary, description, response/error status, and API version as OpenAPI
 evidence.
 
-The Marten analyzer recognizes `IQuerySession` and `IDocumentSession`, schema
+The current Marten analyzer recognizes `IQuerySession` and `IDocumentSession`, schema
 configuration, `Query`, `LoadAsync`, `Store`, `Delete`, and
 `SaveChangesAsync`. It connects endpoint/handler activity to document
 artifacts, records `Skip`/`Take` pagination, and emits `MARTEN001` when a write
 scope has no persistence commit. It analyzes document storage only and does
-not introduce Marten event sourcing.
+not yet analyze Marten event sourcing; that capability is `PROPOSED` by GOAL2.
 
 The contract comparator checks HTTP method and normalized route, request and
 response fields, JSON-compatible types, optionality, validation constraints,

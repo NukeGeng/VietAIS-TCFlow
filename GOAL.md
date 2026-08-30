@@ -2,6 +2,12 @@
 
 # Source-Aware Engineering Planner
 
+> **Historical baseline — v0.1:** This document defines the product behavior
+> delivered and verified by the first release. `GOAL2.md` is the current source
+> of truth for vNext product evolution and target architecture. Requirements in
+> this file remain binding only when `GOAL2.md` retains them or does not
+> supersede them.
+
 ## 1. Mục tiêu tài liệu
 
 Tài liệu này là đặc tả mục tiêu và phạm vi gốc của dự án **Source-Aware Engineering Planner**.

@@ -39,6 +39,11 @@ internal static class MartenMigrationReconciler
             .GroupBy(operation => operation.SourceReference, StringComparer.Ordinal)
             .Select(group => group.First())
             .ToArray();
+        var expectedEventOperationsByKind = CountByKind(expected);
+        var expectedOperationalDocumentsByKind = CountByKind(
+            operationalOperations
+                .GroupBy(operation => operation.SourceReference, StringComparer.Ordinal)
+                .Select(group => group.First()));
 
         await using var store = DocumentStore.For(options =>
         {
@@ -73,6 +78,7 @@ internal static class MartenMigrationReconciler
         var duplicateReferences = new List<string>();
         var found = 0;
         var missingStreams = 0;
+        var foundEventOperationsByKind = new Dictionary<string, int>(StringComparer.Ordinal);
 
         foreach (var operation in expected)
         {
@@ -93,6 +99,7 @@ internal static class MartenMigrationReconciler
             }
 
             found++;
+            Increment(foundEventOperationsByKind, operation.Kind);
             if (markers.Length > 1)
             {
                 duplicateReferences.Add(operation.SourceReference);
@@ -111,6 +118,7 @@ internal static class MartenMigrationReconciler
 
         var missingOperational = new List<string>();
         var foundOperational = 0;
+        var foundOperationalDocumentsByKind = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var operation in operationalOperations
                      .GroupBy(item => item.SourceReference, StringComparer.Ordinal)
                      .Select(group => group.First()))
@@ -134,6 +142,7 @@ internal static class MartenMigrationReconciler
             }
 
             foundOperational++;
+            Increment(foundOperationalDocumentsByKind, operation.Kind);
             if (!string.Equals(document.PayloadHash, operation.PayloadHash, StringComparison.Ordinal))
             {
                 mismatches.Add(
@@ -163,6 +172,19 @@ internal static class MartenMigrationReconciler
             issues.Add($"Duplicate migration markers: {string.Join(", ", duplicateReferences)}.");
         }
 
+        var countMismatches = BuildCountMismatches(
+            expectedEventOperationsByKind,
+            foundEventOperationsByKind,
+            "event operations");
+        countMismatches.AddRange(BuildCountMismatches(
+            expectedOperationalDocumentsByKind,
+            foundOperationalDocumentsByKind,
+            "operational documents"));
+        if (countMismatches.Count > 0)
+        {
+            issues.Add($"Migration count mismatches: {string.Join("; ", countMismatches)}");
+        }
+
         return new MigrationReconciliationReport(
             plan.Operations.Count,
             eventOperations.Length,
@@ -179,8 +201,40 @@ internal static class MartenMigrationReconciler
             missingOperational,
             mismatches,
             duplicateReferences,
+            expectedEventOperationsByKind,
+            foundEventOperationsByKind,
+            expectedOperationalDocumentsByKind,
+            foundOperationalDocumentsByKind,
+            countMismatches,
             issues,
             issues.Count == 0);
+    }
+
+    private static Dictionary<string, int> CountByKind(IEnumerable<MigrationOperation> operations) =>
+        operations
+            .GroupBy(operation => operation.Kind, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+
+    private static void Increment(Dictionary<string, int> counts, string kind) =>
+        counts[kind] = counts.TryGetValue(kind, out var count) ? count + 1 : 1;
+
+    private static List<string> BuildCountMismatches(
+        IReadOnlyDictionary<string, int> expected,
+        IReadOnlyDictionary<string, int> found,
+        string category)
+    {
+        var mismatches = new List<string>();
+        foreach (var kind in expected.Keys.Union(found.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            expected.TryGetValue(kind, out var expectedCount);
+            found.TryGetValue(kind, out var foundCount);
+            if (expectedCount != foundCount)
+            {
+                mismatches.Add($"{category} '{kind}': expected {expectedCount}, found {foundCount}");
+            }
+        }
+
+        return mismatches;
     }
 
     private static bool HasSourceReference(IEvent @event, string sourceReference) =>

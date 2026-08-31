@@ -117,6 +117,11 @@ internal sealed record MigrationReconciliationReport(
     IReadOnlyList<string> MissingOperationalReferences,
     IReadOnlyList<string> HashMismatches,
     IReadOnlyList<string> DuplicateSourceReferences,
+    IReadOnlyDictionary<string, int> ExpectedEventOperationsByKind,
+    IReadOnlyDictionary<string, int> FoundEventOperationsByKind,
+    IReadOnlyDictionary<string, int> ExpectedOperationalDocumentsByKind,
+    IReadOnlyDictionary<string, int> FoundOperationalDocumentsByKind,
+    IReadOnlyList<string> CountMismatches,
     IReadOnlyList<string> Issues,
     bool Reconciled);
 

@@ -54,6 +54,9 @@ public sealed class MartenMigrationReconcilerTests : IAsyncLifetime
         Assert.Equal(0, report.OperationalDocumentOperations);
         Assert.Equal(1, report.ExpectedSourceMarkers);
         Assert.Equal(1, report.FoundSourceMarkers);
+        Assert.Equal(1, report.ExpectedEventOperationsByKind["Project"]);
+        Assert.Equal(1, report.FoundEventOperationsByKind["Project"]);
+        Assert.Empty(report.CountMismatches);
         Assert.Empty(report.Issues);
     }
 
@@ -93,6 +96,9 @@ public sealed class MartenMigrationReconcilerTests : IAsyncLifetime
         Assert.False(report.Reconciled);
         Assert.Equal(2, report.ExpectedSourceMarkers);
         Assert.Equal(1, report.FoundSourceMarkers);
+        Assert.Equal(2, report.ExpectedEventOperationsByKind["Project"]);
+        Assert.Equal(1, report.FoundEventOperationsByKind["Project"]);
+        Assert.Contains(report.CountMismatches, item => item.Contains("Project", StringComparison.Ordinal));
         Assert.Contains(
             report.HashMismatches,
             item => item.StartsWith("v0.1:Project:project-1", StringComparison.Ordinal));
@@ -137,6 +143,9 @@ public sealed class MartenMigrationReconcilerTests : IAsyncLifetime
         Assert.Equal(1, report.OperationalDocumentOperations);
         Assert.Equal(1, report.ExpectedOperationalDocuments);
         Assert.Equal(1, report.FoundOperationalDocuments);
+        Assert.Equal(1, report.ExpectedOperationalDocumentsByKind["GitHubDelivery"]);
+        Assert.Equal(1, report.FoundOperationalDocumentsByKind["GitHubDelivery"]);
+        Assert.Empty(report.CountMismatches);
         Assert.Empty(report.MissingOperationalReferences);
         Assert.Empty(report.Issues);
     }

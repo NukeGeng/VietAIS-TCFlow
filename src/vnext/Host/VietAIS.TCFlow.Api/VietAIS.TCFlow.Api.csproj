@@ -17,6 +17,8 @@
     <ProjectReference Include="..\..\Modules\TaskFlow\Modules.TaskFlow.Contracts\Modules.TaskFlow.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\EventStorming\Modules.EventStorming\Modules.EventStorming.csproj" />
     <ProjectReference Include="..\..\Modules\EventStorming\Modules.EventStorming.Contracts\Modules.EventStorming.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Architecture\Modules.Architecture\Modules.Architecture.csproj" />
+    <ProjectReference Include="..\..\Modules\Architecture\Modules.Architecture.Contracts\Modules.Architecture.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Planning\Modules.Planning.Contracts\Modules.Planning.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Projects\Modules.Projects\Modules.Projects.csproj" />
     <ProjectReference Include="..\..\Modules\Projects\Modules.Projects.Contracts\Modules.Projects.Contracts.csproj" />

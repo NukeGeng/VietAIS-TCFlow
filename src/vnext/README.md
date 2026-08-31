@@ -43,6 +43,10 @@ Interactive EventStorming boards, ordered nodes, connections, hotspots, and
 the async domain-event catalog are recorded in
 [`docs/architecture/M7_EVENT_STORMING_EVENT_MODEL.md`](../../docs/architecture/M7_EVENT_STORMING_EVENT_MODEL.md).
 
+Living architecture modules, ERD relationships, and evidence-backed drift
+records are recorded in
+[`docs/architecture/M8_ARCHITECTURE_EVENT_MODEL.md`](../../docs/architecture/M8_ARCHITECTURE_EVENT_MODEL.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

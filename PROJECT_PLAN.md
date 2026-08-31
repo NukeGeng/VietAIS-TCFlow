@@ -381,6 +381,9 @@ Gate:
 
 Owner: `backend`, with `frontend` visualization work.
 
+Status: `CONFIRMED` for the vNext living-architecture reference slice; source
+mapping and visualization parity remain part of M9/M12 integration gates.
+
 Deliverables:
 
 - Bounded contexts, modules, dependencies, services, data models, ERDs,

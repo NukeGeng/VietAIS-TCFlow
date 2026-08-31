@@ -38,6 +38,11 @@ using VietAIS.TCFlow.Modules.Architecture.Contracts.Commands;
 using VietAIS.TCFlow.Modules.Architecture.Contracts.Queries;
 using VietAIS.TCFlow.Modules.Architecture.Features;
 using VietAIS.TCFlow.Modules.Architecture.Projections;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Configuration;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Contracts.Commands;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Contracts.Queries;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Features;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Projections;
 using Wolverine;
 using Wolverine.Http;
 using Wolverine.Marten;
@@ -59,6 +64,9 @@ builder.Services.AddTcFlowProjectionAdministration(options =>
     options.AllowedProjectionNames.Add(StormingProjectionNames.DomainEventCatalog);
     options.AllowedProjectionNames.Add(ArchitectureProjectionNames.Current);
     options.AllowedProjectionNames.Add(ArchitectureProjectionNames.Overview);
+    options.AllowedProjectionNames.Add(RepositoryProjectionNames.Current);
+    options.AllowedProjectionNames.Add(RepositoryProjectionNames.KnowledgeGraph);
+    options.AllowedProjectionNames.Add(RepositoryProjectionNames.ImpactGraph);
 });
 
 var martenConnection = builder.Configuration.GetConnectionString("marten");
@@ -78,6 +86,7 @@ builder.Services.AddMarten(options =>
     TaskFlowMartenConfiguration.Configure(options);
     StormingMartenConfiguration.Configure(options);
     ArchitectureMartenConfiguration.Configure(options);
+    RepositoryMartenConfiguration.Configure(options);
 })
 .IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")
 .AddAsyncDaemon(DaemonMode.HotCold);
@@ -92,6 +101,7 @@ builder.Host.UseWolverine(options =>
     options.Discovery.IncludeAssembly(typeof(TaskFlowHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(StormingHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(ArchitectureHandlers).Assembly);
+    options.Discovery.IncludeAssembly(typeof(RepositoryHandlers).Assembly);
     TcFlowMessagingConfiguration.Configure(options);
 });
 
@@ -355,6 +365,42 @@ app.MapPost("/api/vnext/architecture/models/{modelId:guid}/drifts", async (Guid 
 app.MapGet("/api/vnext/architecture/models/{modelId:guid}", async (Guid modelId, IQuerySession session, CancellationToken cancellationToken) =>
 {
     var result = await ArchitectureQueries.Handle(new GetArchitectureModel(modelId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/repository-intelligence/analyses", async (StartAnalysis command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    var result = await bus.InvokeAsync<AnalysisCommandResult>(command, cancellationToken).ConfigureAwait(false);
+    return Results.Created($"/api/vnext/repository-intelligence/analyses/{result.AnalysisRunId}", result);
+});
+
+app.MapPost("/api/vnext/repository-intelligence/analyses/{analysisRunId:guid}/artifacts", async (Guid analysisRunId, ObserveArtifact command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (analysisRunId != command.AnalysisRunId) return Results.BadRequest(new { error = "The route and command analysis IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<AnalysisCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/repository-intelligence/analyses/{analysisRunId:guid}/changes", async (Guid analysisRunId, DetectSourceChange command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (analysisRunId != command.AnalysisRunId) return Results.BadRequest(new { error = "The route and command analysis IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<AnalysisCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/repository-intelligence/analyses/{analysisRunId:guid}/evidence", async (Guid analysisRunId, RecordEvidence command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (analysisRunId != command.AnalysisRunId) return Results.BadRequest(new { error = "The route and command analysis IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<AnalysisCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/repository-intelligence/analyses/{analysisRunId:guid}/complete", async (Guid analysisRunId, CompleteAnalysis command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (analysisRunId != command.AnalysisRunId) return Results.BadRequest(new { error = "The route and command analysis IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<AnalysisCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapGet("/api/vnext/repository-intelligence/analyses/{analysisRunId:guid}", async (Guid analysisRunId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await RepositoryQueries.Handle(new GetAnalysis(analysisRunId), session, cancellationToken).ConfigureAwait(false);
     return result is null ? Results.NotFound() : Results.Ok(result);
 });
 

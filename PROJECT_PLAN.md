@@ -401,6 +401,9 @@ Gate:
 
 Owner: `ai`, with backend adapters separated by contract.
 
+Status: `CONFIRMED` for the vNext normalized-analysis reference slice; full
+legacy analyzer precision/recall reconciliation remains an M13/M14 gate.
+
 Deliverables:
 
 - Port deterministic Vue/ASP.NET/Marten analysis, graph, contracts,

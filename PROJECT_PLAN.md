@@ -532,6 +532,11 @@ projections remain configured on the local daemon; RabbitMQ is not used as an
 internal projection transport. This is composition evidence only until an
 isolated Aspire runtime transcript is captured.
 
+The self-host bundle now provides a guarded `goal2` Compose profile with a
+.NET 10 vNext API image, RabbitMQ, and an Nginx `/api/vnext/` canary route.
+The default v0.1 services remain available for rollback until the canary passes
+the full M13 runtime checks.
+
 Gate:
 
 - Pre/post counts and business invariants reconcile.

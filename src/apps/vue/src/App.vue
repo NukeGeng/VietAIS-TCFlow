@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useLocaleStore } from './stores/locale'
 import { useSessionStore } from './stores/session'
 import { useWorkspaceStore } from './stores/workspace'
+import { projectNavigationFor } from './modules/navigation'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,53 +21,7 @@ const isSidebarOpen = ref(false)
 const projectNavigation = computed(() => {
   const projectId = selectedProjectId.value
   if (!projectId) return []
-  return [
-    {
-      key: 'repositories',
-      icon: '◈',
-      to: `/projects/${projectId}/repositories`,
-      permission: 'repository.view',
-    },
-    {
-      key: 'analysis',
-      icon: '◌',
-      to: `/projects/${projectId}/analysis`,
-      permission: 'analysis.view',
-    },
-    {
-      key: 'impactGraph',
-      icon: '⌁',
-      to: `/projects/${projectId}/impacts`,
-      permission: 'task.view',
-    },
-    {
-      key: 'features',
-      icon: '✦',
-      to: `/projects/${projectId}/features`,
-      permission: 'feature.view',
-    },
-    {
-      key: 'taskBoard',
-      icon: '✓',
-      to: `/projects/${projectId}/tasks`,
-      permission: 'task.view',
-    },
-    {
-      key: 'projectAdmin',
-      icon: '⚙',
-      to: `/projects/${projectId}/admin`,
-      permission: 'role.view',
-      additionalPermissions: [
-        'member.view',
-        'component.view',
-        'project.update',
-        'authority.view',
-        'convention.view',
-        'ai.policy.update',
-        'audit.view',
-      ],
-    },
-  ]
+  return projectNavigationFor(projectId).map((item) => ({ ...item, to: item.path }))
 })
 
 function canNavigate(item: { permission: string; additionalPermissions?: string[] }): boolean {

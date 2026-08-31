@@ -10,7 +10,6 @@ public static class AccessControlMartenConfiguration
     public static void Configure(StoreOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        options.DatabaseSchemaName = "access_control";
         options.Events.AddEventType<ProjectAccessInitialized>();
         options.Events.AddEventType<ProjectRoleCreated>();
         options.Events.AddEventType<ProjectRolePermissionsUpdated>();

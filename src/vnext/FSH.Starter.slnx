@@ -24,6 +24,10 @@
     <Project Path="Modules/AccessControl/Modules.AccessControl.Contracts/Modules.AccessControl.Contracts.csproj" />
     <Project Path="Modules/AccessControl/Modules.AccessControl/Modules.AccessControl.csproj" />
   </Folder>
+  <Folder Name="/Modules/Planning/">
+    <Project Path="Modules/Planning/Modules.Planning.Contracts/Modules.Planning.Contracts.csproj" />
+    <Project Path="Modules/Planning/Modules.Planning/Modules.Planning.csproj" />
+  </Folder>
   <Folder Name="/Modules/Auditing/">
     <Project Path="Modules/Auditing/Modules.Auditing.Contracts/Modules.Auditing.Contracts.csproj" />
     <Project Path="Modules/Auditing/Modules.Auditing/Modules.Auditing.csproj" Id="2764205b-8725-43a7-b499-67b98959ad50" />
@@ -79,6 +83,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/AccessControl.Tests/AccessControl.Tests.csproj" />
+    <Project Path="Tests/Planning.Tests/Planning.Tests.csproj" />
     <Project Path="Tests/EventSourcing.Tests/EventSourcing.Tests.csproj" />
     <Project Path="Tests/Projects.Tests/Projects.Tests.csproj" />
     <Project Path="Tests/Architecture.Tests/Architecture.Tests.csproj" />

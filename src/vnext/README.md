@@ -31,6 +31,10 @@ Project-scoped roles, memberships, permission scopes, and the system-admin
 boundary are recorded in
 [`docs/architecture/M4_ACCESS_CONTROL_EVENT_MODEL.md`](../../docs/architecture/M4_ACCESS_CONTROL_EVENT_MODEL.md).
 
+Plan, requirement, milestone, projection, and cross-context ownership are
+recorded in
+[`docs/architecture/M5_PLANNING_EVENT_MODEL.md`](../../docs/architecture/M5_PLANNING_EVENT_MODEL.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

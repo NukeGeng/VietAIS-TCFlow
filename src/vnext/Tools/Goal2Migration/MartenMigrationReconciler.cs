@@ -7,6 +7,7 @@ using VietAIS.TCFlow.Modules.Architecture.Configuration;
 using VietAIS.TCFlow.Modules.EventStorming.Configuration;
 using VietAIS.TCFlow.Modules.Integrations.Configuration;
 using VietAIS.TCFlow.Modules.Planning.Configuration;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Configuration;
 using VietAIS.TCFlow.Modules.Projects.Configuration;
 using VietAIS.TCFlow.Modules.RepositoryIntelligence.Configuration;
 using VietAIS.TCFlow.Modules.TaskFlow.Configuration;
@@ -50,6 +51,7 @@ internal static class MartenMigrationReconciler
             StormingMartenConfiguration.Configure(options);
             ArchitectureMartenConfiguration.Configure(options);
             ProjectsMartenConfiguration.Configure(options);
+            PlatformMartenConfiguration.Configure(options);
             IntegrationsMartenConfiguration.Configure(options);
         });
 

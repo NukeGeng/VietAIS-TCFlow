@@ -84,12 +84,57 @@ app.MapPost("/api/vnext/projects/{projectId:guid}/rename", async (
     return Results.Ok(result);
 });
 
+app.MapPost("/api/vnext/projects/{projectId:guid}/suspend", async (
+    Guid projectId,
+    SuspendProject command,
+    IMessageBus bus,
+    CancellationToken cancellationToken) =>
+{
+    if (projectId != command.ProjectId)
+    {
+        return Results.BadRequest(new { error = "The route and command project IDs must match." });
+    }
+
+    var result = await bus.InvokeAsync<ProjectCommandResult>(command, cancellationToken)
+        .ConfigureAwait(false);
+    return Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/projects/{projectId:guid}/activate", async (
+    Guid projectId,
+    ActivateProject command,
+    IMessageBus bus,
+    CancellationToken cancellationToken) =>
+{
+    if (projectId != command.ProjectId)
+    {
+        return Results.BadRequest(new { error = "The route and command project IDs must match." });
+    }
+
+    var result = await bus.InvokeAsync<ProjectCommandResult>(command, cancellationToken)
+        .ConfigureAwait(false);
+    return Results.Ok(result);
+});
+
 app.MapGet("/api/vnext/projects/{projectId:guid}", async (
     Guid projectId,
     IQuerySession session,
     CancellationToken cancellationToken) =>
 {
     var result = await ProjectQueries.Handle(new GetProject(projectId), session, cancellationToken)
+        .ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+app.MapGet("/api/vnext/projects/{projectId:guid}/summary", async (
+    Guid projectId,
+    IQuerySession session,
+    CancellationToken cancellationToken) =>
+{
+    var result = await ProjectQueries.Handle(
+            new GetProjectPortfolioSummary(projectId),
+            session,
+            cancellationToken)
         .ConfigureAwait(false);
     return result is null ? Results.NotFound() : Results.Ok(result);
 });

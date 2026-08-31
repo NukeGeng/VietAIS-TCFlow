@@ -55,6 +55,68 @@ public sealed class ProjectAggregateTests
             DateTimeOffset.UtcNow));
     }
 
+    [Fact]
+    public void LifecycleDecisionsRequireTheExpectedState()
+    {
+        var id = Guid.NewGuid();
+        var created = new ProjectCreated(
+            id,
+            "Payments",
+            "owner-1",
+            "owner-1",
+            "correlation-1",
+            DateTimeOffset.UtcNow);
+        var aggregate = AggregateFrom(created);
+
+        var suspended = aggregate.Suspend(
+            "admin-1",
+            "correlation-2",
+            created.OccurredAtUtc.AddMinutes(1));
+        aggregate.Apply(suspended);
+        Assert.Throws<InvalidOperationException>(() => aggregate.Suspend(
+            "admin-1",
+            "correlation-duplicate-suspend",
+            created.OccurredAtUtc.AddMinutes(1).AddSeconds(1)));
+        var activated = aggregate.Activate(
+            "admin-1",
+            "correlation-3",
+            created.OccurredAtUtc.AddMinutes(2));
+
+        Assert.NotNull(activated);
+        Assert.True(aggregate.IsSuspended);
+        aggregate.Apply(activated);
+        Assert.False(aggregate.IsSuspended);
+        Assert.Throws<InvalidOperationException>(() => aggregate.Activate(
+            "admin-1",
+            "correlation-duplicate-activate",
+            created.OccurredAtUtc.AddMinutes(3)));
+    }
+
+    [Fact]
+    public void ProjectNameInvariantIsSharedByCreateAndRenameDecisions()
+    {
+        var id = Guid.NewGuid();
+        var created = new ProjectCreated(
+            id,
+            "Payments",
+            "owner-1",
+            "owner-1",
+            "correlation-1",
+            DateTimeOffset.UtcNow);
+        var aggregate = AggregateFrom(created);
+
+        Assert.Throws<ArgumentException>(() => aggregate.Rename(
+            "x",
+            "owner-1",
+            "correlation-2",
+            DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => aggregate.Rename(
+            new string('x', 151),
+            "owner-1",
+            "correlation-3",
+            DateTimeOffset.UtcNow));
+    }
+
     private static ProjectAggregate AggregateFrom(ProjectCreated created, params object[] events)
     {
         var aggregate = (ProjectAggregate)Activator.CreateInstance(

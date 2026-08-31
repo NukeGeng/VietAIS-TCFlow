@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Modules.Projects.Contracts\Modules.Projects.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="FluentValidation" />
     <PackageReference Include="Marten" />
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="WolverineFx.Marten" />

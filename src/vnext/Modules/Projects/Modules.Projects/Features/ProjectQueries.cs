@@ -27,4 +27,25 @@ public static class ProjectQueries
                 current.Version,
                 current.LastChangedAtUtc);
     }
+
+    public static async Task<ProjectPortfolioView?> Handle(
+        GetProjectPortfolioSummary query,
+        IQuerySession session,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(session);
+
+        var summary = await session.LoadAsync<ProjectPortfolioSummary>(
+            query.ProjectId,
+            cancellationToken).ConfigureAwait(false);
+        return summary is null
+            ? null
+            : new ProjectPortfolioView(
+                summary.Id,
+                summary.Name,
+                summary.IsSuspended,
+                summary.Version,
+                summary.LastChangedAtUtc);
+    }
 }

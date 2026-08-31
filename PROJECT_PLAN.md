@@ -266,6 +266,10 @@ PostgreSQL/Testcontainers coverage in
 
 Owner: `backend`.
 
+Status: `CONFIRMED` for the vNext Projects lifecycle slice. Memberships,
+project roles, authority/convention policy, and permission/resource scope are
+owned by M4; the legacy module remains in place until M12 reconciliation.
+
 Candidate aggregates/events:
 
 - `Project` with create, rename, lifecycle, ownership-reference, and policy
@@ -282,6 +286,10 @@ Gate:
 - Atomic project creation behavior from v0.1 is retained.
 - Existing project identities map deterministically to streams.
 - Authorization, audit, replay, and concurrency tests pass.
+
+Evidence: `docs/architecture/M3_PROJECTS_EVENT_MODEL.md`, the Projects unit
+tests, and the PostgreSQL/Testcontainers event-store tests. Authorization
+parity is explicitly deferred to M4 and is not claimed by this slice.
 
 ### M4 — AccessControl
 

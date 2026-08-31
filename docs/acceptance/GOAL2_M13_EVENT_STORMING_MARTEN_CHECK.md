@@ -27,7 +27,7 @@ dotnet test Tests/Migration.Tests/Migration.Tests.csproj \
   --configuration Release --no-restore -v:minimal
 ```
 
-Result: `33 passed, 0 failed` on .NET 10, including the Integrations
+Result: `35 passed, 0 failed` on .NET 10, including the PlatformAdministration and Integrations
 operational and read-only Marten reconciliation checks. The test verifies typed event order,
 board-stream identity, inline node/connection/hotspot/order state, and a
 second apply that skips all migrated records without appending duplicates.

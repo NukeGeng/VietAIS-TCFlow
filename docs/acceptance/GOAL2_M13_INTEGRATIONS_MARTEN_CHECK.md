@@ -27,7 +27,7 @@ source reference, kind, and payload hash.
 | Operational source/hash reconciliation | passed |
 | `MartenOperationalMigrationApplierTests` | 2 passed, 0 failed |
 | `MartenMigrationReconcilerTests` | 3 passed, 0 failed |
-| Full `Migration.Tests` suite | 33 passed, 0 failed |
+| Full `Migration.Tests` suite | 35 passed, 0 failed |
 
 ## Remaining M13/M14 obligations
 

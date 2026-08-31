@@ -35,7 +35,7 @@ fail closed because they require their own owning-context mapper.
 | Applied redacted GitHub delivery document, then reconciled source/hash | passed |
 | Missing stream and changed payload hash reported without writes | passed |
 | `MartenMigrationReconcilerTests` | 3 passed, 0 failed |
-| Full `Migration.Tests` suite | 33 passed, 0 failed |
+| Full `Migration.Tests` suite | 35 passed, 0 failed |
 | Migration tool Release build | 0 warnings, 0 errors |
 
 ## Remaining M13 evidence

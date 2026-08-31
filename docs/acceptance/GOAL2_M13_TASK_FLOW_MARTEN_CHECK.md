@@ -39,7 +39,7 @@ also verifies deterministic parent-stream identity, typed version/evidence
 events, projection readback, aggregate replay counters, and repeat-apply
 idempotency.
 
-The migration suite result is `33 passed, 0 failed` on .NET 10, including the
+The migration suite result is `35 passed, 0 failed` on .NET 10, including the
 Integrations operational and read-only Marten reconciliation checks.
 
 ## Remaining M13 obligations

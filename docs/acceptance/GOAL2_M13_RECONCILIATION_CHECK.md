@@ -34,6 +34,7 @@ fail closed because they require their own owning-context mapper.
 | Applied typed Project stream, then reconciled source marker/hash | passed |
 | Applied redacted GitHub delivery document, then reconciled source/hash | passed |
 | Missing stream and changed payload hash reported without writes | passed |
+| Event-stream and operational-document counts by record kind | passed; mismatches are reported without writes |
 | `MartenMigrationReconcilerTests` | 3 passed, 0 failed |
 | Full `Migration.Tests` suite | 35 passed, 0 failed |
 | Migration tool Release build | 0 warnings, 0 errors |
@@ -41,7 +42,9 @@ fail closed because they require their own owning-context mapper.
 ## Remaining M13 evidence
 
 This check proves stream/document-level marker/hash presence and duplicate
-detection for the tested typed writers. It does not prove semantic pre/post
-record counts, business invariants, isolated backup/restore, projection rebuild
-after restore, or rollback rehearsal. Those artifacts remain required before
-M13 can move from `PROPOSED` to `CONFIRMED`.
+detection for the tested typed writers. The reconciliation report also contains
+expected/found counts grouped by source kind and an explicit `CountMismatches`
+list, so missing records are visible even when another kind has the same total.
+It does not prove semantic business invariants, isolated backup/restore,
+projection rebuild after restore, or rollback rehearsal. Those artifacts remain
+required before M13 can move from `PROPOSED` to `CONFIRMED`.

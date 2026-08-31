@@ -90,3 +90,26 @@ internal sealed record MigrationApplyOutput(
     MigrationPlan Plan,
     MigrationApplyReport Report,
     MigrationBusinessApplyReport? BusinessEvents = null);
+
+/// <summary>
+/// Read-only reconciliation result for an exported migration plan. The
+/// reconciler checks source markers and hashes in the target Event Store; it
+/// never changes business state.
+/// </summary>
+internal sealed record MigrationReconciliationReport(
+    int PlannedOperations,
+    int EventStreamOperations,
+    int OperationalDocumentOperations,
+    int ExpectedSourceMarkers,
+    int FoundSourceMarkers,
+    int DuplicateSourceMarkers,
+    int MissingStreams,
+    IReadOnlyList<string> MissingSourceReferences,
+    IReadOnlyList<string> HashMismatches,
+    IReadOnlyList<string> DuplicateSourceReferences,
+    IReadOnlyList<string> Issues,
+    bool Reconciled);
+
+internal sealed record MigrationReconciliationOutput(
+    MigrationPlan Plan,
+    MigrationReconciliationReport Report);

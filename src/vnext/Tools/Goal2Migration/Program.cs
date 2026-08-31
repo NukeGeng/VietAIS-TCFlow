@@ -23,6 +23,7 @@ internal static class Program
             var ledgerPath = ReadOptionalOption(args, "--ledger");
             var apply = HasFlag(args, "--apply");
             var applyMarten = HasFlag(args, "--apply-marten");
+            var reconcileMarten = HasFlag(args, "--reconcile-marten");
             var connectionString = ReadOptionalOption(args, "--connection");
             if (apply && ledgerPath is null)
             {
@@ -39,9 +40,14 @@ internal static class Program
                 throw new ArgumentException("'--connection' is required when '--apply-marten' is specified.");
             }
 
-            if (apply && applyMarten)
+            if (reconcileMarten && string.IsNullOrWhiteSpace(connectionString))
             {
-                throw new ArgumentException("Use either '--apply' or '--apply-marten', not both.");
+                throw new ArgumentException("'--connection' is required when '--reconcile-marten' is specified.");
+            }
+
+            if (apply && applyMarten || apply && reconcileMarten || applyMarten && reconcileMarten)
+            {
+                throw new ArgumentException("Use only one of '--apply', '--apply-marten', or '--reconcile-marten'.");
             }
 
             if ((apply || applyMarten) && appliedPath is not null)
@@ -71,6 +77,24 @@ internal static class Program
                         await File.ReadAllTextAsync(appliedPath).ConfigureAwait(false),
                         JsonOptions));
             var plan = Goal2MigrationPlanner.Plan(input, applied);
+
+            if (reconcileMarten)
+            {
+                var reconciliation = await MartenMigrationReconciler.ReconcileAsync(
+                    plan,
+                    connectionString!,
+                    CancellationToken.None).ConfigureAwait(false);
+                await File.WriteAllTextAsync(
+                    outputPath,
+                    JsonSerializer.Serialize(new MigrationReconciliationOutput(plan, reconciliation), JsonOptions))
+                    .ConfigureAwait(false);
+                await Console.Out.WriteLineAsync(
+                    reconciliation.Reconciled
+                        ? $"GOAL2 Marten reconciliation passed: {reconciliation.FoundSourceMarkers}/{reconciliation.ExpectedSourceMarkers} source markers found. Report: '{outputPath}'."
+                        : $"GOAL2 Marten reconciliation failed: {string.Join(" ", reconciliation.Issues)} Report: '{outputPath}'.")
+                    .ConfigureAwait(false);
+                return reconciliation.Reconciled ? 0 : 3;
+            }
 
             if (!apply && !applyMarten)
             {

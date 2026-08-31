@@ -521,6 +521,9 @@ Deliverables:
 - Typed `Architecture` writer that maps models, modules, module relationships,
   entities, data relationships, and drift records to a deterministic model
   stream and updates the inline architecture view in the same transaction.
+- Read-only Marten reconciliation command that verifies expected
+  source-reference and payload-hash markers, reports missing/duplicate/mismatch
+  conditions, and fails closed without changing business state.
 - Dry-run, reconciliation, rollback, backup/restore, replay/rebuild, and
   cutover runbooks.
 - Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,
@@ -540,6 +543,7 @@ the full M13 runtime checks.
 Gate:
 
 - Pre/post counts and business invariants reconcile.
+- Event-stream source markers and payload hashes reconcile without writes.
 - Migration is repeatable and idempotent.
 - Backup restore plus projection rebuild is demonstrated in an isolated stack.
 

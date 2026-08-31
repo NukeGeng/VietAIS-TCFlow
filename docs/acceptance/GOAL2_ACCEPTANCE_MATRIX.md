@@ -19,7 +19,7 @@ remaining cutover/acceptance obligation.
 | M10 | GitHub/RabbitMQ boundary | CONFIRMED | signature test/CI; broker deployment pending |
 | M11 | Platform policy/audit reference | CONFIRMED | policy test/CI; FSH Identity composition pending |
 | M12 | Vue bounded-context workspace | CONFIRMED | 38 frontend tests, typecheck, lint, build |
-| M13 | Migration/cutover/self-host operations | PROPOSED | deterministic planner, resumable ledger, and typed Projects/AccessControl/Planning/TaskFlow/RepositoryIntelligence/EventStorming/Architecture Marten apply are verified; full-context apply, pre/post reconciliation, isolated backup/restore, and rollback remain required |
+| M13 | Migration/cutover/self-host operations | PROPOSED | deterministic planner, resumable ledger, typed Projects/AccessControl/Planning/TaskFlow/RepositoryIntelligence/EventStorming/Architecture Marten apply, and read-only source-marker/hash reconciliation are verified (30 migration tests); full-context apply, semantic pre/post reconciliation, isolated backup/restore, and rollback remain required |
 | M14 | End-to-end GOAL2 acceptance | PROPOSED | execute after M13 evidence |
 
 This matrix does not claim that the v0.1 runtime has been removed or that

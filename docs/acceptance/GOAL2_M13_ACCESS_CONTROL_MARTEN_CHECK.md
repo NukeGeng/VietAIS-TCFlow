@@ -30,7 +30,7 @@ uses Testcontainers PostgreSQL and verifies:
 4. A second apply appends zero duplicate events and finds the original markers.
 5. Missing/ambiguous role or permission data fails closed before a write.
 
-Migration test result: `28 passed, 0 failed` on .NET 10 (including the
+Migration test result: `30 passed, 0 failed` on .NET 10 (including the
 planner, Projects, AccessControl, Planning, TaskFlow, and RepositoryIntelligence
 migration checks).
 

@@ -88,6 +88,25 @@ stream and appends zero duplicate business events. The command is still an
 isolated model slice: the full M13 pre/post reconciliation, backup/restore, and
 rollback gate remains open.
 
+After an apply, run the read-only Marten reconciliation against the same
+versioned plan and an initialized target Event Store:
+
+```bash
+dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
+  --input /path/to/projects-export.v1.json \
+  --output /path/to/projects-marten-reconciliation.json \
+  --reconcile-marten \
+  --connection "$TCFLOW_MARTEN_CONNECTION"
+```
+
+`--reconcile-marten` reads only migration source-reference and payload-hash
+markers from target streams. It reports missing streams, missing or duplicate
+markers, and hash mismatches; it does not provision schema, append events,
+update projections, or modify operational documents. Exit code `0` means all
+event-stream markers reconcile; exit code `3` means a mismatch was found.
+Operational records such as GitHub credentials and delivery leases are outside
+this Event Store check and still require document-level reconciliation evidence.
+
 ## Migration rules
 
 | v0.1 data | vNext disposition |

@@ -73,6 +73,13 @@ exception to this statement; it remains fail-closed for all other
 bounded-context kinds until their typed mappers and reconciliation evidence are
 added.
 
+The same tool provides a read-only Marten marker/hash check via
+`--reconcile-marten --connection`. It verifies expected source references and
+payload hashes in initialized target event streams without provisioning schema
+or writing business state. A successful check is direct evidence for
+stream-level idempotency only; it does not replace semantic invariant counts,
+operational-document reconciliation, backup/restore, or rollback rehearsal.
+
 ## Contract migration rule
 
 For every HTTP route, permission code, domain event, integration message,

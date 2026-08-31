@@ -29,7 +29,7 @@ token is persisted in the event metadata.
 | Source marker readback | Project and lifecycle markers present with matching hashes |
 | Repeat apply | 0 business events appended, 2 skipped |
 | Unsupported `Archived` lifecycle | Rejected before any event append |
-| Focused migration test suite | 28 passed, 0 failed (planner plus Projects, AccessControl, Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture migration tests) |
+| Focused migration test suite | 30 passed, 0 failed (planner plus Projects, AccessControl, Planning, TaskFlow, RepositoryIntelligence, EventStorming, Architecture, and read-only reconciliation tests) |
 
 The writer refuses unsupported bounded-context kinds, missing required fields,
 an existing unmarked stream, stale ledger markers, and changed payload hashes.

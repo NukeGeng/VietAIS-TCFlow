@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "kind": "Project",
+      "sourceId": "project-001",
+      "projectSourceId": null,
+      "payloadHash": "sha256:replace-with-export-hash",
+      "payload": {
+        "name": "Redacted example project"
+      }
+    },
+    {
+      "kind": "EngineeringTask",
+      "sourceId": "task-001",
+      "projectSourceId": "project-001",
+      "payloadHash": "sha256:replace-with-export-hash",
+      "payload": {
+        "title": "Redacted example task"
+      }
+    },
+    {
+      "kind": "GitHubDelivery",
+      "sourceId": "delivery-001",
+      "projectSourceId": "project-001",
+      "payloadHash": "sha256:replace-with-export-hash",
+      "payload": {
+        "deliveryId": "redacted"
+      }
+    }
+  ]
+}

@@ -27,6 +27,12 @@ The agent must treat:
 
 The agent must not begin implementation before completing the required preparation steps.
 
+GOAL2 migration is incremental. The target is FullStackHero v10 on .NET 10;
+the existing v0.1/.NET 9 implementation remains a compatibility and behavior
+reference until the affected bounded context passes its migration gates. A
+clean build, a generated plan, or a new parallel module is not by itself
+evidence that a context has migrated.
+
 ---
 
 # 2. Mandatory Read Order
@@ -265,6 +271,24 @@ The agent must not perform a big-bang rewrite, remove a legacy write model befor
 its replacement is proven, or claim migration completion based only on
 compilation. A migrated bounded context must satisfy the migration quality gates
 in `GOAL2.md` section 84.
+
+---
+
+# 6G. Production and Self-host Rules
+
+Aspire is the local orchestration path, not the production runtime contract.
+Any production or LAN/self-host change must also define and verify:
+
+- Configuration and secret validation without committing credentials.
+- Repeatable database migration and startup health checks.
+- PostgreSQL, Wolverine durability, and Async Daemon health.
+- RabbitMQ setup, retry, dead-letter, and recovery behavior when integrations
+  are enabled.
+- Backup/restore and projection replay/rebuild procedures.
+- Upgrade and rollback steps that leave the legacy path recoverable until the
+  replacement is verified.
+
+Do not claim production readiness from an Aspire-only smoke test.
 
 ---
 

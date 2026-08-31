@@ -30,10 +30,10 @@ uses Testcontainers PostgreSQL and verifies:
 4. A requirement without an owning plan is rejected by the planner before any
    write.
 
-The migration suite result is `23 passed, 0 failed` on .NET 10.
+The migration suite result is `28 passed, 0 failed` on .NET 10.
 
 ## Remaining M13 obligations
 
-Other bounded-context writers, pre/post count and invariant reconciliation,
+Remaining integration writers, pre/post count and invariant reconciliation,
 isolated backup/restore, projection rebuild, cutover, rollback, and production
 self-host evidence remain `PROPOSED`.

@@ -34,10 +34,10 @@ uses Testcontainers PostgreSQL and verifies:
 `Goal2MigrationPlannerTests` also verifies that repository facts use the owning
 analysis stream and reject missing parent identity.
 
-Migration suite result: `23 passed, 0 failed` on .NET 10.
+Migration suite result: `28 passed, 0 failed` on .NET 10.
 
 ## Remaining M13 obligations
 
-Other bounded-context writers, pre/post count and invariant reconciliation,
+Remaining integration writers, pre/post count and invariant reconciliation,
 isolated backup/restore, projection rebuild, cutover, rollback, and production
 self-host evidence remain `PROPOSED`.

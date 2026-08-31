@@ -39,6 +39,8 @@ Before migrating a bounded context, expand its row into a model-level table:
 
 | Model | Current store | Target category | Stream/projection name | Migration rule | Reconciliation evidence |
 | --- | --- | --- | --- | --- | --- |
+| EventStorming board and child records | v0.1 board documents | Event Store | `StormingBoard` + inline board canvas | Require explicit board/node source ids; append typed board events in deterministic order | Board/node/link/hotspot/order counts and replay comparison |
+| Architecture model and child records | v0.1 architecture documents | Event Store | `ArchitectureModel` + inline architecture view | Require explicit model/module/entity source ids; append typed model events in deterministic order | Model/module/entity/relationship/drift counts and replay comparison |
 
 No legacy table/document may be deleted until its target row, identity mapping,
 dry run, pre/post counts, invariants, and rollback path are verified.
@@ -46,12 +48,14 @@ dry run, pre/post counts, invariants, and rollback path are verified.
 The first model-level apply slices are now implemented for `Project`,
 `ProjectState`, `ProjectRole`, `ProjectMembership`, `Plan`, `Requirement`,
 `Milestone`, `EngineeringTask`, `TaskVersion`, `TaskEvidence`, `AnalysisRun`,
-`SourceArtifact`, and `SourceImpact`: typed project, access, planning, task,
-and repository-analysis events are appended to deterministic streams, with
+`SourceArtifact`, `SourceImpact`, EventStorming board records, and Architecture
+model records: typed project, access, planning, task, repository-analysis,
+board, and architecture events are appended to deterministic streams, with
 source-reference/hash markers and inline read models updated in the same
 Marten transaction. Task snapshots use `TaskProposed` plus
 `TaskLifecycleReconciled` so migration does not invent transition history;
-task history and repository artifacts/impacts remain typed, replayable events.
+task history, repository artifacts/impacts, board changes, and architecture
+facts remain typed, replayable events.
 This confirms only these model-level mapper/writers; it does not confirm the
 full matrix or authorize deletion of any v0.1 document.
 
@@ -64,9 +68,10 @@ must still document the source export field mapping, target event
 payload/upcaster, pre/post count, invariant checks, and rollback record before
 that bounded context is allowed to append to the Event Store. The tool's
 `--apply-marten --connection` mode is the approved Projects, AccessControl,
-Planning, TaskFlow, and RepositoryIntelligence exception to this statement; it
-remains fail-closed for all other bounded-context kinds until their typed
-mappers and reconciliation evidence are added.
+Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture
+exception to this statement; it remains fail-closed for all other
+bounded-context kinds until their typed mappers and reconciliation evidence are
+added.
 
 ## Contract migration rule
 

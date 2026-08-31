@@ -29,7 +29,7 @@ token is persisted in the event metadata.
 | Source marker readback | Project and lifecycle markers present with matching hashes |
 | Repeat apply | 0 business events appended, 2 skipped |
 | Unsupported `Archived` lifecycle | Rejected before any event append |
-| Focused migration test suite | 23 passed, 0 failed (planner plus Projects, AccessControl, Planning, TaskFlow, and RepositoryIntelligence migration tests) |
+| Focused migration test suite | 28 passed, 0 failed (planner plus Projects, AccessControl, Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture migration tests) |
 
 The writer refuses unsupported bounded-context kinds, missing required fields,
 an existing unmarked stream, stale ledger markers, and changed payload hashes.
@@ -37,8 +37,7 @@ The operational ledger is updated only after the Marten transaction succeeds.
 
 ## Remaining M13 gates
 
-EventStorming, Architecture, and Integrations still require typed mappers and
-reconciliation evidence. AccessControl, Planning, TaskFlow, and
+Integrations still require typed mappers and reconciliation evidence. AccessControl, Planning, TaskFlow, and
 RepositoryIntelligence evidence is recorded separately in
 `GOAL2_M13_ACCESS_CONTROL_MARTEN_CHECK.md`,
 `GOAL2_M13_PLANNING_MARTEN_CHECK.md`, and

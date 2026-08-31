@@ -4,6 +4,10 @@ using VietAIS.TCFlow.BuildingBlocks.EventSourcing.Configuration;
 using VietAIS.TCFlow.BuildingBlocks.EventSourcing.Metadata;
 using VietAIS.TCFlow.Modules.AccessControl.Configuration;
 using VietAIS.TCFlow.Modules.AccessControl.Domain;
+using VietAIS.TCFlow.Modules.Architecture.Configuration;
+using VietAIS.TCFlow.Modules.Architecture.Domain;
+using VietAIS.TCFlow.Modules.EventStorming.Configuration;
+using VietAIS.TCFlow.Modules.EventStorming.Domain;
 using VietAIS.TCFlow.Modules.Planning.Configuration;
 using VietAIS.TCFlow.Modules.Planning.Domain;
 using VietAIS.TCFlow.Modules.RepositoryIntelligence.Configuration;
@@ -35,6 +39,17 @@ internal static class MartenProjectMigrationApplier
     private const string AnalysisRunKind = "AnalysisRun";
     private const string SourceArtifactKind = "SourceArtifact";
     private const string SourceImpactKind = "SourceImpact";
+    private const string StormingBoardKind = "StormingBoard";
+    private const string StormingNodeKind = "StormingNode";
+    private const string StormingConnectionKind = "StormingConnection";
+    private const string StormingHotspotKind = "StormingHotspot";
+    private const string StormingNodeOrderKind = "StormingNodeOrder";
+    private const string ArchitectureModelKind = "ArchitectureModel";
+    private const string ArchitectureModuleKind = "ArchitectureModule";
+    private const string ArchitectureModuleRelationshipKind = "ArchitectureModuleRelationship";
+    private const string ArchitectureEntityKind = "ArchitectureEntity";
+    private const string ArchitectureDataRelationshipKind = "ArchitectureDataRelationship";
+    private const string ArchitectureDriftKind = "ArchitectureDrift";
 
     public static async Task<MigrationBusinessApplyReport> ApplyAsync(
         MigrationPlan plan,
@@ -54,13 +69,16 @@ internal static class MartenProjectMigrationApplier
                 ProjectKind or ProjectStateKind or ProjectRoleKind or ProjectMembershipKind or
                 PlanKind or RequirementKind or MilestoneKind or EngineeringTaskKind or
                 TaskVersionKind or TaskEvidenceKind or AnalysisRunKind or SourceArtifactKind or
-                SourceImpactKind))
+                SourceImpactKind or StormingBoardKind or StormingNodeKind or StormingConnectionKind or
+                StormingHotspotKind or StormingNodeOrderKind or ArchitectureModelKind or
+                ArchitectureModuleKind or ArchitectureModuleRelationshipKind or ArchitectureEntityKind or
+                ArchitectureDataRelationshipKind or ArchitectureDriftKind))
             .Select(operation => $"{operation.Kind}:{operation.SourceId}")
             .ToArray();
         if (unsupported.Length > 0)
         {
             throw new InvalidOperationException(
-                "Marten apply currently supports Projects, AccessControl, Planning, TaskFlow, and RepositoryIntelligence records. " +
+                "Marten apply currently supports Projects, AccessControl, Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture records. " +
                 $"Create a bounded-context mapper before applying: {string.Join(", ", unsupported)}.");
         }
 
@@ -89,6 +107,8 @@ internal static class MartenProjectMigrationApplier
             PlanningMartenConfiguration.Configure(options);
             TaskFlowMartenConfiguration.Configure(options);
             RepositoryMartenConfiguration.Configure(options);
+            StormingMartenConfiguration.Configure(options);
+            ArchitectureMartenConfiguration.Configure(options);
             ProjectsMartenConfiguration.Configure(options);
         });
         await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync().ConfigureAwait(false);
@@ -115,7 +135,7 @@ internal static class MartenProjectMigrationApplier
             }
 
             if (streamEvents.TryGetValue(item.Operation.TargetId, out var existing) && existing.Count > 0 &&
-                item.Events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted))
+                item.Events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated))
             {
                 throw new InvalidOperationException(
                     $"Aggregate stream '{item.Operation.TargetId}' already exists without a migration marker for " +
@@ -148,7 +168,7 @@ internal static class MartenProjectMigrationApplier
                 .SelectMany(item => item.Events.Select(@event => new MappedEventData(item, @event)))
                 .OrderBy(item => EventOrder(item.Event))
                 .ToArray();
-            var initializer = ordered.FirstOrDefault(item => item.Event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted);
+            var initializer = ordered.FirstOrDefault(item => item.Event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated);
             if (initializer is not null)
             {
                 ApplyMetadata(session, initializer.Item.Operation);
@@ -177,6 +197,20 @@ internal static class MartenProjectMigrationApplier
                 else if (initializer.Event is AnalysisStarted)
                 {
                     var action = session.Events.StartStream<AnalysisRun>(
+                        initializer.Item.Operation.TargetId,
+                        actionEvents);
+                    SetActionEventMetadata(action.Events, ordered);
+                }
+                else if (initializer.Event is BoardCreated)
+                {
+                    var action = session.Events.StartStream<StormingBoard>(
+                        initializer.Item.Operation.TargetId,
+                        actionEvents);
+                    SetActionEventMetadata(action.Events, ordered);
+                }
+                else if (initializer.Event is ArchitectureModelCreated)
+                {
+                    var action = session.Events.StartStream<ArchitectureModel>(
                         initializer.Item.Operation.TargetId,
                         actionEvents);
                     SetActionEventMetadata(action.Events, ordered);
@@ -317,6 +351,66 @@ internal static class MartenProjectMigrationApplier
                 continue;
             }
 
+            if (ordered.Any(item => item.Event is StormingNodeAdded or StormingNodesConnected or StormingHotspotMarked or StormingNodeReordered))
+            {
+                var first = ordered[0];
+                ApplyMetadata(session, first.Item.Operation);
+                if (!expectedVersions.TryGetValue(first.Item.Operation.TargetId, out var expectedVersion) || expectedVersion == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"EventStorming operation '{first.Item.Operation.SourceReference}' has no existing board stream.");
+                }
+
+                var stream = await session.Events.FetchForWriting<StormingBoard>(
+                    first.Item.Operation.TargetId,
+                    expectedVersion,
+                    cancellationToken).ConfigureAwait(false);
+                if (stream.Aggregate is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Event Storming board '{first.Item.Operation.TargetId}' could not be reconstructed for migration.");
+                }
+
+                foreach (var item in ordered)
+                {
+                    stream.AppendOne(item.Event);
+                    SetEventMetadata(stream.Events[^1], item.Item.Operation);
+                    expectedVersions[item.Item.Operation.TargetId]++;
+                }
+
+                continue;
+            }
+
+            if (ordered.Any(item => item.Event is ArchitectureModuleAdded or ArchitectureModulesConnected or ArchitectureEntityAdded or ArchitectureDataRelationshipAdded or ArchitectureDriftRecorded))
+            {
+                var first = ordered[0];
+                ApplyMetadata(session, first.Item.Operation);
+                if (!expectedVersions.TryGetValue(first.Item.Operation.TargetId, out var expectedVersion) || expectedVersion == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Architecture operation '{first.Item.Operation.SourceReference}' has no existing model stream.");
+                }
+
+                var stream = await session.Events.FetchForWriting<ArchitectureModel>(
+                    first.Item.Operation.TargetId,
+                    expectedVersion,
+                    cancellationToken).ConfigureAwait(false);
+                if (stream.Aggregate is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Architecture model '{first.Item.Operation.TargetId}' could not be reconstructed for migration.");
+                }
+
+                foreach (var item in ordered)
+                {
+                    stream.AppendOne(item.Event);
+                    SetEventMetadata(stream.Events[^1], item.Item.Operation);
+                    expectedVersions[item.Item.Operation.TargetId]++;
+                }
+
+                continue;
+            }
+
             foreach (var item in ordered)
             {
                 ApplyMetadata(session, item.Item.Operation);
@@ -381,6 +475,28 @@ internal static class MartenProjectMigrationApplier
                 [RepositoryIntelligenceMigrationMapper.ToArtifactObserved(operation, record)],
             SourceImpactKind =>
                 [RepositoryIntelligenceMigrationMapper.ToImpactRecorded(operation, record)],
+            StormingBoardKind =>
+                [EventStormingMigrationMapper.ToBoardCreated(operation, record)],
+            StormingNodeKind =>
+                [EventStormingMigrationMapper.ToNodeAdded(operation, record)],
+            StormingConnectionKind =>
+                [EventStormingMigrationMapper.ToNodesConnected(operation, record)],
+            StormingHotspotKind =>
+                [EventStormingMigrationMapper.ToHotspotMarked(operation, record)],
+            StormingNodeOrderKind =>
+                [EventStormingMigrationMapper.ToNodeReordered(operation, record)],
+            ArchitectureModelKind =>
+                [ArchitectureMigrationMapper.ToModelCreated(operation, record)],
+            ArchitectureModuleKind =>
+                [ArchitectureMigrationMapper.ToModuleAdded(operation, record)],
+            ArchitectureModuleRelationshipKind =>
+                [ArchitectureMigrationMapper.ToModulesConnected(operation, record)],
+            ArchitectureEntityKind =>
+                [ArchitectureMigrationMapper.ToEntityAdded(operation, record)],
+            ArchitectureDataRelationshipKind =>
+                [ArchitectureMigrationMapper.ToDataRelationshipAdded(operation, record)],
+            ArchitectureDriftKind =>
+                [ArchitectureMigrationMapper.ToDriftRecorded(operation, record)],
             _ => throw new InvalidOperationException($"No typed mapper exists for migration kind '{operation.Kind}'.")
         };
 
@@ -494,7 +610,7 @@ internal static class MartenProjectMigrationApplier
         foreach (var group in effective.GroupBy(item => item.Operation.TargetId))
         {
             var events = group.SelectMany(item => item.Events).ToArray();
-            var hasInitializer = events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted);
+            var hasInitializer = events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated);
             if (!hasInitializer && (!streamEvents.TryGetValue(group.Key, out var existing) || existing.Count == 0))
             {
                 var kind = "AccessControl";
@@ -514,11 +630,19 @@ internal static class MartenProjectMigrationApplier
                 {
                     kind = "RepositoryIntelligence";
                 }
+                else if (events.Any(@event => @event is StormingNodeAdded or StormingNodesConnected or StormingHotspotMarked or StormingNodeReordered))
+                {
+                    kind = "EventStorming";
+                }
+                else if (events.Any(@event => @event is ArchitectureModuleAdded or ArchitectureModulesConnected or ArchitectureEntityAdded or ArchitectureDataRelationshipAdded or ArchitectureDriftRecorded))
+                {
+                    kind = "Architecture";
+                }
                 throw new InvalidOperationException(
                     $"{kind} stream '{group.Key}' is required before applying this migration.");
             }
 
-            if (events.Count(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted) > 1)
+            if (events.Count(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated) > 1)
             {
                 throw new InvalidOperationException(
                     $"More than one stream initializer is planned for stream '{group.Key}'.");
@@ -534,7 +658,9 @@ internal static class MartenProjectMigrationApplier
                 events.Count(@event => @event is ProjectAccessInitialized) > 1 ||
                 events.Count(@event => @event is PlanCreated) > 1 ||
                 events.Count(@event => @event is TaskProposed) > 1 ||
-                events.Count(@event => @event is AnalysisStarted) > 1)
+                events.Count(@event => @event is AnalysisStarted) > 1 ||
+                events.Count(@event => @event is BoardCreated) > 1 ||
+                events.Count(@event => @event is ArchitectureModelCreated) > 1)
             {
                 throw new InvalidOperationException(
                     $"More than one typed initializer is planned for stream '{group.Key}'.");
@@ -548,6 +674,8 @@ internal static class MartenProjectMigrationApplier
         PlanCreated => 0,
         TaskProposed => 0,
         AnalysisStarted => 0,
+        BoardCreated => 0,
+        ArchitectureModelCreated => 0,
         ProjectRoleCreated => 10,
         ProjectRolePermissionsUpdated => 20,
         ProjectMemberAdded => 30,
@@ -564,6 +692,15 @@ internal static class MartenProjectMigrationApplier
         EvidenceRecorded => 30,
         ImpactRecorded => 40,
         AnalysisCompleted => 50,
+        StormingNodeAdded => 10,
+        StormingNodesConnected => 20,
+        StormingHotspotMarked => 30,
+        StormingNodeReordered => 40,
+        ArchitectureModuleAdded => 10,
+        ArchitectureModulesConnected => 20,
+        ArchitectureEntityAdded => 30,
+        ArchitectureDataRelationshipAdded => 40,
+        ArchitectureDriftRecorded => 50,
         _ => 100
     };
 
@@ -622,6 +759,16 @@ internal static class MartenProjectMigrationApplier
         if (operation.Kind is AnalysisRunKind or SourceArtifactKind or SourceImpactKind)
         {
             return RepositoryIntelligenceMigrationMapper.MigrationSource;
+        }
+
+        if (operation.Kind is StormingBoardKind or StormingNodeKind or StormingConnectionKind or StormingHotspotKind or StormingNodeOrderKind)
+        {
+            return EventStormingMigrationMapper.MigrationSource;
+        }
+
+        if (operation.Kind is ArchitectureModelKind or ArchitectureModuleKind or ArchitectureModuleRelationshipKind or ArchitectureEntityKind or ArchitectureDataRelationshipKind or ArchitectureDriftKind)
+        {
+            return ArchitectureMigrationMapper.MigrationSource;
         }
 
         return ProjectMigrationMapper.MigrationSource;

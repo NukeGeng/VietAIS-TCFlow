@@ -25,6 +25,17 @@ internal static class Goal2MigrationPlanner
             ["AnalysisRun"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "AnalysisStarted"),
             ["SourceArtifact"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "ArtifactObserved"),
             ["SourceImpact"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "ImpactRecorded"),
+            ["StormingBoard"] = (MigrationDisposition.EventStream, "EventStorming", "BoardCreated"),
+            ["StormingNode"] = (MigrationDisposition.EventStream, "EventStorming", "StormingNodeAdded"),
+            ["StormingConnection"] = (MigrationDisposition.EventStream, "EventStorming", "StormingNodesConnected"),
+            ["StormingHotspot"] = (MigrationDisposition.EventStream, "EventStorming", "StormingHotspotMarked"),
+            ["StormingNodeOrder"] = (MigrationDisposition.EventStream, "EventStorming", "StormingNodeReordered"),
+            ["ArchitectureModel"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureModelCreated"),
+            ["ArchitectureModule"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureModuleAdded"),
+            ["ArchitectureModuleRelationship"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureModulesConnected"),
+            ["ArchitectureEntity"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureEntityAdded"),
+            ["ArchitectureDataRelationship"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureDataRelationshipAdded"),
+            ["ArchitectureDrift"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureDriftRecorded"),
             ["GitHubCredential"] = (MigrationDisposition.OperationalDocument, "Operational", "GitHubCredentialImported"),
             ["GitHubDelivery"] = (MigrationDisposition.OperationalDocument, "Operational", "GitHubDeliveryImported")
         };
@@ -63,7 +74,10 @@ internal static class Goal2MigrationPlanner
                 : Normalize(record.ProjectSourceId, nameof(record.ProjectSourceId));
             if ((kind is "ProjectState" or "ProjectRole" or "ProjectMembership" or "Plan" or
                 "EngineeringTask" or "TaskVersion" or "TaskEvidence" or "AnalysisRun" or
-                "SourceArtifact" or "SourceImpact") && projectSourceId is null)
+                "SourceArtifact" or "SourceImpact" or "StormingBoard" or "StormingNode" or
+                "StormingConnection" or "StormingHotspot" or "StormingNodeOrder" or
+                "ArchitectureModel" or "ArchitectureModule" or "ArchitectureModuleRelationship" or
+                "ArchitectureEntity" or "ArchitectureDataRelationship" or "ArchitectureDrift") && projectSourceId is null)
             {
                 throw new InvalidOperationException(
                     $"Legacy record '{kind}:{sourceId}' must identify its Project source record.");
@@ -161,6 +175,20 @@ internal static class Goal2MigrationPlanner
                 Normalize(aggregateSourceId, nameof(aggregateSourceId)));
         }
 
+        if (normalizedKind is "StormingNode" or "StormingConnection" or "StormingHotspot" or "StormingNodeOrder")
+        {
+            return CreateDeterministicId(
+                "StormingBoard",
+                Normalize(aggregateSourceId, nameof(aggregateSourceId)));
+        }
+
+        if (normalizedKind is "ArchitectureModule" or "ArchitectureModuleRelationship" or "ArchitectureEntity" or "ArchitectureDataRelationship" or "ArchitectureDrift")
+        {
+            return CreateDeterministicId(
+                "ArchitectureModel",
+                Normalize(aggregateSourceId, nameof(aggregateSourceId)));
+        }
+
         return CreateDeterministicId(normalizedKind, normalizedSourceId);
     }
 
@@ -208,6 +236,17 @@ internal static class Goal2MigrationPlanner
                 kind,
                 "analysisRunSourceId",
                 "analysisRunId"),
+            "StormingBoard" or "ArchitectureModel" => sourceId,
+            "StormingNode" or "StormingConnection" or "StormingHotspot" or "StormingNodeOrder" => RequiredPayloadString(
+                payload,
+                kind,
+                "boardSourceId",
+                "boardId"),
+            "ArchitectureModule" or "ArchitectureModuleRelationship" or "ArchitectureEntity" or "ArchitectureDataRelationship" or "ArchitectureDrift" => RequiredPayloadString(
+                payload,
+                kind,
+                "modelSourceId",
+                "modelId"),
             "ProjectState" or "ProjectRole" or "ProjectMembership" => projectSourceId,
             _ => null
         };
@@ -235,6 +274,8 @@ internal static class Goal2MigrationPlanner
         {
             "Requirement" or "Milestone" => "Plan",
             "TaskVersion" or "TaskEvidence" => "Task",
+            "StormingNode" or "StormingConnection" or "StormingHotspot" or "StormingNodeOrder" => "Board",
+            "ArchitectureModule" or "ArchitectureModuleRelationship" or "ArchitectureEntity" or "ArchitectureDataRelationship" or "ArchitectureDrift" => "Model",
             _ => "aggregate"
         };
         throw new InvalidOperationException(

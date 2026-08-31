@@ -30,12 +30,12 @@ uses Testcontainers PostgreSQL and verifies:
 4. A second apply appends zero duplicate events and finds the original markers.
 5. Missing/ambiguous role or permission data fails closed before a write.
 
-Migration test result: `23 passed, 0 failed` on .NET 10 (including the
+Migration test result: `28 passed, 0 failed` on .NET 10 (including the
 planner, Projects, AccessControl, Planning, TaskFlow, and RepositoryIntelligence
 migration checks).
 
 ## Remaining M13 obligations
 
-Other bounded-context writers, pre/post count and invariant reconciliation,
+Remaining integration writers, pre/post count and invariant reconciliation,
 isolated backup/restore, projection rebuild, cutover, rollback, and production
 self-host evidence remain `PROPOSED`.

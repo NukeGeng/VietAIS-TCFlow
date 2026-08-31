@@ -10,6 +10,12 @@ using VietAIS.TCFlow.Modules.AccessControl.Configuration;
 using VietAIS.TCFlow.Modules.AccessControl.Contracts.Models;
 using VietAIS.TCFlow.Modules.AccessControl.Domain;
 using VietAIS.TCFlow.Modules.AccessControl.Projections;
+using VietAIS.TCFlow.Modules.Architecture.Configuration;
+using VietAIS.TCFlow.Modules.Architecture.Domain;
+using VietAIS.TCFlow.Modules.Architecture.Projections;
+using VietAIS.TCFlow.Modules.EventStorming.Configuration;
+using VietAIS.TCFlow.Modules.EventStorming.Domain;
+using VietAIS.TCFlow.Modules.EventStorming.Projections;
 using VietAIS.TCFlow.Modules.Planning.Configuration;
 using VietAIS.TCFlow.Modules.Planning.Domain;
 using VietAIS.TCFlow.Modules.Planning.Projections;
@@ -789,6 +795,271 @@ public sealed class MartenProjectMigrationApplierTests : IAsyncLifetime
             Header(events[2], EventMetadataHeaders.MigrationSourceReference));
     }
 
+    [Fact]
+    public async Task AppliesEventStormingBoardNodesAndConnectionsOnTheBoardStreamIdempotently()
+    {
+        const string projectSourceId = "legacy-storming-project";
+        const string boardSourceId = "legacy-board-1";
+        var export = new LegacyExport(
+            1,
+            [
+                new LegacyRecord(
+                    "Project",
+                    projectSourceId,
+                    null,
+                    "sha256:storming-project",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        name = "Storming project",
+                        ownerId = "owner-1",
+                        createdAtUtc = "2026-08-30T10:00:00Z"
+                    })),
+                new LegacyRecord(
+                    "StormingBoard",
+                    boardSourceId,
+                    projectSourceId,
+                    "sha256:storming-board",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        name = "Order flow",
+                        createdAtUtc = "2026-08-30T10:01:00Z"
+                    })),
+                new LegacyRecord(
+                    "StormingNode",
+                    "legacy-node-command",
+                    projectSourceId,
+                    "sha256:storming-node-command",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        boardSourceId,
+                        nodeType = "Command",
+                        label = "Create order",
+                        description = "Starts the order flow",
+                        createdAtUtc = "2026-08-30T10:02:00Z"
+                    })),
+                new LegacyRecord(
+                    "StormingNode",
+                    "legacy-node-event",
+                    projectSourceId,
+                    "sha256:storming-node-event",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        boardSourceId,
+                        nodeType = "DomainEvent",
+                        label = "Order created",
+                        createdAtUtc = "2026-08-30T10:03:00Z"
+                    })),
+                new LegacyRecord(
+                    "StormingConnection",
+                    "legacy-connection-1",
+                    projectSourceId,
+                    "sha256:storming-connection",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        boardSourceId,
+                        fromNodeSourceId = "legacy-node-command",
+                        toNodeSourceId = "legacy-node-event",
+                        relationship = "emits",
+                        createdAtUtc = "2026-08-30T10:04:00Z"
+                    })),
+                new LegacyRecord(
+                    "StormingHotspot",
+                    "legacy-hotspot-1",
+                    projectSourceId,
+                    "sha256:storming-hotspot",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        boardSourceId,
+                        nodeSourceId = "legacy-node-event",
+                        reason = "Need to confirm consistency boundary",
+                        markedAtUtc = "2026-08-30T10:05:00Z"
+                    })),
+                new LegacyRecord(
+                    "StormingNodeOrder",
+                    "legacy-order-1",
+                    projectSourceId,
+                    "sha256:storming-order",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        boardSourceId,
+                        nodeSourceId = "legacy-node-event",
+                        position = 0,
+                        reorderedAtUtc = "2026-08-30T10:06:00Z"
+                    }))
+            ]);
+        var plan = Goal2MigrationPlanner.Plan(export);
+
+        var first = await MartenProjectMigrationApplier.ApplyAsync(plan, export, _postgres.GetConnectionString(), CancellationToken.None);
+        var second = await MartenProjectMigrationApplier.ApplyAsync(plan, export, _postgres.GetConnectionString(), CancellationToken.None);
+
+        Assert.Equal(7, first.AppendedEventCount);
+        Assert.Equal(7, second.SkippedEventCount);
+        var boardId = Goal2MigrationPlanner.CreateDeterministicId("StormingBoard", boardSourceId);
+        await using var store = CreateStore();
+        await using var query = store.QuerySession();
+        var events = await query.Events.FetchStreamAsync(boardId, long.MaxValue, timestamp: null, fromVersion: 0, token: CancellationToken.None);
+        var current = await query.LoadAsync<BoardCanvas>(boardId);
+
+        Assert.Equal(6, events.Count);
+        Assert.IsType<BoardCreated>(events[0].Data);
+        Assert.IsType<StormingNodeAdded>(events[1].Data);
+        Assert.IsType<StormingNodeAdded>(events[2].Data);
+        Assert.IsType<StormingNodesConnected>(events[3].Data);
+        Assert.IsType<StormingHotspotMarked>(events[4].Data);
+        Assert.IsType<StormingNodeReordered>(events[5].Data);
+        Assert.NotNull(current);
+        Assert.Equal("Order flow", current!.Name);
+        Assert.Equal(2, current.Nodes.Count);
+        Assert.Single(current.Connections);
+        Assert.Contains(current.Nodes, node => node.IsHotspot);
+        Assert.Equal(6, current.Version);
+    }
+
+    [Fact]
+    public async Task AppliesArchitectureModelAndRelationshipsOnTheModelStreamIdempotently()
+    {
+        const string projectSourceId = "legacy-architecture-project";
+        const string modelSourceId = "legacy-architecture-model";
+        var export = new LegacyExport(
+            1,
+            [
+                new LegacyRecord(
+                    "Project",
+                    projectSourceId,
+                    null,
+                    "sha256:architecture-project",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        name = "Architecture project",
+                        ownerId = "owner-1",
+                        createdAtUtc = "2026-08-30T10:00:00Z"
+                    })),
+                new LegacyRecord(
+                    "ArchitectureModel",
+                    modelSourceId,
+                    projectSourceId,
+                    "sha256:architecture-model",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        name = "Order architecture",
+                        createdAtUtc = "2026-08-30T10:01:00Z"
+                    })),
+                new LegacyRecord(
+                    "ArchitectureModule",
+                    "legacy-module-api",
+                    projectSourceId,
+                    "sha256:architecture-module-api",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        modelSourceId,
+                        name = "API",
+                        createdAtUtc = "2026-08-30T10:02:00Z"
+                    })),
+                new LegacyRecord(
+                    "ArchitectureModule",
+                    "legacy-module-domain",
+                    projectSourceId,
+                    "sha256:architecture-module-domain",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        modelSourceId,
+                        name = "Domain",
+                        createdAtUtc = "2026-08-30T10:03:00Z"
+                    })),
+                new LegacyRecord(
+                    "ArchitectureModuleRelationship",
+                    "legacy-module-link",
+                    projectSourceId,
+                    "sha256:architecture-module-link",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        modelSourceId,
+                        fromModuleSourceId = "legacy-module-api",
+                        toModuleSourceId = "legacy-module-domain",
+                        relationship = "depends-on",
+                        createdAtUtc = "2026-08-30T10:04:00Z"
+                    })),
+                new LegacyRecord(
+                    "ArchitectureEntity",
+                    "legacy-entity-order",
+                    projectSourceId,
+                    "sha256:architecture-entity-order",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        modelSourceId,
+                        name = "Order",
+                        createdAtUtc = "2026-08-30T10:05:00Z"
+                    })),
+                new LegacyRecord(
+                    "ArchitectureEntity",
+                    "legacy-entity-payment",
+                    projectSourceId,
+                    "sha256:architecture-entity-payment",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        modelSourceId,
+                        name = "Payment",
+                        createdAtUtc = "2026-08-30T10:06:00Z"
+                    })),
+                new LegacyRecord(
+                    "ArchitectureDataRelationship",
+                    "legacy-data-link",
+                    projectSourceId,
+                    "sha256:architecture-data-link",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        modelSourceId,
+                        fromEntitySourceId = "legacy-entity-order",
+                        toEntitySourceId = "legacy-entity-payment",
+                        relationship = "has-payment",
+                        createdAtUtc = "2026-08-30T10:07:00Z"
+                    })),
+                new LegacyRecord(
+                    "ArchitectureDrift",
+                    "legacy-drift-1",
+                    projectSourceId,
+                    "sha256:architecture-drift",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        modelSourceId,
+                        driftKey = "missing-documentation",
+                        summary = "The API dependency is undocumented",
+                        evidence = "src/Api/Orders.cs references Domain",
+                        detectedAtUtc = "2026-08-30T10:08:00Z"
+                    }))
+            ]);
+        var plan = Goal2MigrationPlanner.Plan(export);
+
+        var first = await MartenProjectMigrationApplier.ApplyAsync(plan, export, _postgres.GetConnectionString(), CancellationToken.None);
+        var second = await MartenProjectMigrationApplier.ApplyAsync(plan, export, _postgres.GetConnectionString(), CancellationToken.None);
+
+        Assert.Equal(9, first.AppendedEventCount);
+        Assert.Equal(9, second.SkippedEventCount);
+        var modelId = Goal2MigrationPlanner.CreateDeterministicId("ArchitectureModel", modelSourceId);
+        await using var store = CreateStore();
+        await using var query = store.QuerySession();
+        var events = await query.Events.FetchStreamAsync(modelId, long.MaxValue, timestamp: null, fromVersion: 0, token: CancellationToken.None);
+        var current = await query.LoadAsync<ArchitectureCurrent>(modelId);
+
+        Assert.Equal(8, events.Count);
+        Assert.IsType<ArchitectureModelCreated>(events[0].Data);
+        Assert.IsType<ArchitectureModuleAdded>(events[1].Data);
+        Assert.IsType<ArchitectureModuleAdded>(events[2].Data);
+        Assert.IsType<ArchitectureModulesConnected>(events[3].Data);
+        Assert.IsType<ArchitectureEntityAdded>(events[4].Data);
+        Assert.IsType<ArchitectureEntityAdded>(events[5].Data);
+        Assert.IsType<ArchitectureDataRelationshipAdded>(events[6].Data);
+        Assert.IsType<ArchitectureDriftRecorded>(events[7].Data);
+        Assert.NotNull(current);
+        Assert.Equal("Order architecture", current!.Name);
+        Assert.Equal(2, current.Modules.Count);
+        Assert.Equal(2, current.Entities.Count);
+        Assert.Single(current.ModuleRelationships);
+        Assert.Single(current.DataRelationships);
+        Assert.Single(current.Drifts);
+        Assert.Equal(8, current.Version);
+    }
+
     private DocumentStore CreateStore()
     {
         return DocumentStore.For(options =>
@@ -799,6 +1070,8 @@ public sealed class MartenProjectMigrationApplierTests : IAsyncLifetime
             PlanningMartenConfiguration.Configure(options);
             RepositoryMartenConfiguration.Configure(options);
             TaskFlowMartenConfiguration.Configure(options);
+            StormingMartenConfiguration.Configure(options);
+            ArchitectureMartenConfiguration.Configure(options);
             ProjectsMartenConfiguration.Configure(options);
         });
     }

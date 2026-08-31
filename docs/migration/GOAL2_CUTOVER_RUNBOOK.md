@@ -54,11 +54,12 @@ consume the validated plan only after their field mapping and reconciliation
 checks are approved.
 
 The first approved model-level writers are the Projects, AccessControl,
-Planning, TaskFlow, and RepositoryIntelligence slices. In an isolated
+Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture
+slices. In an isolated
 PostgreSQL database, use `--apply-marten` with the same ledger to append typed
-project/access/planning/task/analysis events and update the inline
-`ProjectCurrent`/effective-permission/plan/task/analysis projections in the
-Marten transaction:
+project/access/planning/task/analysis/board/architecture events and update the inline
+`ProjectCurrent`/effective-permission/plan/task/analysis/board/architecture
+projections in the Marten transaction:
 
 ```bash
 dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
@@ -74,7 +75,11 @@ For `EngineeringTask`, the writer appends `TaskProposed` followed by
 accept/start/review transitions. `TaskVersion` and `TaskEvidence` records are
 then appended to the owning task stream as typed immutable history.
 `AnalysisRun`, `SourceArtifact`, and `SourceImpact` records are appended to the
-owning analysis stream as typed repository facts. This mode
+owning analysis stream as typed repository facts. The writer
+maps EventStorming board records to a board stream and Architecture records to
+an architecture-model stream, preserving explicit parent and relationship
+identities. Both streams update their inline read models in the same
+transaction. It
 fails closed for unsupported bounded-context records, missing
 required project/access fields, unsupported lifecycle or permission values, an
 existing stream without a migration marker, or a ledger marker that is not
@@ -92,6 +97,8 @@ rollback gate remains open.
 | Plan/requirements/milestones | `Planning` stream + plan projections |
 | Tasks, versions, evidence | `TaskFlow` stream; preserve source/evidence keys |
 | Analyzer runs, facts, impacts | `RepositoryIntelligence` streams + async graphs |
+| Event Storming boards, nodes, links, hotspots, ordering | `EventStorming` board stream + inline board canvas |
+| Architecture models, modules, entities, relationships, drift | `Architecture` model stream + inline architecture view |
 | GitHub credentials/delivery leases | operational documents; secrets stay external |
 
 Every migrated record receives a deterministic identity and a source reference.

@@ -15,6 +15,10 @@
     <ProjectReference Include="../../Modules/Projects/Modules.Projects/Modules.Projects.csproj" />
     <ProjectReference Include="../../Modules/RepositoryIntelligence/Modules.RepositoryIntelligence.Contracts/Modules.RepositoryIntelligence.Contracts.csproj" />
     <ProjectReference Include="../../Modules/RepositoryIntelligence/Modules.RepositoryIntelligence/Modules.RepositoryIntelligence.csproj" />
+    <ProjectReference Include="../../Modules/EventStorming/Modules.EventStorming.Contracts/Modules.EventStorming.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/EventStorming/Modules.EventStorming/Modules.EventStorming.csproj" />
+    <ProjectReference Include="../../Modules/Architecture/Modules.Architecture.Contracts/Modules.Architecture.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/Architecture/Modules.Architecture/Modules.Architecture.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Marten" />

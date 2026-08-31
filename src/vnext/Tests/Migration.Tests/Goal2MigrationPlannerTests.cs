@@ -234,6 +234,52 @@ public sealed class Goal2MigrationPlannerTests
     }
 
     [Fact]
+    public void EventStormingAndArchitectureChildrenUseOwningAggregateStreams()
+    {
+        using var boardPayload = JsonDocument.Parse("{\"boardSourceId\":\"board-1\"}");
+        using var modulePayload = JsonDocument.Parse("{\"modelSourceId\":\"model-1\"}");
+        var plan = Goal2MigrationPlanner.Plan(
+            new LegacyExport(
+                1,
+                [
+                    Record("StormingBoard", "board-1", "project-1"),
+                    new LegacyRecord("StormingNode", "node-1", "project-1", "sha256:node", boardPayload.RootElement.Clone()),
+                    Record("ArchitectureModel", "model-1", "project-1"),
+                    new LegacyRecord("ArchitectureModule", "module-1", "project-1", "sha256:module", modulePayload.RootElement.Clone())
+                ]));
+
+        var board = plan.Operations.Single(operation => operation.Kind == "StormingBoard");
+        var node = plan.Operations.Single(operation => operation.Kind == "StormingNode");
+        var model = plan.Operations.Single(operation => operation.Kind == "ArchitectureModel");
+        var module = plan.Operations.Single(operation => operation.Kind == "ArchitectureModule");
+
+        Assert.Equal(board.TargetId, node.TargetId);
+        Assert.Equal(model.TargetId, module.TargetId);
+        Assert.Equal("board-1", node.AggregateSourceId);
+        Assert.Equal("model-1", module.AggregateSourceId);
+    }
+
+    [Fact]
+    public void EventStormingChildWithoutOwningBoardFailsClosed()
+    {
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            Goal2MigrationPlanner.Plan(
+                new LegacyExport(1, [Record("StormingNode", "node-1", "project-1")])));
+
+        Assert.Contains("must identify its Board source", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ArchitectureChildWithoutOwningModelFailsClosed()
+    {
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            Goal2MigrationPlanner.Plan(
+                new LegacyExport(1, [Record("ArchitectureModule", "module-1", "project-1")])));
+
+        Assert.Contains("must identify its Model source", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ApplyingTheLedgerIsRepeatableAndDoesNotAppendDuplicateEntries()
     {
         var export = new LegacyExport(

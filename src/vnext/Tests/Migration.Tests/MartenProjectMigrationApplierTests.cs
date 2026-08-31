@@ -1170,6 +1170,7 @@ public sealed class MartenProjectMigrationApplierTests : IAsyncLifetime
             StormingMartenConfiguration.Configure(options);
             ArchitectureMartenConfiguration.Configure(options);
             ProjectsMartenConfiguration.Configure(options);
+            PlatformMartenConfiguration.Configure(options);
         });
     }
 

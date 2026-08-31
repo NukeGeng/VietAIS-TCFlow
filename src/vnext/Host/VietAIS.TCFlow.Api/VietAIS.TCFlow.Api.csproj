@@ -10,6 +10,8 @@
     <ProjectReference Include="..\..\BuildingBlocks\EventSourcing\EventSourcing.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\Messaging\Messaging.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\Web\Web.csproj" />
+    <ProjectReference Include="..\..\Modules\AccessControl\Modules.AccessControl\Modules.AccessControl.csproj" />
+    <ProjectReference Include="..\..\Modules\AccessControl\Modules.AccessControl.Contracts\Modules.AccessControl.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Projects\Modules.Projects\Modules.Projects.csproj" />
     <ProjectReference Include="..\..\Modules\Projects\Modules.Projects.Contracts\Modules.Projects.Contracts.csproj" />
   </ItemGroup>

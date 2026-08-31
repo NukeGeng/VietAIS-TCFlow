@@ -295,6 +295,10 @@ parity is explicitly deferred to M4 and is not claimed by this slice.
 
 Owner: `backend`.
 
+Status: `CONFIRMED` for the vNext project-scoped role/membership slice. Full
+FullStackHero Identity composition and migration of all legacy permission
+surfaces remain part of the later cutover milestones.
+
 Deliverables:
 
 - Project membership, roles, grants, scopes, ownership transfer, AI policy,
@@ -307,6 +311,11 @@ Gate:
 - System Admin does not implicitly become Project Owner.
 - Permission changes are auditable and effective reads meet the documented
   consistency requirement.
+
+Evidence: `docs/architecture/M4_ACCESS_CONTROL_EVENT_MODEL.md` and
+`src/vnext/Tests/AccessControl.Tests`. The current slice proves project/system
+permission separation and owner invariants; token issuance and security-audit
+read APIs are not claimed complete until PlatformAdministration/cutover.
 
 ### M5 — Planning
 

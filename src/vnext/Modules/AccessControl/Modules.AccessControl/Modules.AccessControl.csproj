@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Modules.AccessControl</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Modules.AccessControl</AssemblyName>
+    <!-- Marten projections require mutable collection properties and Wolverine handlers
+         are activated by the runtime; keep these targeted framework warnings local. -->
+    <NoWarn>$(NoWarn);CA1002;CA1062;CA1510;CA1859;CA2227;S1172;S6608</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Modules.AccessControl.Contracts\Modules.AccessControl.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Application\Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\EventSourcing\EventSourcing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Marten" />
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.Marten" />
+  </ItemGroup>
+</Project>

@@ -27,6 +27,10 @@ The Projects aggregate, lifecycle commands, projection ownership, and
 reconciliation boundary are recorded in
 [`docs/architecture/M3_PROJECTS_EVENT_MODEL.md`](../../docs/architecture/M3_PROJECTS_EVENT_MODEL.md).
 
+Project-scoped roles, memberships, permission scopes, and the system-admin
+boundary are recorded in
+[`docs/architecture/M4_ACCESS_CONTROL_EVENT_MODEL.md`](../../docs/architecture/M4_ACCESS_CONTROL_EVENT_MODEL.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

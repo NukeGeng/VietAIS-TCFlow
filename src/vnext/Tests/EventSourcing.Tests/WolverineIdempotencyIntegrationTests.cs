@@ -74,7 +74,13 @@ public sealed class WolverineIdempotencyIntegrationTests : IAsyncLifetime
             "owner-1",
             "correlation-1");
 
-        var firstDelivery = await _host.SendMessageAndWaitAsync(command);
+        // Container startup and first durable-schema initialization can be slower on CI
+        // than the tracking extension's five-second default. Keep the assertion focused
+        // on idempotency while allowing the real durable inbox to finish initialization.
+        var firstDelivery = await _host.SendMessageAndWaitAsync(
+            command,
+            new DeliveryOptions(),
+            timeoutInMilliseconds: 30_000);
         var envelope = firstDelivery.Executed.SingleEnvelope<CreateProject>();
 
         await AssertSingleBusinessEffectAsync(projectId);

@@ -35,6 +35,10 @@ Plan, requirement, milestone, projection, and cross-context ownership are
 recorded in
 [`docs/architecture/M5_PLANNING_EVENT_MODEL.md`](../../docs/architecture/M5_PLANNING_EVENT_MODEL.md).
 
+Task lifecycle, AI verification/human review separation, source-change
+reconciliation, and inline/async task projections are recorded in
+[`docs/architecture/M6_TASK_FLOW_EVENT_MODEL.md`](../../docs/architecture/M6_TASK_FLOW_EVENT_MODEL.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

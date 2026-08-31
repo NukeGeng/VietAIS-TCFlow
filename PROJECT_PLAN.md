@@ -363,6 +363,9 @@ Gate:
 
 Owner: `backend`, with `frontend` consumer work.
 
+Status: `CONFIRMED` for the vNext board/reference slice; traceability to every
+legacy UI surface remains part of the M12 frontend cutover.
+
 Deliverables:
 
 - Boards, domains, commands, events, policies, aggregates, actors, hotspots,

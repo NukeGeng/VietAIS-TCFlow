@@ -39,6 +39,10 @@ Task lifecycle, AI verification/human review separation, source-change
 reconciliation, and inline/async task projections are recorded in
 [`docs/architecture/M6_TASK_FLOW_EVENT_MODEL.md`](../../docs/architecture/M6_TASK_FLOW_EVENT_MODEL.md).
 
+Interactive EventStorming boards, ordered nodes, connections, hotspots, and
+the async domain-event catalog are recorded in
+[`docs/architecture/M7_EVENT_STORMING_EVENT_MODEL.md`](../../docs/architecture/M7_EVENT_STORMING_EVENT_MODEL.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

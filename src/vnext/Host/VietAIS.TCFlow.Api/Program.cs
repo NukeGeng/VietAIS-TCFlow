@@ -28,6 +28,11 @@ using VietAIS.TCFlow.Modules.TaskFlow.Contracts.Commands;
 using VietAIS.TCFlow.Modules.TaskFlow.Contracts.Queries;
 using VietAIS.TCFlow.Modules.TaskFlow.Features;
 using VietAIS.TCFlow.Modules.TaskFlow.Projections;
+using VietAIS.TCFlow.Modules.EventStorming.Configuration;
+using VietAIS.TCFlow.Modules.EventStorming.Contracts.Commands;
+using VietAIS.TCFlow.Modules.EventStorming.Contracts.Queries;
+using VietAIS.TCFlow.Modules.EventStorming.Features;
+using VietAIS.TCFlow.Modules.EventStorming.Projections;
 using Wolverine;
 using Wolverine.Http;
 using Wolverine.Marten;
@@ -45,6 +50,8 @@ builder.Services.AddTcFlowProjectionAdministration(options =>
     options.AllowedProjectionNames.Add(TaskProjectionNames.Current);
     options.AllowedProjectionNames.Add(TaskProjectionNames.Board);
     options.AllowedProjectionNames.Add(TaskProjectionNames.Analytics);
+    options.AllowedProjectionNames.Add(StormingProjectionNames.BoardCanvas);
+    options.AllowedProjectionNames.Add(StormingProjectionNames.DomainEventCatalog);
 });
 
 var martenConnection = builder.Configuration.GetConnectionString("marten");
@@ -62,6 +69,7 @@ builder.Services.AddMarten(options =>
     AccessControlMartenConfiguration.Configure(options);
     PlanningMartenConfiguration.Configure(options);
     TaskFlowMartenConfiguration.Configure(options);
+    StormingMartenConfiguration.Configure(options);
 })
 .IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")
 .AddAsyncDaemon(DaemonMode.HotCold);
@@ -74,6 +82,7 @@ builder.Host.UseWolverine(options =>
     options.Discovery.IncludeAssembly(typeof(AccessCommandHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(PlanningHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(TaskFlowHandlers).Assembly);
+    options.Discovery.IncludeAssembly(typeof(StormingHandlers).Assembly);
     TcFlowMessagingConfiguration.Configure(options);
 });
 
@@ -265,6 +274,36 @@ app.MapPost("/api/vnext/tasks/source-proposal", async (ApplySourceChangeProposal
 app.MapGet("/api/vnext/tasks/{taskId:guid}", async (Guid taskId, IQuerySession session, CancellationToken cancellationToken) =>
 {
     var result = await TaskFlowQueries.Handle(new GetTask(taskId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/event-storming/boards", async (CreateBoard command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    var result = await bus.InvokeAsync<StormingCommandResult>(command, cancellationToken).ConfigureAwait(false);
+    return Results.Created($"/api/vnext/event-storming/boards/{result.BoardId}", result);
+});
+
+app.MapPost("/api/vnext/event-storming/boards/{boardId:guid}/nodes", async (Guid boardId, AddNode command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (boardId != command.BoardId) return Results.BadRequest(new { error = "The route and command board IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<StormingCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/event-storming/boards/{boardId:guid}/connections", async (Guid boardId, ConnectNodes command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (boardId != command.BoardId) return Results.BadRequest(new { error = "The route and command board IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<StormingCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/event-storming/boards/{boardId:guid}/hotspots", async (Guid boardId, MarkHotspot command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (boardId != command.BoardId) return Results.BadRequest(new { error = "The route and command board IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<StormingCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapGet("/api/vnext/event-storming/boards/{boardId:guid}", async (Guid boardId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await StormingQueries.Handle(new GetBoard(boardId), session, cancellationToken).ConfigureAwait(false);
     return result is null ? Results.NotFound() : Results.Ok(result);
 });
 

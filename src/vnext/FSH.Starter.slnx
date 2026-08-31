@@ -32,6 +32,10 @@
     <Project Path="Modules/TaskFlow/Modules.TaskFlow.Contracts/Modules.TaskFlow.Contracts.csproj" />
     <Project Path="Modules/TaskFlow/Modules.TaskFlow/Modules.TaskFlow.csproj" />
   </Folder>
+  <Folder Name="/Modules/EventStorming/">
+    <Project Path="Modules/EventStorming/Modules.EventStorming.Contracts/Modules.EventStorming.Contracts.csproj" />
+    <Project Path="Modules/EventStorming/Modules.EventStorming/Modules.EventStorming.csproj" />
+  </Folder>
   <Folder Name="/Modules/Auditing/">
     <Project Path="Modules/Auditing/Modules.Auditing.Contracts/Modules.Auditing.Contracts.csproj" />
     <Project Path="Modules/Auditing/Modules.Auditing/Modules.Auditing.csproj" Id="2764205b-8725-43a7-b499-67b98959ad50" />
@@ -89,6 +93,7 @@
     <Project Path="Tests/AccessControl.Tests/AccessControl.Tests.csproj" />
     <Project Path="Tests/Planning.Tests/Planning.Tests.csproj" />
     <Project Path="Tests/TaskFlow.Tests/TaskFlow.Tests.csproj" />
+    <Project Path="Tests/EventStorming.Tests/EventStorming.Tests.csproj" />
     <Project Path="Tests/EventSourcing.Tests/EventSourcing.Tests.csproj" />
     <Project Path="Tests/Projects.Tests/Projects.Tests.csproj" />
     <Project Path="Tests/Architecture.Tests/Architecture.Tests.csproj" />

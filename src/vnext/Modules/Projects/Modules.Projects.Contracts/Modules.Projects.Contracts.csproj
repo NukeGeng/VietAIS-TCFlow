@@ -3,4 +3,7 @@
     <RootNamespace>VietAIS.TCFlow.Modules.Projects.Contracts</RootNamespace>
     <AssemblyName>VietAIS.TCFlow.Modules.Projects.Contracts</AssemblyName>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Application\Application.csproj" />
+  </ItemGroup>
 </Project>

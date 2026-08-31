@@ -20,6 +20,9 @@ finished. Access control, planning/task contexts, integrations, frontend
 cutover, replay tooling, and production deployment remain on the migration
 plan.
 
+The shared event-driven rules for this slice are recorded in
+[`docs/architecture/M2_EVENT_DRIVEN_BUILDING_BLOCKS.md`](../../docs/architecture/M2_EVENT_DRIVEN_BUILDING_BLOCKS.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

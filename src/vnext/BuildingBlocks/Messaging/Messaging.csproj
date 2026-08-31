@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.BuildingBlocks.Messaging</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.BuildingBlocks.Messaging</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.FluentValidation" />
+  </ItemGroup>
+</Project>

@@ -2,16 +2,29 @@ using JasperFx;
 using JasperFx.Events.Daemon;
 using JasperFx.Resources;
 using Marten;
+using VietAIS.TCFlow.BuildingBlocks.Application.Identity;
+using VietAIS.TCFlow.BuildingBlocks.Application.Time;
+using VietAIS.TCFlow.BuildingBlocks.EventSourcing.Configuration;
+using VietAIS.TCFlow.BuildingBlocks.EventSourcing.Projections;
+using VietAIS.TCFlow.BuildingBlocks.Messaging;
 using VietAIS.TCFlow.Modules.Projects.Configuration;
 using VietAIS.TCFlow.Modules.Projects.Contracts.Commands;
 using VietAIS.TCFlow.Modules.Projects.Contracts.Queries;
 using VietAIS.TCFlow.Modules.Projects.Features;
+using VietAIS.TCFlow.Modules.Projects.Projections;
 using Wolverine;
 using Wolverine.Http;
 using Wolverine.Marten;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IClock, SystemClock>();
+builder.Services.AddSingleton<IIdGenerator, UuidV7IdGenerator>();
+builder.Services.AddTcFlowProjectionAdministration(options =>
+{
+    options.AllowedProjectionNames.Add(ProjectProjectionNames.Current);
+    options.AllowedProjectionNames.Add(ProjectProjectionNames.PortfolioSummary);
+});
 
 var martenConnection = builder.Configuration.GetConnectionString("marten");
 if (string.IsNullOrWhiteSpace(martenConnection))
@@ -23,22 +36,18 @@ if (string.IsNullOrWhiteSpace(martenConnection))
 builder.Services.AddMarten(options =>
 {
     options.Connection(martenConnection);
+    TcFlowEventStoreConfiguration.Configure(options);
     ProjectsMartenConfiguration.Configure(options);
 })
-.IntegrateWithWolverine()
+.IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")
 .AddAsyncDaemon(DaemonMode.HotCold);
 
 builder.Services.AddResourceSetupOnStartup();
 builder.Host.ApplyJasperFxExtensions();
 builder.Host.UseWolverine(options =>
 {
-    options.Durability.MessageStorageSchemaName = "wolverine";
     options.Discovery.IncludeAssembly(typeof(ProjectCommandHandlers).Assembly);
-    // Command handlers own the Marten unit-of-work and call SaveChangesAsync
-    // explicitly. This keeps the commit boundary visible while the migration
-    // slice is still being introduced; automatic transaction middleware will
-    // be enabled once all handlers share the same convention.
-    options.Policies.UseDurableLocalQueues();
+    TcFlowMessagingConfiguration.Configure(options);
 });
 
 builder.Services.AddOpenApi();

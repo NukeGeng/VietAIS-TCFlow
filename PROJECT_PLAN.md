@@ -482,8 +482,8 @@ Owner: `backend`, with all domains verifying their data.
 
 Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, a
 versioned deterministic dry-run planner, a resumable operational ledger, and
-typed `Projects`/`AccessControl`/`Planning`/`TaskFlow` Marten apply slices are
-published and tested.
+typed `Projects`/`AccessControl`/`Planning`/`TaskFlow`/`RepositoryIntelligence`
+Marten apply slices are published and tested.
 Full-context pre/post reconciliation, isolated backup/restore, repeatable apply
 coverage for all bounded contexts, and rollback evidence are still required
 before this milestone can be marked confirmed.
@@ -511,6 +511,10 @@ Deliverables:
   `TaskLifecycleReconciled` snapshot, preserves `TaskVersion` and
   `TaskEvidence` history/source keys without inventing transition history, and
   updates task read projections in the same transaction.
+- Typed `RepositoryIntelligence` writer that maps analysis runs, source
+  artifacts, and source impacts to deterministic analysis streams, preserves
+  source/change/artifact keys and bounded confidence, and updates the inline
+  analysis view in the same transaction.
 - Dry-run, reconciliation, rollback, backup/restore, replay/rebuild, and
   cutover runbooks.
 - Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,

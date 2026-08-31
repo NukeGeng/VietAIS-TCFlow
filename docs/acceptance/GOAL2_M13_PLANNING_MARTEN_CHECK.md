@@ -30,7 +30,7 @@ uses Testcontainers PostgreSQL and verifies:
 4. A requirement without an owning plan is rejected by the planner before any
    write.
 
-The migration suite result is `17 passed, 0 failed` on .NET 10.
+The migration suite result is `23 passed, 0 failed` on .NET 10.
 
 ## Remaining M13 obligations
 

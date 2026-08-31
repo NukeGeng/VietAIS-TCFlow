@@ -13,6 +13,9 @@ using VietAIS.TCFlow.Modules.AccessControl.Projections;
 using VietAIS.TCFlow.Modules.Planning.Configuration;
 using VietAIS.TCFlow.Modules.Planning.Domain;
 using VietAIS.TCFlow.Modules.Planning.Projections;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Configuration;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Domain;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Projections;
 using VietAIS.TCFlow.Modules.TaskFlow.Configuration;
 using VietAIS.TCFlow.Modules.TaskFlow.Domain;
 using VietAIS.TCFlow.Modules.TaskFlow.Projections;
@@ -676,6 +679,116 @@ public sealed class MartenProjectMigrationApplierTests : IAsyncLifetime
         Assert.Equal("commit:def456", current.ImportedEvidence[0].SourceChangeKey);
     }
 
+    [Fact]
+    public async Task AppliesRepositoryAnalysisArtifactsAndImpactsOnTheAnalysisStreamIdempotently()
+    {
+        const string projectSourceId = "legacy-repository-project";
+        const string analysisSourceId = "legacy-analysis-run-1";
+        var export = new LegacyExport(
+            1,
+            [
+                new LegacyRecord(
+                    "Project",
+                    projectSourceId,
+                    null,
+                    "sha256:repository-project",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        name = "Repository project",
+                        ownerId = "owner-1",
+                        createdAtUtc = "2026-08-30T10:00:00Z"
+                    })),
+                new LegacyRecord(
+                    "AnalysisRun",
+                    analysisSourceId,
+                    projectSourceId,
+                    "sha256:analysis-run",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        repositoryId = "NukeGeng/Portfolio",
+                        commitSha = "abc123",
+                        startedAtUtc = "2026-08-30T10:01:00Z"
+                    })),
+                new LegacyRecord(
+                    "SourceArtifact",
+                    "legacy-artifact-1",
+                    projectSourceId,
+                    "sha256:artifact-1",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        analysisRunSourceId = analysisSourceId,
+                        path = "src/Orders.cs",
+                        kind = "Aggregate",
+                        symbol = "OrderAggregate",
+                        details = "Legacy source artifact",
+                        observedAtUtc = "2026-08-30T10:02:00Z"
+                    })),
+                new LegacyRecord(
+                    "SourceImpact",
+                    "legacy-impact-1",
+                    projectSourceId,
+                    "sha256:impact-1",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        analysisRunSourceId = analysisSourceId,
+                        impactKey = "impact-1",
+                        changeKey = "change-1",
+                        affectedArtifactKey = "artifact-1",
+                        severity = "High",
+                        reason = "Legacy impact evidence",
+                        confidence = 0.9m,
+                        observedAtUtc = "2026-08-30T10:03:00Z"
+                    }))
+            ]);
+        var plan = Goal2MigrationPlanner.Plan(export);
+
+        var first = await MartenProjectMigrationApplier.ApplyAsync(
+            plan,
+            export,
+            _postgres.GetConnectionString(),
+            CancellationToken.None);
+        var second = await MartenProjectMigrationApplier.ApplyAsync(
+            plan,
+            export,
+            _postgres.GetConnectionString(),
+            CancellationToken.None);
+
+        Assert.Equal(4, first.AppendedEventCount);
+        Assert.Equal(0, first.SkippedEventCount);
+        Assert.Equal(0, second.AppendedEventCount);
+        Assert.Equal(4, second.SkippedEventCount);
+
+        var analysisId = Goal2MigrationPlanner.CreateDeterministicId("AnalysisRun", analysisSourceId);
+        await using var store = CreateStore();
+        await using var query = store.QuerySession();
+        var events = await query.Events.FetchStreamAsync(
+            analysisId,
+            long.MaxValue,
+            timestamp: null,
+            fromVersion: 0,
+            token: CancellationToken.None);
+        var current = await query.LoadAsync<AnalysisCurrent>(analysisId);
+        var aggregate = await query.Events.AggregateStreamAsync<AnalysisRun>(analysisId);
+
+        Assert.Equal(3, events.Count);
+        Assert.IsType<AnalysisStarted>(events[0].Data);
+        Assert.IsType<ArtifactObserved>(events[1].Data);
+        Assert.IsType<ImpactRecorded>(events[2].Data);
+        Assert.NotNull(aggregate);
+        Assert.NotNull(current);
+        Assert.Equal("NukeGeng/Portfolio", current!.RepositoryId);
+        Assert.Equal("abc123", current.CommitSha);
+        Assert.Single(current.Artifacts);
+        Assert.Equal("src/Orders.cs", current.Artifacts[0].Path);
+        Assert.Single(current.Impacts);
+        Assert.Equal("High", current.Impacts[0].Severity);
+        Assert.Equal(0.9m, current.Impacts[0].Confidence);
+        Assert.Equal(3, current.Version);
+        Assert.Equal(
+            Goal2MigrationPlanner.BuildSourceReference("SourceImpact", "legacy-impact-1"),
+            Header(events[2], EventMetadataHeaders.MigrationSourceReference));
+    }
+
     private DocumentStore CreateStore()
     {
         return DocumentStore.For(options =>
@@ -684,6 +797,7 @@ public sealed class MartenProjectMigrationApplierTests : IAsyncLifetime
             TcFlowEventStoreConfiguration.Configure(options);
             AccessControlMartenConfiguration.Configure(options);
             PlanningMartenConfiguration.Configure(options);
+            RepositoryMartenConfiguration.Configure(options);
             TaskFlowMartenConfiguration.Configure(options);
             ProjectsMartenConfiguration.Configure(options);
         });

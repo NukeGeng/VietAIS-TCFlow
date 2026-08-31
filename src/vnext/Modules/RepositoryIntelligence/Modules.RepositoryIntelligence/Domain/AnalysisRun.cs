@@ -7,6 +7,7 @@ public sealed class AnalysisRun
     private readonly HashSet<string> _artifacts = [];
     private readonly HashSet<string> _changes = [];
     private readonly HashSet<string> _evidence = [];
+    private readonly HashSet<string> _impacts = [];
     public Guid Id { get; private set; }
     public Guid ProjectId { get; private set; }
     public string RepositoryId { get; private set; } = string.Empty;
@@ -17,6 +18,7 @@ public sealed class AnalysisRun
     public void Apply(ArtifactObserved e) => _artifacts.Add(Key(e.Path, e.Symbol));
     public void Apply(SourceChangeDetected e) => _changes.Add(e.ChangeKey);
     public void Apply(EvidenceRecorded e) => _evidence.Add(e.EvidenceKey);
+    public void Apply(ImpactRecorded e) => _impacts.Add(e.ImpactKey);
     public void Apply(AnalysisCompleted e) => Completed = true;
 
     public ArtifactObserved Observe(string path, SourceFactKind kind, string symbol, string? details, string actor, string correlation, DateTimeOffset now)

@@ -22,9 +22,9 @@ internal static class Goal2MigrationPlanner
             ["EngineeringTask"] = (MigrationDisposition.EventStream, "TaskFlow", "TaskImported"),
             ["TaskVersion"] = (MigrationDisposition.EventStream, "TaskFlow", "TaskVersionImported"),
             ["TaskEvidence"] = (MigrationDisposition.EventStream, "TaskFlow", "TaskEvidenceImported"),
-            ["AnalysisRun"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "AnalysisRunImported"),
-            ["SourceArtifact"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "SourceArtifactImported"),
-            ["SourceImpact"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "SourceImpactImported"),
+            ["AnalysisRun"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "AnalysisStarted"),
+            ["SourceArtifact"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "ArtifactObserved"),
+            ["SourceImpact"] = (MigrationDisposition.EventStream, "RepositoryIntelligence", "ImpactRecorded"),
             ["GitHubCredential"] = (MigrationDisposition.OperationalDocument, "Operational", "GitHubCredentialImported"),
             ["GitHubDelivery"] = (MigrationDisposition.OperationalDocument, "Operational", "GitHubDeliveryImported")
         };
@@ -62,7 +62,8 @@ internal static class Goal2MigrationPlanner
                 ? null
                 : Normalize(record.ProjectSourceId, nameof(record.ProjectSourceId));
             if ((kind is "ProjectState" or "ProjectRole" or "ProjectMembership" or "Plan" or
-                "EngineeringTask" or "TaskVersion" or "TaskEvidence") && projectSourceId is null)
+                "EngineeringTask" or "TaskVersion" or "TaskEvidence" or "AnalysisRun" or
+                "SourceArtifact" or "SourceImpact") && projectSourceId is null)
             {
                 throw new InvalidOperationException(
                     $"Legacy record '{kind}:{sourceId}' must identify its Project source record.");
@@ -153,6 +154,13 @@ internal static class Goal2MigrationPlanner
                 Normalize(aggregateSourceId, nameof(aggregateSourceId)));
         }
 
+        if (normalizedKind is "SourceArtifact" or "SourceImpact")
+        {
+            return CreateDeterministicId(
+                "AnalysisRun",
+                Normalize(aggregateSourceId, nameof(aggregateSourceId)));
+        }
+
         return CreateDeterministicId(normalizedKind, normalizedSourceId);
     }
 
@@ -194,6 +202,12 @@ internal static class Goal2MigrationPlanner
                 kind,
                 "taskSourceId",
                 "taskId"),
+            "AnalysisRun" => sourceId,
+            "SourceArtifact" or "SourceImpact" => RequiredPayloadString(
+                payload,
+                kind,
+                "analysisRunSourceId",
+                "analysisRunId"),
             "ProjectState" or "ProjectRole" or "ProjectMembership" => projectSourceId,
             _ => null
         };

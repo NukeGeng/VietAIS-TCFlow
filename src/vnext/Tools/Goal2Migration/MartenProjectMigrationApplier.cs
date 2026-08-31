@@ -6,6 +6,8 @@ using VietAIS.TCFlow.Modules.AccessControl.Configuration;
 using VietAIS.TCFlow.Modules.AccessControl.Domain;
 using VietAIS.TCFlow.Modules.Planning.Configuration;
 using VietAIS.TCFlow.Modules.Planning.Domain;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Configuration;
+using VietAIS.TCFlow.Modules.RepositoryIntelligence.Domain;
 using VietAIS.TCFlow.Modules.TaskFlow.Configuration;
 using VietAIS.TCFlow.Modules.TaskFlow.Domain;
 using VietAIS.TCFlow.Modules.Projects.Configuration;
@@ -30,6 +32,9 @@ internal static class MartenProjectMigrationApplier
     private const string EngineeringTaskKind = "EngineeringTask";
     private const string TaskVersionKind = "TaskVersion";
     private const string TaskEvidenceKind = "TaskEvidence";
+    private const string AnalysisRunKind = "AnalysisRun";
+    private const string SourceArtifactKind = "SourceArtifact";
+    private const string SourceImpactKind = "SourceImpact";
 
     public static async Task<MigrationBusinessApplyReport> ApplyAsync(
         MigrationPlan plan,
@@ -48,13 +53,14 @@ internal static class MartenProjectMigrationApplier
             .Where(operation => operation.Kind is not (
                 ProjectKind or ProjectStateKind or ProjectRoleKind or ProjectMembershipKind or
                 PlanKind or RequirementKind or MilestoneKind or EngineeringTaskKind or
-                TaskVersionKind or TaskEvidenceKind))
+                TaskVersionKind or TaskEvidenceKind or AnalysisRunKind or SourceArtifactKind or
+                SourceImpactKind))
             .Select(operation => $"{operation.Kind}:{operation.SourceId}")
             .ToArray();
         if (unsupported.Length > 0)
         {
             throw new InvalidOperationException(
-                "Marten apply currently supports Projects, AccessControl, Planning, and TaskFlow records. " +
+                "Marten apply currently supports Projects, AccessControl, Planning, TaskFlow, and RepositoryIntelligence records. " +
                 $"Create a bounded-context mapper before applying: {string.Join(", ", unsupported)}.");
         }
 
@@ -82,6 +88,7 @@ internal static class MartenProjectMigrationApplier
             AccessControlMartenConfiguration.Configure(options);
             PlanningMartenConfiguration.Configure(options);
             TaskFlowMartenConfiguration.Configure(options);
+            RepositoryMartenConfiguration.Configure(options);
             ProjectsMartenConfiguration.Configure(options);
         });
         await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync().ConfigureAwait(false);
@@ -108,7 +115,7 @@ internal static class MartenProjectMigrationApplier
             }
 
             if (streamEvents.TryGetValue(item.Operation.TargetId, out var existing) && existing.Count > 0 &&
-                item.Events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated))
+                item.Events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted))
             {
                 throw new InvalidOperationException(
                     $"Aggregate stream '{item.Operation.TargetId}' already exists without a migration marker for " +
@@ -141,7 +148,7 @@ internal static class MartenProjectMigrationApplier
                 .SelectMany(item => item.Events.Select(@event => new MappedEventData(item, @event)))
                 .OrderBy(item => EventOrder(item.Event))
                 .ToArray();
-            var initializer = ordered.FirstOrDefault(item => item.Event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed);
+            var initializer = ordered.FirstOrDefault(item => item.Event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted);
             if (initializer is not null)
             {
                 ApplyMetadata(session, initializer.Item.Operation);
@@ -163,6 +170,13 @@ internal static class MartenProjectMigrationApplier
                 else if (initializer.Event is TaskProposed)
                 {
                     var action = session.Events.StartStream<EngineeringTask>(
+                        initializer.Item.Operation.TargetId,
+                        actionEvents);
+                    SetActionEventMetadata(action.Events, ordered);
+                }
+                else if (initializer.Event is AnalysisStarted)
+                {
+                    var action = session.Events.StartStream<AnalysisRun>(
                         initializer.Item.Operation.TargetId,
                         actionEvents);
                     SetActionEventMetadata(action.Events, ordered);
@@ -272,6 +286,37 @@ internal static class MartenProjectMigrationApplier
                 continue;
             }
 
+            if (ordered.Any(item => item.Event is ArtifactObserved or ImpactRecorded or SourceChangeDetected or EvidenceRecorded or AnalysisCompleted))
+            {
+                var first = ordered[0];
+                ApplyMetadata(session, first.Item.Operation);
+                if (!expectedVersions.TryGetValue(first.Item.Operation.TargetId, out var expectedVersion) ||
+                    expectedVersion == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"RepositoryIntelligence operation '{first.Item.Operation.SourceReference}' has no existing analysis stream.");
+                }
+
+                var stream = await session.Events.FetchForWriting<AnalysisRun>(
+                    first.Item.Operation.TargetId,
+                    expectedVersion,
+                    cancellationToken).ConfigureAwait(false);
+                if (stream.Aggregate is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Analysis stream '{first.Item.Operation.TargetId}' could not be reconstructed for migration.");
+                }
+
+                foreach (var item in ordered)
+                {
+                    stream.AppendOne(item.Event);
+                    SetEventMetadata(stream.Events[^1], item.Item.Operation);
+                    expectedVersions[item.Item.Operation.TargetId]++;
+                }
+
+                continue;
+            }
+
             foreach (var item in ordered)
             {
                 ApplyMetadata(session, item.Item.Operation);
@@ -330,6 +375,12 @@ internal static class MartenProjectMigrationApplier
                 [TaskFlowMigrationMapper.ToVersionEvent(operation, record)],
             TaskEvidenceKind =>
                 [TaskFlowMigrationMapper.ToEvidenceEvent(operation, record)],
+            AnalysisRunKind =>
+                [RepositoryIntelligenceMigrationMapper.ToAnalysisStarted(operation, record)],
+            SourceArtifactKind =>
+                [RepositoryIntelligenceMigrationMapper.ToArtifactObserved(operation, record)],
+            SourceImpactKind =>
+                [RepositoryIntelligenceMigrationMapper.ToImpactRecorded(operation, record)],
             _ => throw new InvalidOperationException($"No typed mapper exists for migration kind '{operation.Kind}'.")
         };
 
@@ -443,7 +494,7 @@ internal static class MartenProjectMigrationApplier
         foreach (var group in effective.GroupBy(item => item.Operation.TargetId))
         {
             var events = group.SelectMany(item => item.Events).ToArray();
-            var hasInitializer = events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed);
+            var hasInitializer = events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted);
             if (!hasInitializer && (!streamEvents.TryGetValue(group.Key, out var existing) || existing.Count == 0))
             {
                 var kind = "AccessControl";
@@ -459,11 +510,15 @@ internal static class MartenProjectMigrationApplier
                 {
                     kind = "TaskFlow";
                 }
+                else if (events.Any(@event => @event is ArtifactObserved or ImpactRecorded or SourceChangeDetected or EvidenceRecorded or AnalysisCompleted))
+                {
+                    kind = "RepositoryIntelligence";
+                }
                 throw new InvalidOperationException(
                     $"{kind} stream '{group.Key}' is required before applying this migration.");
             }
 
-            if (events.Count(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed) > 1)
+            if (events.Count(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted) > 1)
             {
                 throw new InvalidOperationException(
                     $"More than one stream initializer is planned for stream '{group.Key}'.");
@@ -478,7 +533,8 @@ internal static class MartenProjectMigrationApplier
             if (events.Count(@event => @event is ProjectCreated) > 1 ||
                 events.Count(@event => @event is ProjectAccessInitialized) > 1 ||
                 events.Count(@event => @event is PlanCreated) > 1 ||
-                events.Count(@event => @event is TaskProposed) > 1)
+                events.Count(@event => @event is TaskProposed) > 1 ||
+                events.Count(@event => @event is AnalysisStarted) > 1)
             {
                 throw new InvalidOperationException(
                     $"More than one typed initializer is planned for stream '{group.Key}'.");
@@ -491,6 +547,7 @@ internal static class MartenProjectMigrationApplier
         ProjectCreated or ProjectAccessInitialized => 0,
         PlanCreated => 0,
         TaskProposed => 0,
+        AnalysisStarted => 0,
         ProjectRoleCreated => 10,
         ProjectRolePermissionsUpdated => 20,
         ProjectMemberAdded => 30,
@@ -502,6 +559,11 @@ internal static class MartenProjectMigrationApplier
         TaskVersionImported => 70,
         TaskEvidenceImported => 80,
         ProjectLifecycleReconciled => 60,
+        ArtifactObserved => 10,
+        SourceChangeDetected => 20,
+        EvidenceRecorded => 30,
+        ImpactRecorded => 40,
+        AnalysisCompleted => 50,
         _ => 100
     };
 
@@ -552,9 +614,14 @@ internal static class MartenProjectMigrationApplier
             return PlanningMigrationMapper.MigrationSource;
         }
 
-        if (operation.Kind is EngineeringTaskKind)
+        if (operation.Kind is EngineeringTaskKind or TaskVersionKind or TaskEvidenceKind)
         {
             return TaskFlowMigrationMapper.MigrationSource;
+        }
+
+        if (operation.Kind is AnalysisRunKind or SourceArtifactKind or SourceImpactKind)
+        {
+            return RepositoryIntelligenceMigrationMapper.MigrationSource;
         }
 
         return ProjectMigrationMapper.MigrationSource;

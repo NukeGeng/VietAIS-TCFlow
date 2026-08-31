@@ -54,10 +54,11 @@ consume the validated plan only after their field mapping and reconciliation
 checks are approved.
 
 The first approved model-level writers are the Projects, AccessControl,
-Planning, and TaskFlow slices. In an isolated PostgreSQL database, use
-`--apply-marten` with the same ledger to append typed project/access/planning/task
-events and update the inline `ProjectCurrent`/effective-permission/plan/task
-projections in the Marten transaction:
+Planning, TaskFlow, and RepositoryIntelligence slices. In an isolated
+PostgreSQL database, use `--apply-marten` with the same ledger to append typed
+project/access/planning/task/analysis events and update the inline
+`ProjectCurrent`/effective-permission/plan/task/analysis projections in the
+Marten transaction:
 
 ```bash
 dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
@@ -71,7 +72,9 @@ dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
 For `EngineeringTask`, the writer appends `TaskProposed` followed by
 `TaskLifecycleReconciled`; it preserves the imported snapshot without fabricating
 accept/start/review transitions. `TaskVersion` and `TaskEvidence` records are
-then appended to the owning task stream as typed immutable history. This mode
+then appended to the owning task stream as typed immutable history.
+`AnalysisRun`, `SourceArtifact`, and `SourceImpact` records are appended to the
+owning analysis stream as typed repository facts. This mode
 fails closed for unsupported bounded-context records, missing
 required project/access fields, unsupported lifecycle or permission values, an
 existing stream without a migration marker, or a ledger marker that is not

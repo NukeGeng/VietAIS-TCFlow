@@ -16,6 +16,8 @@
     <ProjectReference Include="../../Modules/Planning/Modules.Planning.Contracts/Modules.Planning.Contracts.csproj" />
     <ProjectReference Include="../../Modules/TaskFlow/Modules.TaskFlow/Modules.TaskFlow.csproj" />
     <ProjectReference Include="../../Modules/TaskFlow/Modules.TaskFlow.Contracts/Modules.TaskFlow.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/RepositoryIntelligence/Modules.RepositoryIntelligence.Contracts/Modules.RepositoryIntelligence.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/RepositoryIntelligence/Modules.RepositoryIntelligence/Modules.RepositoryIntelligence.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

@@ -14,6 +14,7 @@ public static class RepositoryMartenConfiguration
         options.Events.AddEventType<ArtifactObserved>();
         options.Events.AddEventType<SourceChangeDetected>();
         options.Events.AddEventType<EvidenceRecorded>();
+        options.Events.AddEventType<ImpactRecorded>();
         options.Events.AddEventType<AnalysisCompleted>();
         options.Projections.Add<AnalysisCurrentProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<KnowledgeGraphProjection>(ProjectionLifecycle.Async);

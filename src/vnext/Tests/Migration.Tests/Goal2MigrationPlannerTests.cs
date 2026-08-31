@@ -190,6 +190,50 @@ public sealed class Goal2MigrationPlannerTests
     }
 
     [Fact]
+    public void RepositoryFactsUseTheOwningAnalysisStreamIdentity()
+    {
+        using var artifactPayload = JsonDocument.Parse("{\"analysisRunSourceId\":\"analysis-1\"}");
+        using var impactPayload = JsonDocument.Parse("{\"analysisRunSourceId\":\"analysis-1\"}");
+        var plan = Goal2MigrationPlanner.Plan(
+            new LegacyExport(
+                1,
+                [
+                    Record("AnalysisRun", "analysis-1", "project-1"),
+                    new LegacyRecord(
+                        "SourceArtifact",
+                        "artifact-1",
+                        "project-1",
+                        "sha256:artifact",
+                        artifactPayload.RootElement.Clone()),
+                    new LegacyRecord(
+                        "SourceImpact",
+                        "impact-1",
+                        "project-1",
+                        "sha256:impact",
+                        impactPayload.RootElement.Clone())
+                ]));
+
+        var analysis = plan.Operations.Single(operation => operation.Kind == "AnalysisRun");
+        var artifact = plan.Operations.Single(operation => operation.Kind == "SourceArtifact");
+        var impact = plan.Operations.Single(operation => operation.Kind == "SourceImpact");
+
+        Assert.Equal(analysis.TargetId, artifact.TargetId);
+        Assert.Equal(analysis.TargetId, impact.TargetId);
+        Assert.Equal("analysis-1", artifact.AggregateSourceId);
+        Assert.Equal("analysis-1", impact.AggregateSourceId);
+    }
+
+    [Fact]
+    public void RepositoryFactWithoutOwningAnalysisFailsClosed()
+    {
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            Goal2MigrationPlanner.Plan(
+                new LegacyExport(1, [Record("SourceArtifact", "artifact-1", "project-1")] )));
+
+        Assert.Contains("must identify its aggregate source", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ApplyingTheLedgerIsRepeatableAndDoesNotAppendDuplicateEntries()
     {
         var export = new LegacyExport(

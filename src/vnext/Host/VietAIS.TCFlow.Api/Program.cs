@@ -33,6 +33,11 @@ using VietAIS.TCFlow.Modules.EventStorming.Contracts.Commands;
 using VietAIS.TCFlow.Modules.EventStorming.Contracts.Queries;
 using VietAIS.TCFlow.Modules.EventStorming.Features;
 using VietAIS.TCFlow.Modules.EventStorming.Projections;
+using VietAIS.TCFlow.Modules.Architecture.Configuration;
+using VietAIS.TCFlow.Modules.Architecture.Contracts.Commands;
+using VietAIS.TCFlow.Modules.Architecture.Contracts.Queries;
+using VietAIS.TCFlow.Modules.Architecture.Features;
+using VietAIS.TCFlow.Modules.Architecture.Projections;
 using Wolverine;
 using Wolverine.Http;
 using Wolverine.Marten;
@@ -52,6 +57,8 @@ builder.Services.AddTcFlowProjectionAdministration(options =>
     options.AllowedProjectionNames.Add(TaskProjectionNames.Analytics);
     options.AllowedProjectionNames.Add(StormingProjectionNames.BoardCanvas);
     options.AllowedProjectionNames.Add(StormingProjectionNames.DomainEventCatalog);
+    options.AllowedProjectionNames.Add(ArchitectureProjectionNames.Current);
+    options.AllowedProjectionNames.Add(ArchitectureProjectionNames.Overview);
 });
 
 var martenConnection = builder.Configuration.GetConnectionString("marten");
@@ -70,6 +77,7 @@ builder.Services.AddMarten(options =>
     PlanningMartenConfiguration.Configure(options);
     TaskFlowMartenConfiguration.Configure(options);
     StormingMartenConfiguration.Configure(options);
+    ArchitectureMartenConfiguration.Configure(options);
 })
 .IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")
 .AddAsyncDaemon(DaemonMode.HotCold);
@@ -83,6 +91,7 @@ builder.Host.UseWolverine(options =>
     options.Discovery.IncludeAssembly(typeof(PlanningHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(TaskFlowHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(StormingHandlers).Assembly);
+    options.Discovery.IncludeAssembly(typeof(ArchitectureHandlers).Assembly);
     TcFlowMessagingConfiguration.Configure(options);
 });
 
@@ -304,6 +313,48 @@ app.MapPost("/api/vnext/event-storming/boards/{boardId:guid}/hotspots", async (G
 app.MapGet("/api/vnext/event-storming/boards/{boardId:guid}", async (Guid boardId, IQuerySession session, CancellationToken cancellationToken) =>
 {
     var result = await StormingQueries.Handle(new GetBoard(boardId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/architecture/models", async (CreateArchitectureModel command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    var result = await bus.InvokeAsync<ArchitectureCommandResult>(command, cancellationToken).ConfigureAwait(false);
+    return Results.Created($"/api/vnext/architecture/models/{result.ModelId}", result);
+});
+
+app.MapPost("/api/vnext/architecture/models/{modelId:guid}/modules", async (Guid modelId, AddModule command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (modelId != command.ModelId) return Results.BadRequest(new { error = "The route and command model IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<ArchitectureCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/architecture/models/{modelId:guid}/module-relationships", async (Guid modelId, ConnectModules command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (modelId != command.ModelId) return Results.BadRequest(new { error = "The route and command model IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<ArchitectureCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/architecture/models/{modelId:guid}/entities", async (Guid modelId, AddDataEntity command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (modelId != command.ModelId) return Results.BadRequest(new { error = "The route and command model IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<ArchitectureCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/architecture/models/{modelId:guid}/data-relationships", async (Guid modelId, AddDataRelationship command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (modelId != command.ModelId) return Results.BadRequest(new { error = "The route and command model IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<ArchitectureCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/architecture/models/{modelId:guid}/drifts", async (Guid modelId, RecordArchitectureDrift command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (modelId != command.ModelId) return Results.BadRequest(new { error = "The route and command model IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<ArchitectureCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapGet("/api/vnext/architecture/models/{modelId:guid}", async (Guid modelId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await ArchitectureQueries.Handle(new GetArchitectureModel(modelId), session, cancellationToken).ConfigureAwait(false);
     return result is null ? Results.NotFound() : Results.Ok(result);
 });
 

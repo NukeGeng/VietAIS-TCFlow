@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><RootNamespace>VietAIS.TCFlow.Modules.Architecture.Tests</RootNamespace><AssemblyName>VietAIS.TCFlow.Modules.Architecture.Tests</AssemblyName><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\Modules\Architecture\Modules.Architecture\Modules.Architecture.csproj" /><ProjectReference Include="..\..\Modules\Architecture\Modules.Architecture.Contracts\Modules.Architecture.Contracts.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="Shouldly" /><PackageReference Include="xunit" /><PackageReference Include="xunit.runner.visualstudio" /></ItemGroup>
+</Project>

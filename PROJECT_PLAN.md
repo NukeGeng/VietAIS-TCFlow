@@ -503,6 +503,9 @@ Gate:
 
 Owners: `backend`, `frontend`, and `ai` through separate branches and PRs.
 
+Status: `PROPOSED`. See `docs/acceptance/GOAL2_M14_ACCEPTANCE_RECORD.md` for
+the evidence already available and the runtime artifacts still required.
+
 Required evidence:
 
 - All GOAL2 quality gates and product constraints have direct tests or explicit

@@ -111,7 +111,7 @@ public sealed class MartenProjectMigrationApplierTests : IAsyncLifetime
             _postgres.GetConnectionString(),
             CancellationToken.None);
 
-        Assert.Equal(4, first.AppendedEventCount);
+        Assert.Equal(3, first.AppendedEventCount);
         Assert.Equal(0, first.SkippedEventCount);
         Assert.Equal(0, second.AppendedEventCount);
         Assert.Equal(3, second.SkippedEventCount);

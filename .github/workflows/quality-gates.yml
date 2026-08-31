@@ -166,7 +166,7 @@ jobs:
         run: docker compose --env-file deploy/self-host/.env.example -f deploy/self-host/docker-compose.yml build
 
       - name: Validate Nginx configuration
-        run: docker run --rm --add-host api:127.0.0.1 --add-host vnext-api:127.0.0.1 vietais-tcflow/frontend:2.0.4-rc nginx -t
+        run: docker run --rm --add-host api:127.0.0.1 vietais-tcflow/frontend:2.0.4-rc nginx -t
 
       - name: Smoke test self-host stack
         env:

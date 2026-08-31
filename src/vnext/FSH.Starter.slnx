@@ -133,7 +133,11 @@
   </Folder>
   <!--#if (includeTools) -->
   <Folder Name="/Tools/">
+    <Project Path="Tools/Goal2Migration/Goal2Migration.csproj" />
     <Project Path="Tools/CLI/FSH.CLI.csproj" />
+  </Folder>
+  <Folder Name="/Tests/Migration/">
+    <Project Path="Tests/Migration.Tests/Migration.Tests.csproj" />
   </Folder>
   <!--#endif -->
 

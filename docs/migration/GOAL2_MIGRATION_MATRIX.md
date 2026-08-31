@@ -43,6 +43,12 @@ Before migrating a bounded context, expand its row into a model-level table:
 No legacy table/document may be deleted until its target row, identity mapping,
 dry run, pre/post counts, invariants, and rollback path are verified.
 
+The first executable inventory/planning slice is
+`src/vnext/Tools/Goal2Migration`. It is intentionally a dry-run planner: each
+model-level row must still document the source export field mapping, target
+event payload/upcaster, pre/post count, invariant checks, and rollback record
+before a writer is allowed to append to the Event Store.
+
 ## Contract migration rule
 
 For every HTTP route, permission code, domain event, integration message,

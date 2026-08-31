@@ -480,14 +480,17 @@ Gate:
 
 Owner: `backend`, with all domains verifying their data.
 
-Status: `PROPOSED`; the migration/cutover runbook and acceptance matrix are
-published, but an isolated backup/restore and repeatable dry-run execution is
-still required before this milestone can be marked confirmed.
+Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, and a
+versioned deterministic dry-run planner are published, but an isolated
+backup/restore, model-level mapping, and repeatable apply/reconciliation
+execution are still required before this milestone can be marked confirmed.
 
 Deliverables:
 
 - Versioned migration from v0.1 documents to event streams, projections, or
   retained operational documents according to the migration matrix.
+- `src/vnext/Tools/Goal2Migration` dry-run planner with schema validation,
+  deterministic identities, source references, and duplicate-safe operations.
 - Dry-run, reconciliation, rollback, backup/restore, replay/rebuild, and
   cutover runbooks.
 - Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,

@@ -23,6 +23,17 @@ Replace every `replace-with-...` value in `.env` with a unique secret. For
 example, `openssl rand -base64 48 | tr -d '\n'` produces a suitable random
 value. Do not commit `.env` or paste GitHub private keys into source control.
 
+Before starting the GOAL2 profile, run the read-only secret preflight with the
+same values loaded by your secret manager. It rejects empty values and sample
+placeholders without printing the values:
+
+```bash
+set -a
+. ./.env
+set +a
+EVENTING_PROVIDER=RabbitMQ ./goal2-preflight.sh
+```
+
 For GitHub integration, set the App ID, slug, client ID, client secret, and
 the Base64-encoded PEM private key. The GitHub App OAuth callback must exactly
 match `TCFLOW_PUBLIC_URL/github/callback`; a public HTTPS URL is required when

@@ -17,13 +17,14 @@ that the v0.1 runtime has been cut over or removed.
 | Analyzer facts, evidence, and historical task reconciliation | Existing analyzer/P14 evidence and M9 source contracts | `CONFIRMED` for the retained v0.1 path; `INFERRED` for complete vNext parity |
 | Versioned migration planner, resumable ledger, typed Projects/AccessControl/Planning/TaskFlow/RepositoryIntelligence/EventStorming/Architecture writers, redacted Integrations operational writer, duplicate protection, and read-only Marten stream/document reconciliation | `Goal2MigrationPlannerTests`, `MartenProjectMigrationApplierTests`, `MartenOperationalMigrationApplierTests`, `MartenMigrationReconcilerTests`, [`GOAL2_M13_LEDGER_CHECK.md`](GOAL2_M13_LEDGER_CHECK.md), [`GOAL2_M13_RECONCILIATION_CHECK.md`](GOAL2_M13_RECONCILIATION_CHECK.md), [`GOAL2_M13_INTEGRATIONS_MARTEN_CHECK.md`](GOAL2_M13_INTEGRATIONS_MARTEN_CHECK.md), the bounded-context M13 checks, and the M13 runbook commands | `CONFIRMED` for the model-level event slices, redacted Integrations metadata, operational checkpointing, and source/hash checks; semantic full-context reconciliation remains `PROPOSED` |
 | Isolated vNext API startup and identity boundary | `docs/acceptance/GOAL2_VNEXT_AUTH_RUNTIME_CHECK.md` (fresh PostgreSQL database; redacted local transcript) | `CONFIRMED` for this isolated API check; Aspire, RabbitMQ, and production deployment remain `PROPOSED` |
+| Local GOAL2 self-host canary | [`GOAL2_SELF_HOST_CANARY_2026-08-31.json`](evidence/GOAL2_SELF_HOST_CANARY_2026-08-31.json) | `CONFIRMED` for local service health, frontend routing, RabbitMQ diagnostics ping, and unauthenticated 401 boundaries; it is not production or authenticated end-to-end evidence |
 | Aspire composition declares RabbitMQ for integration events and keeps Marten async processing local | `src/vnext/Host/FSH.Starter.AppHost/AppHost.cs` resource/environment wiring; no runtime transcript yet | `INFERRED` |
 
 ## Required runtime evidence before marking M14 complete
 
 | Required check | Current status | Required artifact |
 | --- | --- | --- |
-| Aspire starts PostgreSQL, API, async daemon, and UI together | `PROPOSED` | Timestamped startup/health transcript from an isolated environment |
+| Aspire starts PostgreSQL, API, async daemon, and UI together | `PROPOSED` | Timestamped startup/health transcript from an isolated environment; the self-host canary is a separate local Compose check |
 | Event append, inline visibility, async convergence, replay, and rebuild | `INFERRED` | Test output showing empty-projection rebuild and daemon convergence |
 | Optimistic concurrency and duplicate durable delivery | `INFERRED` | Concurrent command and duplicate-message test output |
 | RabbitMQ routing, retry, dead-letter, and broker outage behavior | `PROPOSED` | Broker smoke/failure transcript with queue and dead-letter counts |

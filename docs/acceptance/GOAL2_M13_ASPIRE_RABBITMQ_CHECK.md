@@ -23,10 +23,12 @@ dotnet build Host/FSH.Starter.AppHost/FSH.Starter.AppHost.csproj \
 
 Result: build succeeded with `0 warnings, 0 errors` on .NET 10.
 
-The self-host canary profile also passes both default and `goal2` Compose
+The self-host canary profile passes both default and `goal2` Compose
 configuration validation, Nginx syntax validation, and a local `.NET 10`
-`Dockerfile.vnext` image build. These are packaging checks; they do not replace
-the required isolated startup and broker-failure transcript.
+`Dockerfile.vnext` image build. A timestamped local startup/health result is
+captured in [`GOAL2_SELF_HOST_CANARY_2026-08-31.json`](evidence/GOAL2_SELF_HOST_CANARY_2026-08-31.json).
+These checks do not replace the required isolated Aspire startup and
+broker-failure transcript.
 
 ## Remaining runtime evidence
 

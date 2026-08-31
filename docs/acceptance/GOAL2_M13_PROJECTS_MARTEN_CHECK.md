@@ -43,6 +43,7 @@ RepositoryIntelligence evidence is recorded separately in
 `GOAL2_M13_ACCESS_CONTROL_MARTEN_CHECK.md`,
 `GOAL2_M13_PLANNING_MARTEN_CHECK.md`, and
 `GOAL2_M13_TASK_FLOW_MARTEN_CHECK.md`, and
-`GOAL2_M13_REPOSITORY_INTELLIGENCE_MARTEN_CHECK.md`. Full pre/post counts, isolated
+`GOAL2_M13_REPOSITORY_INTELLIGENCE_MARTEN_CHECK.md`. Full pre/post counts,
+isolated
 backup/restore, projection rebuild rehearsal, production/self-host topology,
 and rollback remain `PROPOSED`.

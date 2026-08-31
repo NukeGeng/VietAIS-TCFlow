@@ -23,6 +23,11 @@ using VietAIS.TCFlow.Modules.Projects.Contracts.Commands;
 using VietAIS.TCFlow.Modules.Projects.Contracts.Queries;
 using VietAIS.TCFlow.Modules.Projects.Features;
 using VietAIS.TCFlow.Modules.Projects.Projections;
+using VietAIS.TCFlow.Modules.TaskFlow.Configuration;
+using VietAIS.TCFlow.Modules.TaskFlow.Contracts.Commands;
+using VietAIS.TCFlow.Modules.TaskFlow.Contracts.Queries;
+using VietAIS.TCFlow.Modules.TaskFlow.Features;
+using VietAIS.TCFlow.Modules.TaskFlow.Projections;
 using Wolverine;
 using Wolverine.Http;
 using Wolverine.Marten;
@@ -37,6 +42,9 @@ builder.Services.AddTcFlowProjectionAdministration(options =>
 {
     options.AllowedProjectionNames.Add(ProjectProjectionNames.Current);
     options.AllowedProjectionNames.Add(ProjectProjectionNames.PortfolioSummary);
+    options.AllowedProjectionNames.Add(TaskProjectionNames.Current);
+    options.AllowedProjectionNames.Add(TaskProjectionNames.Board);
+    options.AllowedProjectionNames.Add(TaskProjectionNames.Analytics);
 });
 
 var martenConnection = builder.Configuration.GetConnectionString("marten");
@@ -53,6 +61,7 @@ builder.Services.AddMarten(options =>
     ProjectsMartenConfiguration.Configure(options);
     AccessControlMartenConfiguration.Configure(options);
     PlanningMartenConfiguration.Configure(options);
+    TaskFlowMartenConfiguration.Configure(options);
 })
 .IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")
 .AddAsyncDaemon(DaemonMode.HotCold);
@@ -64,6 +73,7 @@ builder.Host.UseWolverine(options =>
     options.Discovery.IncludeAssembly(typeof(ProjectCommandHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(AccessCommandHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(PlanningHandlers).Assembly);
+    options.Discovery.IncludeAssembly(typeof(TaskFlowHandlers).Assembly);
     TcFlowMessagingConfiguration.Configure(options);
 });
 
@@ -238,6 +248,66 @@ app.MapGet("/api/vnext/plans/{planId:guid}", async (
     var result = await PlanningQueries.Handle(new GetPlan(planId), session, cancellationToken)
         .ConfigureAwait(false);
     return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/tasks", async (CreateTask command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    var result = await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false);
+    return Results.Created($"/api/vnext/tasks/{result.TaskId}", result);
+});
+
+app.MapPost("/api/vnext/tasks/source-proposal", async (ApplySourceChangeProposal command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    var result = await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false);
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/vnext/tasks/{taskId:guid}", async (Guid taskId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await TaskFlowQueries.Handle(new GetTask(taskId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/tasks/{taskId:guid}/accept", async (Guid taskId, AcceptTask command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (taskId != command.TaskId) return Results.BadRequest(new { error = "The route and command task IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/tasks/{taskId:guid}/assign", async (Guid taskId, AssignTask command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (taskId != command.TaskId) return Results.BadRequest(new { error = "The route and command task IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/tasks/{taskId:guid}/start", async (Guid taskId, StartTask command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (taskId != command.TaskId) return Results.BadRequest(new { error = "The route and command task IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/tasks/{taskId:guid}/ai-verification", async (Guid taskId, CompleteAiVerification command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (taskId != command.TaskId) return Results.BadRequest(new { error = "The route and command task IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/tasks/{taskId:guid}/review", async (Guid taskId, RequestReview command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (taskId != command.TaskId) return Results.BadRequest(new { error = "The route and command task IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/tasks/{taskId:guid}/review/approve", async (Guid taskId, ApproveReview command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (taskId != command.TaskId) return Results.BadRequest(new { error = "The route and command task IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/tasks/{taskId:guid}/complete", async (Guid taskId, CompleteTask command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (taskId != command.TaskId) return Results.BadRequest(new { error = "The route and command task IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<TaskCommandResult>(command, cancellationToken).ConfigureAwait(false));
 });
 
 app.MapOpenApi();

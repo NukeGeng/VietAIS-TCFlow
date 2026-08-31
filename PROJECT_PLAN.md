@@ -344,6 +344,9 @@ tests, and the vNext host command/query endpoints.
 
 Owner: `backend`.
 
+Status: `CONFIRMED` for the vNext task lifecycle/reference slice. Reconciliation
+of every legacy v0.1 task/version/evidence record remains a M13 cutover gate.
+
 Deliverables:
 
 - Event-sourced task lifecycle, assignment, review, source verification,

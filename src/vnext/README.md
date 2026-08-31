@@ -47,6 +47,10 @@ Living architecture modules, ERD relationships, and evidence-backed drift
 records are recorded in
 [`docs/architecture/M8_ARCHITECTURE_EVENT_MODEL.md`](../../docs/architecture/M8_ARCHITECTURE_EVENT_MODEL.md).
 
+Normalized source facts, source changes, evidence, and rebuildable knowledge/
+impact graph projections are recorded in
+[`docs/architecture/M9_REPOSITORY_INTELLIGENCE_EVENT_MODEL.md`](../../docs/architecture/M9_REPOSITORY_INTELLIGENCE_EVENT_MODEL.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

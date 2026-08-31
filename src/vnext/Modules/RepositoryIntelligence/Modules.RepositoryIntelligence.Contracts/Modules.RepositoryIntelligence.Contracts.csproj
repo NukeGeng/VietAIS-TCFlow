@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><RootNamespace>VietAIS.TCFlow.Modules.RepositoryIntelligence.Contracts</RootNamespace><AssemblyName>VietAIS.TCFlow.Modules.RepositoryIntelligence.Contracts</AssemblyName></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\..\BuildingBlocks\Application\Application.csproj" /></ItemGroup>
+</Project>

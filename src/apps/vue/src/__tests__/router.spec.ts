@@ -13,4 +13,10 @@ describe('router authentication boundary', () => {
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.redirect).toBe('/projects/project-id/tasks')
   })
+
+  it('marks project routes with their bounded context', () => {
+    const router = createAppRouter()
+    const route = router.getRoutes().find((entry) => entry.name === 'tasks')
+    expect(route?.meta.boundedContext).toBe('task-flow')
+  })
 })

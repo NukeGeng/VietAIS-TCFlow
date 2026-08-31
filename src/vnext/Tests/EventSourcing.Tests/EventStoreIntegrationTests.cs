@@ -168,6 +168,103 @@ public sealed class EventStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task BackupRestorePreservesEventHistoryAndRebuildsAsyncProjection()
+    {
+        await ResetAsync();
+        var projectId = await SeedProjectAsync();
+        var administration = CreateProjectionAdministration();
+
+        // Materialize the async read model before the backup so the restore
+        // proves both persisted projection state and event history survive.
+        await administration.RebuildAsync(
+            ProjectProjectionNames.PortfolioSummary,
+            CancellationToken.None);
+
+        await using (var beforeBackup = _store.QuerySession())
+        {
+            var current = await beforeBackup.LoadAsync<ProjectCurrent>(projectId);
+            var summary = await beforeBackup.LoadAsync<ProjectPortfolioSummary>(projectId);
+            current.ShouldNotBeNull();
+            summary.ShouldNotBeNull();
+            summary!.Name.ShouldBe(current!.Name);
+            summary.Version.ShouldBe(current.Version);
+        }
+
+        // Close the application store before replacing the schema. The
+        // database backup itself is produced and restored inside the isolated
+        // PostgreSQL container, so no host files or credentials are involved.
+        await _store.DisposeAsync();
+
+        await ExecContainerCommandAsync(
+            [
+                "sh",
+                "-c",
+                "pg_dump --format=custom --no-owner --no-privileges --file=/tmp/tcflow-goal2.dump -U postgres tcflow_event_sourcing_tests"
+            ],
+            "create PostgreSQL backup");
+        await ExecContainerCommandAsync(
+            [
+                "sh",
+                "-c",
+                "psql -v ON_ERROR_STOP=1 -U postgres -d tcflow_event_sourcing_tests -c 'DROP SCHEMA IF EXISTS tcflow CASCADE'"
+            ],
+            "drop isolated event-store schema");
+        await ExecContainerCommandAsync(
+            [
+                "sh",
+                "-c",
+                "pg_restore --clean --if-exists --no-owner --no-privileges -U postgres -d tcflow_event_sourcing_tests /tmp/tcflow-goal2.dump"
+            ],
+            "restore PostgreSQL backup");
+
+        await using var restoredStore = CreateStore();
+        await using (var restoredQuery = restoredStore.QuerySession())
+        {
+            var events = await restoredQuery.Events.FetchStreamAsync(projectId);
+            var current = await restoredQuery.LoadAsync<ProjectCurrent>(projectId);
+            var summary = await restoredQuery.LoadAsync<ProjectPortfolioSummary>(projectId);
+
+            events.Count.ShouldBe(1);
+            current.ShouldNotBeNull();
+            summary.ShouldNotBeNull();
+            summary!.Version.ShouldBe(current!.Version);
+        }
+
+        // Delete only the disposable async read model, retain the event stream
+        // and inline state, then prove the daemon can rebuild it after restore.
+        await restoredStore.Advanced.Clean.DeleteDocumentsByTypeAsync(
+            typeof(ProjectPortfolioSummary));
+        await using (var emptyQuery = restoredStore.QuerySession())
+        {
+            (await emptyQuery.LoadAsync<ProjectPortfolioSummary>(projectId)).ShouldBeNull();
+        }
+
+        var restoredAdministration = new MartenProjectionAdministration(
+            restoredStore,
+            Options.Create(new ProjectionAdministrationOptions
+            {
+                RebuildTimeout = TimeSpan.FromSeconds(30),
+                AllowedProjectionNames =
+                {
+                    ProjectProjectionNames.PortfolioSummary
+                }
+            }),
+            NullLogger<MartenProjectionAdministration>.Instance);
+        await restoredAdministration.RebuildAsync(
+            ProjectProjectionNames.PortfolioSummary,
+            CancellationToken.None);
+
+        await using var rebuiltQuery = restoredStore.QuerySession();
+        var rebuilt = await rebuiltQuery.LoadAsync<ProjectPortfolioSummary>(projectId);
+        var restoredCurrent = await rebuiltQuery.LoadAsync<ProjectCurrent>(projectId);
+        rebuilt.ShouldNotBeNull();
+        restoredCurrent.ShouldNotBeNull();
+        rebuilt!.Name.ShouldBe(restoredCurrent!.Name);
+        rebuilt.Version.ShouldBe(restoredCurrent.Version);
+        rebuilt.IsSuspended.ShouldBe(restoredCurrent.IsSuspended);
+    }
+
+    [Fact]
     public async Task ProjectionAdministrationRejectsUnapprovedRebuilds()
     {
         var administration = CreateProjectionAdministration();
@@ -298,6 +395,24 @@ public sealed class EventStoreIntegrationTests : IAsyncLifetime
             _store,
             Options.Create(options),
             NullLogger<MartenProjectionAdministration>.Instance);
+    }
+
+    private async Task ExecContainerCommandAsync(
+        IList<string> command,
+        string operation)
+    {
+        var result = await _postgres.ExecAsync(command, CancellationToken.None);
+        result.ExitCode.ShouldBe(0, operation);
+    }
+
+    private DocumentStore CreateStore()
+    {
+        return DocumentStore.For(options =>
+        {
+            options.Connection(_postgres.GetConnectionString());
+            TcFlowEventStoreConfiguration.Configure(options);
+            ProjectsMartenConfiguration.Configure(options);
+        });
     }
 
     private async Task AssertProjectionsConvergedAsync(Guid projectId)

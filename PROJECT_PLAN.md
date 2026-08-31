@@ -483,13 +483,14 @@ Gate:
 Owner: `backend`, with all domains verifying their data.
 
 Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, a
-versioned deterministic dry-run planner, a resumable operational ledger, and
-typed `Projects`/`AccessControl`/`Planning`/`TaskFlow`/`RepositoryIntelligence`/
-`EventStorming`/`Architecture`/`PlatformAdministration` Marten apply slices
-plus the redacted `Integrations` operational writer are published and tested.
-Full-context pre/post reconciliation, isolated backup/restore, repeatable apply
-coverage for all bounded contexts, and rollback evidence are still required
-before this milestone can be marked confirmed.
+versioned deterministic dry-run planner, a resumable operational ledger, typed
+`Projects`/`AccessControl`/`Planning`/`TaskFlow`/`RepositoryIntelligence`/
+`EventStorming`/`Architecture`/`PlatformAdministration` Marten apply slices,
+the redacted `Integrations` operational writer, and an isolated event-store
+backup/restore plus async projection rebuild test are published and tested.
+Full-context pre/post reconciliation, v0.1 restore, repeatable apply coverage
+for all bounded contexts, and rollback evidence are still required before this
+milestone can be marked confirmed.
 
 Deliverables:
 

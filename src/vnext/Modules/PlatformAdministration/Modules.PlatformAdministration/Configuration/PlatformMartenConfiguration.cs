@@ -12,8 +12,13 @@ public static class PlatformMartenConfiguration
         ArgumentNullException.ThrowIfNull(options);
         options.Events.AddEventType<PlatformPolicyCreated>();
         options.Events.AddEventType<PlatformPolicyUpdated>();
+        options.Events.AddEventType<PlatformPolicyImported>();
         options.Events.AddEventType<AiProviderConfigured>();
         options.Events.AddEventType<PlatformAdminActionAudited>();
+        options.Events.AddEventType<GlobalAiProviderImported>();
+        options.Events.AddEventType<GlobalSystemSettingsImported>();
         options.Projections.Add<PlatformPolicyCurrentProjection>(ProjectionLifecycle.Inline);
+        options.Projections.Add<GlobalAiProviderCurrentProjection>(ProjectionLifecycle.Inline);
+        options.Projections.Add<GlobalSystemSettingsCurrentProjection>(ProjectionLifecycle.Inline);
     }
 }

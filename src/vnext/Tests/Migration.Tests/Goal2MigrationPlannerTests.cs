@@ -48,6 +48,36 @@ public sealed class Goal2MigrationPlannerTests
     }
 
     [Fact]
+    public void PlansPlatformAdministrationRecordsAsSystemScopedEventStreams()
+    {
+        var plan = Goal2MigrationPlanner.Plan(
+            new LegacyExport(
+                1,
+                [
+                    Record("GlobalAiProviderConfiguration", "provider-1"),
+                    Record("GlobalSystemSettings", "settings-1"),
+                    Record("PlatformPolicy", "policy-1")
+                ]));
+
+        Assert.Equal(3, plan.Operations.Count);
+        Assert.All(plan.Operations, operation =>
+        {
+            Assert.Equal(MigrationDisposition.EventStream, operation.Disposition);
+            Assert.Equal("PlatformAdministration", operation.TargetStream);
+            Assert.Null(operation.ProjectSourceId);
+        });
+        Assert.Equal(
+            "GlobalAiProviderImported",
+            plan.Operations.Single(operation => operation.Kind == "GlobalAiProviderConfiguration").TargetEventType);
+        Assert.Equal(
+            "GlobalSystemSettingsImported",
+            plan.Operations.Single(operation => operation.Kind == "GlobalSystemSettings").TargetEventType);
+        Assert.Equal(
+            "PlatformPolicyImported",
+            plan.Operations.Single(operation => operation.Kind == "PlatformPolicy").TargetEventType);
+    }
+
+    [Fact]
     public void UnknownLegacyKindsFailClosed()
     {
         var export = new LegacyExport(1, [Record("Unknown", "legacy-1")]);

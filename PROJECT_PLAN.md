@@ -446,7 +446,9 @@ Gate:
 
 Owner: `backend`.
 
-Status: `CONFIRMED` for the vNext platform policy/provider metadata slice;
+Status: `CONFIRMED` for the vNext platform policy/provider metadata slice and
+typed migration streams for global AI provider, global settings, and platform
+policy;
 FullStackHero Identity authorization composition and audit query controls
 remain M13/M14 cutover gates.
 
@@ -483,8 +485,8 @@ Owner: `backend`, with all domains verifying their data.
 Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, a
 versioned deterministic dry-run planner, a resumable operational ledger, and
 typed `Projects`/`AccessControl`/`Planning`/`TaskFlow`/`RepositoryIntelligence`/
-`EventStorming`/`Architecture` Marten apply slices plus the redacted
-`Integrations` operational writer are published and tested.
+`EventStorming`/`Architecture`/`PlatformAdministration` Marten apply slices
+plus the redacted `Integrations` operational writer are published and tested.
 Full-context pre/post reconciliation, isolated backup/restore, repeatable apply
 coverage for all bounded contexts, and rollback evidence are still required
 before this milestone can be marked confirmed.
@@ -522,6 +524,9 @@ Deliverables:
 - Typed `Architecture` writer that maps models, modules, module relationships,
   entities, data relationships, and drift records to a deterministic model
   stream and updates the inline architecture view in the same transaction.
+- Typed `PlatformAdministration` writer that maps global AI provider settings,
+  global system settings, and platform policy records to separate
+  system-scoped streams with inline projections and source/hash idempotency.
 - Typed `Integrations` operational writer that stores only whitelisted GitHub
   installation/delivery metadata, rejects secret-bearing payloads, and applies
   source/hash idempotency without creating business events.

@@ -29,6 +29,9 @@ using TaskStatus = VietAIS.TCFlow.Modules.TaskFlow.Contracts.Queries.TaskStatus;
 using VietAIS.TCFlow.Modules.Projects.Configuration;
 using VietAIS.TCFlow.Modules.Projects.Domain;
 using VietAIS.TCFlow.Modules.Projects.Projections;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Configuration;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Domain;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Projections;
 using VietAIS.TCFlow.Tools.Migration;
 
 namespace VietAIS.TCFlow.Tools.Migration.Tests;
@@ -48,6 +51,100 @@ public sealed class MartenProjectMigrationApplierTests : IAsyncLifetime
     public async Task InitializeAsync() => await _postgres.StartAsync();
 
     public async Task DisposeAsync() => await _postgres.DisposeAsync();
+
+    [Fact]
+    public async Task AppliesPlatformAdministrationRecordsToSeparateTypedStreamsAndIsIdempotent()
+    {
+        var export = new LegacyExport(
+            1,
+            [
+                new LegacyRecord(
+                    "GlobalAiProviderConfiguration",
+                    "provider-1",
+                    null,
+                    "sha256:provider-1",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        kind = 0,
+                        displayName = "Codex App Server",
+                        isEnabled = true,
+                        updatedBy = "system-admin",
+                        updatedAtUtc = "2026-08-30T10:00:00Z"
+                    })),
+                new LegacyRecord(
+                    "GlobalSystemSettings",
+                    "settings-1",
+                    null,
+                    "sha256:settings-1",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        platformName = "VietAIS TCFlow",
+                        defaultTimeZone = "Asia/Ho_Chi_Minh",
+                        supportUrl = "https://support.example.test/tcflow",
+                        updatedBy = "system-admin",
+                        updatedAtUtc = "2026-08-30T10:01:00Z"
+                    })),
+                new LegacyRecord(
+                    "PlatformPolicy",
+                    "policy-1",
+                    null,
+                    "sha256:policy-1",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        projectCreationEnabled = true,
+                        repositoryConnectionsEnabled = false,
+                        maximumRepositoriesPerProject = 20,
+                        updatedBy = "system-admin",
+                        updatedAtUtc = "2026-08-30T10:02:00Z"
+                    }))
+            ]);
+        var plan = Goal2MigrationPlanner.Plan(export);
+
+        var first = await MartenProjectMigrationApplier.ApplyAsync(
+            plan,
+            export,
+            _postgres.GetConnectionString(),
+            CancellationToken.None);
+        var second = await MartenProjectMigrationApplier.ApplyAsync(
+            plan,
+            export,
+            _postgres.GetConnectionString(),
+            CancellationToken.None);
+
+        Assert.Equal(4, first.AppendedEventCount);
+        Assert.Equal(0, first.SkippedEventCount);
+        Assert.Equal(0, second.AppendedEventCount);
+        Assert.Equal(3, second.SkippedEventCount);
+
+        var providerId = Goal2MigrationPlanner.CreateDeterministicId("GlobalAiProviderConfiguration", "provider-1");
+        var settingsId = Goal2MigrationPlanner.CreateDeterministicId("GlobalSystemSettings", "settings-1");
+        var policyId = Goal2MigrationPlanner.CreateDeterministicId("PlatformPolicy", "policy-1");
+        await using var store = CreateStore();
+        await using var query = store.QuerySession();
+
+        var providerEvents = await query.Events.FetchStreamAsync(providerId, long.MaxValue, null, 0, CancellationToken.None);
+        var settingsEvents = await query.Events.FetchStreamAsync(settingsId, long.MaxValue, null, 0, CancellationToken.None);
+        var policyEvents = await query.Events.FetchStreamAsync(policyId, long.MaxValue, null, 0, CancellationToken.None);
+        Assert.Single(providerEvents);
+        Assert.IsType<GlobalAiProviderImported>(providerEvents[0].Data);
+        Assert.Single(settingsEvents);
+        Assert.IsType<GlobalSystemSettingsImported>(settingsEvents[0].Data);
+        Assert.Equal(2, policyEvents.Count);
+        Assert.IsType<PlatformPolicyCreated>(policyEvents[0].Data);
+        Assert.IsType<PlatformPolicyImported>(policyEvents[1].Data);
+
+        var provider = await query.LoadAsync<GlobalAiProviderCurrent>(providerId);
+        var settings = await query.LoadAsync<GlobalSystemSettingsCurrent>(settingsId);
+        var policy = await query.LoadAsync<PlatformPolicyCurrent>(policyId);
+        Assert.NotNull(provider);
+        Assert.True(provider!.IsEnabled);
+        Assert.NotNull(settings);
+        Assert.Equal("Asia/Ho_Chi_Minh", settings!.DefaultTimeZone);
+        Assert.NotNull(policy);
+        Assert.True(policy!.ProjectCreationEnabled);
+        Assert.False(policy.RepositoryConnectionsEnabled);
+        Assert.Equal(20, policy.MaximumRepositoriesPerProject);
+    }
 
     [Fact]
     public async Task AppliesTypedProjectEventsWithMarkersAndIsIdempotent()

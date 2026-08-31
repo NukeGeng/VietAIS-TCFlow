@@ -36,6 +36,9 @@ internal static class Goal2MigrationPlanner
             ["ArchitectureEntity"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureEntityAdded"),
             ["ArchitectureDataRelationship"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureDataRelationshipAdded"),
             ["ArchitectureDrift"] = (MigrationDisposition.EventStream, "Architecture", "ArchitectureDriftRecorded"),
+            ["GlobalAiProviderConfiguration"] = (MigrationDisposition.EventStream, "PlatformAdministration", "GlobalAiProviderImported"),
+            ["GlobalSystemSettings"] = (MigrationDisposition.EventStream, "PlatformAdministration", "GlobalSystemSettingsImported"),
+            ["PlatformPolicy"] = (MigrationDisposition.EventStream, "PlatformAdministration", "PlatformPolicyImported"),
             ["GitHubCredential"] = (MigrationDisposition.OperationalDocument, "Operational", "GitHubCredentialImported"),
             ["GitHubDelivery"] = (MigrationDisposition.OperationalDocument, "Operational", "GitHubDeliveryImported")
         };

@@ -37,7 +37,8 @@ The operational ledger is updated only after the Marten transaction succeeds.
 
 ## Remaining M13 gates
 
-Integrations still require typed mappers and reconciliation evidence. AccessControl, Planning, TaskFlow, and
+PlatformAdministration and Integrations now have typed migration and
+reconciliation checks. AccessControl, Planning, TaskFlow, and
 RepositoryIntelligence evidence is recorded separately in
 `GOAL2_M13_ACCESS_CONTROL_MARTEN_CHECK.md`,
 `GOAL2_M13_PLANNING_MARTEN_CHECK.md`, and

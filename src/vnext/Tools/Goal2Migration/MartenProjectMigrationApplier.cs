@@ -16,6 +16,8 @@ using VietAIS.TCFlow.Modules.TaskFlow.Configuration;
 using VietAIS.TCFlow.Modules.TaskFlow.Domain;
 using VietAIS.TCFlow.Modules.Projects.Configuration;
 using VietAIS.TCFlow.Modules.Projects.Domain;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Configuration;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Domain;
 
 namespace VietAIS.TCFlow.Tools.Migration;
 
@@ -50,6 +52,9 @@ internal static class MartenProjectMigrationApplier
     private const string ArchitectureEntityKind = "ArchitectureEntity";
     private const string ArchitectureDataRelationshipKind = "ArchitectureDataRelationship";
     private const string ArchitectureDriftKind = "ArchitectureDrift";
+    private const string GlobalAiProviderKind = "GlobalAiProviderConfiguration";
+    private const string GlobalSystemSettingsKind = "GlobalSystemSettings";
+    private const string PlatformPolicyKind = "PlatformPolicy";
 
     public static async Task<MigrationBusinessApplyReport> ApplyAsync(
         MigrationPlan plan,
@@ -72,13 +77,14 @@ internal static class MartenProjectMigrationApplier
                 SourceImpactKind or StormingBoardKind or StormingNodeKind or StormingConnectionKind or
                 StormingHotspotKind or StormingNodeOrderKind or ArchitectureModelKind or
                 ArchitectureModuleKind or ArchitectureModuleRelationshipKind or ArchitectureEntityKind or
-                ArchitectureDataRelationshipKind or ArchitectureDriftKind))
+                ArchitectureDataRelationshipKind or ArchitectureDriftKind or GlobalAiProviderKind or
+                GlobalSystemSettingsKind or PlatformPolicyKind))
             .Select(operation => $"{operation.Kind}:{operation.SourceId}")
             .ToArray();
         if (unsupported.Length > 0)
         {
             throw new InvalidOperationException(
-                "Marten apply currently supports Projects, AccessControl, Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture records. " +
+                "Marten apply currently supports Projects, AccessControl, Planning, TaskFlow, RepositoryIntelligence, EventStorming, Architecture, and PlatformAdministration records. " +
                 $"Create a bounded-context mapper before applying: {string.Join(", ", unsupported)}.");
         }
 
@@ -110,6 +116,7 @@ internal static class MartenProjectMigrationApplier
             StormingMartenConfiguration.Configure(options);
             ArchitectureMartenConfiguration.Configure(options);
             ProjectsMartenConfiguration.Configure(options);
+            PlatformMartenConfiguration.Configure(options);
         });
         await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync().ConfigureAwait(false);
 
@@ -135,7 +142,7 @@ internal static class MartenProjectMigrationApplier
             }
 
             if (streamEvents.TryGetValue(item.Operation.TargetId, out var existing) && existing.Count > 0 &&
-                item.Events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated))
+                item.Events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated or GlobalAiProviderImported or GlobalSystemSettingsImported or PlatformPolicyCreated))
             {
                 throw new InvalidOperationException(
                     $"Aggregate stream '{item.Operation.TargetId}' already exists without a migration marker for " +
@@ -168,7 +175,7 @@ internal static class MartenProjectMigrationApplier
                 .SelectMany(item => item.Events.Select(@event => new MappedEventData(item, @event)))
                 .OrderBy(item => EventOrder(item.Event))
                 .ToArray();
-            var initializer = ordered.FirstOrDefault(item => item.Event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated);
+            var initializer = ordered.FirstOrDefault(item => item.Event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated or GlobalAiProviderImported or GlobalSystemSettingsImported or PlatformPolicyCreated);
             if (initializer is not null)
             {
                 ApplyMetadata(session, initializer.Item.Operation);
@@ -211,6 +218,27 @@ internal static class MartenProjectMigrationApplier
                 else if (initializer.Event is ArchitectureModelCreated)
                 {
                     var action = session.Events.StartStream<ArchitectureModel>(
+                        initializer.Item.Operation.TargetId,
+                        actionEvents);
+                    SetActionEventMetadata(action.Events, ordered);
+                }
+                else if (initializer.Event is GlobalAiProviderImported)
+                {
+                    var action = session.Events.StartStream<GlobalAiProvider>(
+                        initializer.Item.Operation.TargetId,
+                        actionEvents);
+                    SetActionEventMetadata(action.Events, ordered);
+                }
+                else if (initializer.Event is GlobalSystemSettingsImported)
+                {
+                    var action = session.Events.StartStream<GlobalSystemSettings>(
+                        initializer.Item.Operation.TargetId,
+                        actionEvents);
+                    SetActionEventMetadata(action.Events, ordered);
+                }
+                else if (initializer.Event is PlatformPolicyCreated)
+                {
+                    var action = session.Events.StartStream<PlatformPolicy>(
                         initializer.Item.Operation.TargetId,
                         actionEvents);
                     SetActionEventMetadata(action.Events, ordered);
@@ -497,6 +525,12 @@ internal static class MartenProjectMigrationApplier
                 [ArchitectureMigrationMapper.ToDataRelationshipAdded(operation, record)],
             ArchitectureDriftKind =>
                 [ArchitectureMigrationMapper.ToDriftRecorded(operation, record)],
+            GlobalAiProviderKind =>
+                [PlatformAdministrationMigrationMapper.ToAiProviderImported(operation, record)],
+            GlobalSystemSettingsKind =>
+                [PlatformAdministrationMigrationMapper.ToGlobalSettingsImported(operation, record)],
+            PlatformPolicyKind =>
+                PlatformAdministrationMigrationMapper.ToPlatformPolicyEvents(operation, record),
             _ => throw new InvalidOperationException($"No typed mapper exists for migration kind '{operation.Kind}'.")
         };
 
@@ -610,7 +644,7 @@ internal static class MartenProjectMigrationApplier
         foreach (var group in effective.GroupBy(item => item.Operation.TargetId))
         {
             var events = group.SelectMany(item => item.Events).ToArray();
-            var hasInitializer = events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated);
+            var hasInitializer = events.Any(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated or GlobalAiProviderImported or GlobalSystemSettingsImported or PlatformPolicyCreated);
             if (!hasInitializer && (!streamEvents.TryGetValue(group.Key, out var existing) || existing.Count == 0))
             {
                 var kind = "AccessControl";
@@ -638,11 +672,15 @@ internal static class MartenProjectMigrationApplier
                 {
                     kind = "Architecture";
                 }
+                else if (events.Any(@event => @event is GlobalAiProviderImported or GlobalSystemSettingsImported or PlatformPolicyImported))
+                {
+                    kind = "PlatformAdministration";
+                }
                 throw new InvalidOperationException(
                     $"{kind} stream '{group.Key}' is required before applying this migration.");
             }
 
-            if (events.Count(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated) > 1)
+            if (events.Count(@event => @event is ProjectCreated or ProjectAccessInitialized or PlanCreated or TaskProposed or AnalysisStarted or BoardCreated or ArchitectureModelCreated or GlobalAiProviderImported or GlobalSystemSettingsImported or PlatformPolicyCreated) > 1)
             {
                 throw new InvalidOperationException(
                     $"More than one stream initializer is planned for stream '{group.Key}'.");
@@ -676,6 +714,7 @@ internal static class MartenProjectMigrationApplier
         AnalysisStarted => 0,
         BoardCreated => 0,
         ArchitectureModelCreated => 0,
+        GlobalAiProviderImported or GlobalSystemSettingsImported or PlatformPolicyCreated => 0,
         ProjectRoleCreated => 10,
         ProjectRolePermissionsUpdated => 20,
         ProjectMemberAdded => 30,
@@ -701,6 +740,7 @@ internal static class MartenProjectMigrationApplier
         ArchitectureEntityAdded => 30,
         ArchitectureDataRelationshipAdded => 40,
         ArchitectureDriftRecorded => 50,
+        PlatformPolicyImported => 10,
         _ => 100
     };
 
@@ -769,6 +809,11 @@ internal static class MartenProjectMigrationApplier
         if (operation.Kind is ArchitectureModelKind or ArchitectureModuleKind or ArchitectureModuleRelationshipKind or ArchitectureEntityKind or ArchitectureDataRelationshipKind or ArchitectureDriftKind)
         {
             return ArchitectureMigrationMapper.MigrationSource;
+        }
+
+        if (operation.Kind is GlobalAiProviderKind or GlobalSystemSettingsKind or PlatformPolicyKind)
+        {
+            return PlatformAdministrationMigrationMapper.MigrationSource;
         }
 
         return ProjectMigrationMapper.MigrationSource;

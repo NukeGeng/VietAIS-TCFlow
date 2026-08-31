@@ -509,6 +509,18 @@ vnext.MapGet("/api/vnext/platform/policies/{policyId:guid}", async (Guid policyI
     return result is null ? Results.NotFound() : Results.Ok(result);
 });
 
+vnext.MapGet("/api/vnext/platform/providers/{providerId:guid}", async (Guid providerId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await PlatformQueries.Handle(new GetGlobalAiProvider(providerId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+vnext.MapGet("/api/vnext/platform/settings/{settingsId:guid}", async (Guid settingsId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await PlatformQueries.Handle(new GetGlobalSystemSettings(settingsId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
 vnext.MapPost("/api/vnext/tasks/{taskId:guid}/accept", async (Guid taskId, AcceptTask command, IMessageBus bus, CancellationToken cancellationToken) =>
 {
     if (taskId != command.TaskId) return Results.BadRequest(new { error = "The route and command task IDs must match." });

@@ -40,6 +40,9 @@ Before migrating a bounded context, expand its row into a model-level table:
 | Model | Current store | Target category | Stream/projection name | Migration rule | Reconciliation evidence |
 | --- | --- | --- | --- | --- | --- |
 | GitHub installation and delivery metadata | v0.1 integration documents | Operational Document | `GitHubOperationalMigrationDocument` in Integrations | Retain only the explicit non-secret metadata whitelist; reject secret-bearing properties, require source/project identity, and make retries idempotent | Source-reference/kind/hash reconciliation plus redaction and idempotency tests |
+| Global AI provider configuration | v0.1 system configuration document | Event Store | `GlobalAiProvider` + inline `GlobalAiProviderCurrent` | Keep provider identity, display name, enabled state, updater, and timestamp in a system-scoped stream; never attach it to a project stream | Typed mapper, stream marker/hash, projection readback, and repeat-apply test |
+| Global system settings | v0.1 system configuration document | Event Store | `GlobalSystemSettings` + inline `GlobalSystemSettingsCurrent` | Keep platform name, timezone, support URL, updater, and timestamp in a system-scoped stream | Typed mapper, URI validation, projection readback, and repeat-apply test |
+| Platform policy | v0.1 system configuration document | Event Store | `PlatformPolicy` + inline `PlatformPolicyCurrent` | Preserve project/repository platform limits while retaining the vNext AI policy fields; reject invalid repository limits | Typed import event, invariant validation, projection readback, and repeat-apply test |
 | EventStorming board and child records | v0.1 board documents | Event Store | `StormingBoard` + inline board canvas | Require explicit board/node source ids; append typed board events in deterministic order | Board/node/link/hotspot/order counts and replay comparison |
 | Architecture model and child records | v0.1 architecture documents | Event Store | `ArchitectureModel` + inline architecture view | Require explicit model/module/entity source ids; append typed model events in deterministic order | Model/module/entity/relationship/drift counts and replay comparison |
 
@@ -50,8 +53,10 @@ The first model-level apply slices are now implemented for `Project`,
 `ProjectState`, `ProjectRole`, `ProjectMembership`, `Plan`, `Requirement`,
 `Milestone`, `EngineeringTask`, `TaskVersion`, `TaskEvidence`, `AnalysisRun`,
 `SourceArtifact`, `SourceImpact`, EventStorming board records, Architecture
-model records: typed project, access, planning, task, repository-analysis,
-board, and architecture events are appended to deterministic streams, with
+model records, `GlobalAiProviderConfiguration`, `GlobalSystemSettings`, and
+`PlatformPolicy`: typed project, access, planning, task, repository-analysis,
+board, architecture, and platform-administration events are appended to
+deterministic streams, with
 source-reference/hash markers and inline read models updated in the same
 Marten transaction. Task snapshots use `TaskProposed` plus
 `TaskLifecycleReconciled` so migration does not invent transition history;
@@ -69,8 +74,9 @@ must still document the source export field mapping, target event
 payload/upcaster, pre/post count, invariant checks, and rollback record before
 that bounded context is allowed to append to the Event Store. The tool's
 `--apply-marten --connection` mode is the approved Projects, AccessControl,
-Planning, TaskFlow, RepositoryIntelligence, EventStorming, Architecture, and
-Integrations exception to this statement. Integrations writes only whitelisted
+Planning, TaskFlow, RepositoryIntelligence, EventStorming, Architecture,
+PlatformAdministration, and Integrations exception to this statement.
+Integrations writes only whitelisted
 operational metadata and rejects secret-bearing properties; it remains
 fail-closed for all other bounded-context kinds until their typed mappers and
 reconciliation evidence are added.

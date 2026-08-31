@@ -37,5 +37,5 @@ second apply that skips all migrated records without appending duplicates.
 
 Full pre/post counts and domain-invariant reconciliation, isolated backup and
 restore, rollback evidence, projection rebuild in a production-like stack,
-and the remaining integration writers are still required before M13 can be
-marked `CONFIRMED`.
+and the remaining full-context reconciliation, backup/restore, and rollback
+evidence are still required before M13 can be marked `CONFIRMED`.

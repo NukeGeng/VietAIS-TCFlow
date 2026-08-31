@@ -54,13 +54,13 @@ consume the validated plan only after their field mapping and reconciliation
 checks are approved.
 
 The first approved model-level writers are the Projects, AccessControl,
-Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture
-slices. The Integrations writer retains only whitelisted GitHub installation
+Planning, TaskFlow, RepositoryIntelligence, EventStorming, Architecture, and
+PlatformAdministration slices. The Integrations writer retains only whitelisted GitHub installation
 and delivery metadata as operational documents; it refuses secret-bearing
 payload properties. In an isolated
 PostgreSQL database, use `--apply-marten` with the same ledger to append typed
-project/access/planning/task/analysis/board/architecture events and update the inline
-`ProjectCurrent`/effective-permission/plan/task/analysis/board/architecture
+project/access/planning/task/analysis/board/architecture/platform-administration events and update the inline
+`ProjectCurrent`/effective-permission/plan/task/analysis/board/architecture/platform-administration
 projections in the Marten transaction:
 
 ```bash
@@ -80,7 +80,8 @@ then appended to the owning task stream as typed immutable history.
 owning analysis stream as typed repository facts. The writer
 maps EventStorming board records to a board stream and Architecture records to
 an architecture-model stream, preserving explicit parent and relationship
-identities. Both streams update their inline read models in the same
+identities. PlatformAdministration records remain system-scoped and update
+their provider/settings/policy inline read models. All event streams update their inline read models in the same
 transaction. GitHub credential/delivery records are stored separately in the
 Integrations operational-document collection and are never serialized as
 domain events; their operational write is committed separately after the

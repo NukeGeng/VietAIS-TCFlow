@@ -143,7 +143,16 @@ var vnextApi = builder.AddProject<Projects.VietAIS_TCFlow_Api>($"{appPrefix}-vne
     .WithReference(postgres)
     .WaitFor(postgres)
     .WithExternalHttpEndpoints()
-    .WithEnvironment("ConnectionStrings__marten", postgres.Resource.ConnectionStringExpression);
+    .WithEnvironment("ConnectionStrings__marten", apiPgConnection)
+    .WithEnvironment("DatabaseOptions__Provider", "POSTGRESQL")
+    .WithEnvironment("DatabaseOptions__ConnectionString", apiPgConnection)
+    .WithEnvironment("DatabaseOptions__MigrationsAssembly", "FSH.Starter.Migrations.PostgreSQL")
+    .WithEnvironment("JwtOptions__Issuer", "tcflow.local")
+    .WithEnvironment("JwtOptions__Audience", "tcflow.clients")
+    .WithEnvironment("JwtOptions__SigningKey", builder.AddParameter("vnext-jwt-key", secret: true))
+    .WithEnvironment("HangfireOptions__UserName", "vnext-worker")
+    .WithEnvironment("HangfireOptions__Password", builder.AddParameter("vnext-hangfire-password", secret: true))
+    .WithEnvironment("MailOptions__UseSendGrid", "false");
 
 //#if (frontend)
 // Admin console (React + Vite). Target the API's HTTPS endpoint directly — UseHttpsRedirection's 307 to https is cross-origin and strips the Authorization header.

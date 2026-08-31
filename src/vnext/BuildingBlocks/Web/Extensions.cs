@@ -175,7 +175,10 @@ public static class Extensions
             app.UseStaticFiles();
         }
 
-        app.UseHeroJobDashboard(app.Configuration);
+        if (options.MapJobsDashboard)
+        {
+            app.UseHeroJobDashboard(app.Configuration);
+        }
         app.UseRouting();
 
         if (openApiEnabled)
@@ -254,5 +257,10 @@ public sealed class FshPipelineOptions
     public bool MapModules { get; set; } = true;
     public bool MapSseEndpoints { get; set; } = false;
     public bool MapRealtime { get; set; } = false;
+    /// <summary>
+    /// Maps the Hangfire dashboard. Hosts that deliberately disable Hangfire
+    /// (for example the Wolverine/Marten vNext host) can opt out safely.
+    /// </summary>
+    public bool MapJobsDashboard { get; set; } = true;
     public bool UseQuotas { get; set; } = false;
 }

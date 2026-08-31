@@ -423,6 +423,10 @@ Gate:
 
 Owner: `backend` for GitHub/provider adapters; `ai` for analyzer adapters.
 
+Status: `CONFIRMED` for the normalized GitHub webhook and delivery boundary;
+production broker topology and full provider migration remain an M13/M14
+operational gate.
+
 Deliverables:
 
 - GitHub App OAuth/installation/webhook flows ported behind integration

@@ -51,6 +51,10 @@ Normalized source facts, source changes, evidence, and rebuildable knowledge/
 impact graph projections are recorded in
 [`docs/architecture/M9_REPOSITORY_INTELLIGENCE_EVENT_MODEL.md`](../../docs/architecture/M9_REPOSITORY_INTELLIGENCE_EVENT_MODEL.md).
 
+GitHub webhook verification, sanitized delivery receipts, and the RabbitMQ
+integration boundary are recorded in
+[`docs/architecture/M10_INTEGRATIONS_RABBITMQ.md`](../../docs/architecture/M10_INTEGRATIONS_RABBITMQ.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

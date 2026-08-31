@@ -24,6 +24,8 @@
     <ProjectReference Include="..\..\Modules\Integrations\Modules.Integrations\Modules.Integrations.csproj" />
     <ProjectReference Include="..\..\Modules\Integrations\Modules.Integrations.Contracts\Modules.Integrations.Contracts.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\Eventing\Eventing.csproj" />
+    <ProjectReference Include="..\..\Modules\PlatformAdministration\Modules.PlatformAdministration\Modules.PlatformAdministration.csproj" />
+    <ProjectReference Include="..\..\Modules\PlatformAdministration\Modules.PlatformAdministration.Contracts\Modules.PlatformAdministration.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Planning\Modules.Planning.Contracts\Modules.Planning.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Projects\Modules.Projects\Modules.Projects.csproj" />
     <ProjectReference Include="..\..\Modules\Projects\Modules.Projects.Contracts\Modules.Projects.Contracts.csproj" />

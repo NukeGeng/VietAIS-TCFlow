@@ -43,7 +43,7 @@ public sealed class ProjectAggregate
 
     public ProjectRenamed Rename(string name, string actorId, string correlationId, DateTimeOffset now)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ValidateName(name);
 
         if (IsSuspended)
         {
@@ -51,5 +51,42 @@ public sealed class ProjectAggregate
         }
 
         return new ProjectRenamed(Id, name.Trim(), actorId, correlationId, now);
+    }
+
+    public ProjectSuspended Suspend(string actorId, string correlationId, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+
+        if (IsSuspended)
+        {
+            throw new InvalidOperationException("A suspended project cannot be suspended again.");
+        }
+
+        return new ProjectSuspended(Id, actorId.Trim(), correlationId.Trim(), now);
+    }
+
+    public ProjectActivated Activate(string actorId, string correlationId, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+
+        if (!IsSuspended)
+        {
+            throw new InvalidOperationException("An active project cannot be activated again.");
+        }
+
+        return new ProjectActivated(Id, actorId.Trim(), correlationId.Trim(), now);
+    }
+
+    private static void ValidateName(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (name.Trim().Length is < 2 or > 150)
+        {
+            throw new ArgumentException(
+                "Project name must contain between 2 and 150 characters.",
+                nameof(name));
+        }
     }
 }

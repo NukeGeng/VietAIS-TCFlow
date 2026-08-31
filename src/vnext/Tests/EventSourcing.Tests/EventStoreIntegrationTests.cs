@@ -209,6 +209,52 @@ public sealed class EventStoreIntegrationTests : IAsyncLifetime
         current.Version.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task LifecycleEventsPreserveActorMetadataAndUpdateReadModels()
+    {
+        await ResetAsync();
+        var projectId = await SeedProjectAsync();
+        await using (var session = _store.LightweightSession())
+        {
+            session.ApplyEventMetadata(new EventMetadata(
+                "admin-1",
+                "correlation-suspend",
+                CausationId: "causation-create",
+                projectId,
+                TenantId: null,
+                Source: "projects.suspend"));
+            var stream = await session.Events.FetchForWriting<ProjectAggregate>(projectId, 1);
+            stream.AppendOne(stream.Aggregate!.Suspend(
+                "admin-1",
+                "correlation-suspend",
+                new DateTimeOffset(2026, 8, 30, 13, 0, 0, TimeSpan.Zero)));
+            await session.SaveChangesAsync();
+        }
+
+        await using (var query = _store.QuerySession())
+        {
+            var current = await query.LoadAsync<ProjectCurrent>(projectId);
+            current.ShouldNotBeNull();
+            current.IsSuspended.ShouldBeTrue();
+            current.Version.ShouldBe(2);
+
+            var events = await query.Events.FetchStreamAsync(projectId);
+            var metadata = PersistedEventMetadata.From(events[^1]);
+            metadata.ActorId.ShouldBe("admin-1");
+            metadata.CorrelationId.ShouldBe("correlation-suspend");
+            metadata.CausationId.ShouldBe("causation-create");
+            metadata.Source.ShouldBe("projects.suspend");
+        }
+
+        var administration = CreateProjectionAdministration();
+        await administration.RebuildAsync(ProjectProjectionNames.PortfolioSummary, CancellationToken.None);
+        await using var converged = _store.QuerySession();
+        var summary = await converged.LoadAsync<ProjectPortfolioSummary>(projectId);
+        summary.ShouldNotBeNull();
+        summary.IsSuspended.ShouldBeTrue();
+        summary.Version.ShouldBe(2);
+    }
+
     private async Task<Guid> SeedProjectAsync()
     {
         var projectId = Guid.NewGuid();

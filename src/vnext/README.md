@@ -23,6 +23,10 @@ plan.
 The shared event-driven rules for this slice are recorded in
 [`docs/architecture/M2_EVENT_DRIVEN_BUILDING_BLOCKS.md`](../../docs/architecture/M2_EVENT_DRIVEN_BUILDING_BLOCKS.md).
 
+The Projects aggregate, lifecycle commands, projection ownership, and
+reconciliation boundary are recorded in
+[`docs/architecture/M3_PROJECTS_EVENT_MODEL.md`](../../docs/architecture/M3_PROJECTS_EVENT_MODEL.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

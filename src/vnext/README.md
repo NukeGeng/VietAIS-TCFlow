@@ -59,6 +59,10 @@ Platform-scoped AI policy/provider metadata and same-stream admin audit events
 are recorded in
 [`docs/architecture/M11_PLATFORM_ADMINISTRATION_EVENT_MODEL.md`](../../docs/architecture/M11_PLATFORM_ADMINISTRATION_EVENT_MODEL.md).
 
+Migration/cutover operations and the evidence matrix are recorded in
+[`docs/migration/GOAL2_CUTOVER_RUNBOOK.md`](../../docs/migration/GOAL2_CUTOVER_RUNBOOK.md)
+and [`docs/acceptance/GOAL2_ACCEPTANCE_MATRIX.md`](../../docs/acceptance/GOAL2_ACCEPTANCE_MATRIX.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

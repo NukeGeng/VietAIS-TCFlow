@@ -480,6 +480,10 @@ Gate:
 
 Owner: `backend`, with all domains verifying their data.
 
+Status: `PROPOSED`; the migration/cutover runbook and acceptance matrix are
+published, but an isolated backup/restore and repeatable dry-run execution is
+still required before this milestone can be marked confirmed.
+
 Deliverables:
 
 - Versioned migration from v0.1 documents to event streams, projections, or

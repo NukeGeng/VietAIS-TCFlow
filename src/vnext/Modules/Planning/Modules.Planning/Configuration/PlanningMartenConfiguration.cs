@@ -10,7 +10,6 @@ public static class PlanningMartenConfiguration
     public static void Configure(StoreOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        options.DatabaseSchemaName = "planning";
         options.Events.AddEventType<PlanCreated>();
         options.Events.AddEventType<PlanRenamed>();
         options.Events.AddEventType<RequirementAdded>();

@@ -12,6 +12,8 @@ readiness.
   transitions or actors that are absent from the v0.1 snapshot.
 - Status, assignee, AI-verification, human-review, and source-change fields are
   preserved when present and invalid values fail closed.
+- `TaskVersion` and `TaskEvidence` records are preserved as typed immutable
+  history on the same task stream, including snapshot JSON and source keys.
 - Source reference and payload hash are written as event markers for safe
   replay and duplicate detection.
 - `TaskCurrent`, task-board, and analytics projections handle the reconciliation
@@ -32,7 +34,12 @@ uses Testcontainers PostgreSQL and verifies:
 4. The task operation requires a project source identity and a supported status
    before any write.
 
-The migration suite result is `17 passed, 0 failed` on .NET 10.
+`MartenProjectMigrationApplierTests.PreservesTaskVersionsAndEvidenceOnTheTaskStreamIdempotently`
+also verifies deterministic parent-stream identity, typed version/evidence
+events, projection readback, aggregate replay counters, and repeat-apply
+idempotency.
+
+The migration suite result is `20 passed, 0 failed` on .NET 10.
 
 ## Remaining M13 obligations
 

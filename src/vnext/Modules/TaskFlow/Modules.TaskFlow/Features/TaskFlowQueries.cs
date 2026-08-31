@@ -10,6 +10,6 @@ public static class TaskFlowQueries
     {
         ArgumentNullException.ThrowIfNull(query);
         var current = await session.LoadAsync<TaskCurrent>(query.TaskId, cancellationToken).ConfigureAwait(false);
-        return current is null ? null : new TaskView(current.Id, current.ProjectId, current.Title, current.Description, current.Status, current.AssigneeId, current.AiVerificationPassed, current.HumanReviewRequested, current.SourceChangeKey, current.Version, current.LastChangedAtUtc);
+        return current is null ? null : new TaskView(current.Id, current.ProjectId, current.Title, current.Description, current.Status, current.AssigneeId, current.AiVerificationPassed, current.HumanReviewRequested, current.HumanReviewApproved, current.SourceChangeKey, current.Version, current.LastChangedAtUtc);
     }
 }

@@ -49,7 +49,9 @@ The first model-level apply slices are now implemented for `Project`,
 events are appended to deterministic streams, with source-reference/hash
 markers and inline project/access/plan/task views updated in the same Marten
 transaction. Task snapshots use `TaskProposed` plus
-`TaskLifecycleReconciled` so migration does not invent transition history.
+`TaskLifecycleReconciled` so migration does not invent transition history;
+`TaskVersion` and `TaskEvidence` records are retained as typed history events on
+the same task stream.
 This confirms only these four mapper/writers; it does not confirm the full
 matrix or authorize deletion of any v0.1 document.
 

@@ -70,7 +70,9 @@ dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
 
 For `EngineeringTask`, the writer appends `TaskProposed` followed by
 `TaskLifecycleReconciled`; it preserves the imported snapshot without fabricating
-accept/start/review transitions. This mode fails closed for unsupported bounded-context records, missing
+accept/start/review transitions. `TaskVersion` and `TaskEvidence` records are
+then appended to the owning task stream as typed immutable history. This mode
+fails closed for unsupported bounded-context records, missing
 required project/access fields, unsupported lifecycle or permission values, an
 existing stream without a migration marker, or a ledger marker that is not
 present in Marten. Repeating the command reads the marker/hash from the event

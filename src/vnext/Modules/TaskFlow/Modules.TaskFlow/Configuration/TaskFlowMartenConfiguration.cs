@@ -24,6 +24,8 @@ public static class TaskFlowMartenConfiguration
         options.Events.AddEventType<TaskReopened>();
         options.Events.AddEventType<TaskUpdatedFromSourceChange>();
         options.Events.AddEventType<TaskLifecycleReconciled>();
+        options.Events.AddEventType<TaskVersionImported>();
+        options.Events.AddEventType<TaskEvidenceImported>();
         options.Projections.Add<TaskCurrentProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<TaskBoardProjection>(ProjectionLifecycle.Async);
         options.Projections.Add<TaskAnalyticsProjection>(ProjectionLifecycle.Async);

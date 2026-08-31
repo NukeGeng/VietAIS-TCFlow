@@ -36,6 +36,8 @@ public sealed class TaskBoardProjection : SingleStreamProjection<TaskBoard, Guid
         x.AssigneeId = e.AssigneeId;
         Set(x, e.Status, e.OccurredAtUtc);
     }
+    public static void Apply(TaskVersionImported e, TaskBoard x) => Set(x, x.Status, e.OccurredAtUtc);
+    public static void Apply(TaskEvidenceImported e, TaskBoard x) => Set(x, x.Status, e.OccurredAtUtc);
     private static void Set(TaskBoard x, TaskStatus status, DateTimeOffset at) { x.Status = status; x.LastChangedAtUtc = at; }
 }
 
@@ -65,5 +67,8 @@ public sealed class TaskAnalyticsProjection : SingleStreamProjection<TaskAnalyti
     public static void Apply(TaskReopened e, TaskAnalytics x) => Set(x, TaskStatus.Upcoming, e.OccurredAtUtc);
     public static void Apply(TaskUpdatedFromSourceChange e, TaskAnalytics x) => Set(x, x.Status, e.OccurredAtUtc);
     public static void Apply(TaskLifecycleReconciled e, TaskAnalytics x) => Set(x, e.Status, e.OccurredAtUtc);
+    public static void Apply(TaskVersionImported e, TaskAnalytics x) => Touch(x, e.OccurredAtUtc);
+    public static void Apply(TaskEvidenceImported e, TaskAnalytics x) => Touch(x, e.OccurredAtUtc);
     private static void Set(TaskAnalytics x, TaskStatus status, DateTimeOffset at) { x.Status = status; x.TransitionCount++; x.LastChangedAtUtc = at; }
+    private static void Touch(TaskAnalytics x, DateTimeOffset at) => x.LastChangedAtUtc = at;
 }

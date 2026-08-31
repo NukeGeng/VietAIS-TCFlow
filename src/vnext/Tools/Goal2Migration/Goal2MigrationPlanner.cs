@@ -61,7 +61,8 @@ internal static class Goal2MigrationPlanner
             var projectSourceId = record.ProjectSourceId is null
                 ? null
                 : Normalize(record.ProjectSourceId, nameof(record.ProjectSourceId));
-            if ((kind is "ProjectState" or "ProjectRole" or "ProjectMembership" or "Plan" or "EngineeringTask") && projectSourceId is null)
+            if ((kind is "ProjectState" or "ProjectRole" or "ProjectMembership" or "Plan" or
+                "EngineeringTask" or "TaskVersion" or "TaskEvidence") && projectSourceId is null)
             {
                 throw new InvalidOperationException(
                     $"Legacy record '{kind}:{sourceId}' must identify its Project source record.");
@@ -145,6 +146,13 @@ internal static class Goal2MigrationPlanner
                 Normalize(aggregateSourceId, nameof(aggregateSourceId)));
         }
 
+        if (normalizedKind is "TaskVersion" or "TaskEvidence")
+        {
+            return CreateDeterministicId(
+                "EngineeringTask",
+                Normalize(aggregateSourceId, nameof(aggregateSourceId)));
+        }
+
         return CreateDeterministicId(normalizedKind, normalizedSourceId);
     }
 
@@ -181,6 +189,11 @@ internal static class Goal2MigrationPlanner
                 "planSourceId",
                 "planId"),
             "Plan" or "EngineeringTask" => sourceId,
+            "TaskVersion" or "TaskEvidence" => RequiredPayloadString(
+                payload,
+                kind,
+                "taskSourceId",
+                "taskId"),
             "ProjectState" or "ProjectRole" or "ProjectMembership" => projectSourceId,
             _ => null
         };
@@ -204,8 +217,14 @@ internal static class Goal2MigrationPlanner
             }
         }
 
+        var parent = kind switch
+        {
+            "Requirement" or "Milestone" => "Plan",
+            "TaskVersion" or "TaskEvidence" => "Task",
+            _ => "aggregate"
+        };
         throw new InvalidOperationException(
-            $"Legacy record '{kind}' must identify its Plan source using one of: {string.Join(", ", names)}.");
+            $"Legacy record '{kind}' must identify its {parent} source using one of: {string.Join(", ", names)}.");
     }
 
     private static string Normalize(string? value, string parameterName)

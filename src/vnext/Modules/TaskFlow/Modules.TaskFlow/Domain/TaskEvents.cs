@@ -40,3 +40,40 @@ public sealed record TaskLifecycleReconciled(
     string ActorId,
     string CorrelationId,
     DateTimeOffset OccurredAtUtc);
+
+/// <summary>
+/// Preserves a legacy task-version snapshot as an immutable event without
+/// fabricating a sequence of user transitions. The JSON fragments are the
+/// versioned legacy contract; migration metadata remains on the event headers.
+/// </summary>
+public sealed record TaskVersionImported(
+    Guid TaskId,
+    Guid VersionId,
+    int Version,
+    string SnapshotJson,
+    string? AssignmentJson,
+    string? ReviewJson,
+    string? EvidenceJson,
+    string ChangedBy,
+    string ChangedByType,
+    string ChangeReason,
+    string ActorId,
+    string CorrelationId,
+    DateTimeOffset OccurredAtUtc);
+
+/// <summary>Preserves a legacy task evidence record on the task stream.</summary>
+public sealed record TaskEvidenceImported(
+    Guid TaskId,
+    Guid EvidenceId,
+    string EvidenceKind,
+    string Summary,
+    string? Location,
+    string? SourceChangeKey,
+    string? ArtifactKey,
+    string? ImpactKey,
+    decimal? Confidence,
+    string CreatedBy,
+    string CreatedByType,
+    string ActorId,
+    string CorrelationId,
+    DateTimeOffset OccurredAtUtc);

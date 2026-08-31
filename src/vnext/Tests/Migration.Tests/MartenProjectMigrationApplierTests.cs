@@ -565,6 +565,115 @@ public sealed class MartenProjectMigrationApplierTests : IAsyncLifetime
         Assert.True(current.HumanReviewRequested);
         Assert.Equal(2, current.Version);
         Assert.Equal("commit:abc123", current.SourceChangeKey);
+        Assert.True(current.HumanReviewApproved);
+    }
+
+    [Fact]
+    public async Task PreservesTaskVersionsAndEvidenceOnTheTaskStreamIdempotently()
+    {
+        const string projectSourceId = "legacy-history-project";
+        const string taskSourceId = "legacy-history-task";
+        var export = new LegacyExport(
+            1,
+            [
+                new LegacyRecord(
+                    "Project",
+                    projectSourceId,
+                    null,
+                    "sha256:history-project",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        name = "Task history project",
+                        ownerId = "owner-1",
+                        createdAtUtc = "2026-08-30T10:00:00Z"
+                    })),
+                new LegacyRecord(
+                    "EngineeringTask",
+                    taskSourceId,
+                    projectSourceId,
+                    "sha256:history-task",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        title = "Import task history",
+                        status = "Upcoming",
+                        updatedAtUtc = "2026-08-30T10:01:00Z"
+                    })),
+                new LegacyRecord(
+                    "TaskVersion",
+                    "legacy-task-version-1",
+                    projectSourceId,
+                    "sha256:history-version",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        taskSourceId,
+                        version = 1,
+                        snapshot = new { title = "Import task history", status = "Suggested" },
+                        changeReason = "initial import",
+                        changedBy = "legacy-user",
+                        changedAtUtc = "2026-08-30T10:02:00Z"
+                    })),
+                new LegacyRecord(
+                    "TaskEvidence",
+                    "legacy-task-evidence-1",
+                    projectSourceId,
+                    "sha256:history-evidence",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        taskSourceId,
+                        evidenceKind = "Verification",
+                        summary = "Legacy verification evidence",
+                        location = "tests/legacy.txt",
+                        sourceChangeKey = "commit:def456",
+                        confidence = 0.95m,
+                        createdAtUtc = "2026-08-30T10:03:00Z",
+                        createdBy = "legacy-user"
+                    }))
+            ]);
+        var plan = Goal2MigrationPlanner.Plan(export);
+
+        var first = await MartenProjectMigrationApplier.ApplyAsync(
+            plan,
+            export,
+            _postgres.GetConnectionString(),
+            CancellationToken.None);
+        var second = await MartenProjectMigrationApplier.ApplyAsync(
+            plan,
+            export,
+            _postgres.GetConnectionString(),
+            CancellationToken.None);
+
+        Assert.Equal(4, first.AppendedEventCount);
+        Assert.Equal(0, first.SkippedEventCount);
+        Assert.Equal(0, second.AppendedEventCount);
+        Assert.Equal(4, second.SkippedEventCount);
+
+        var taskId = Goal2MigrationPlanner.CreateDeterministicId("EngineeringTask", taskSourceId);
+        await using var store = CreateStore();
+        await using var query = store.QuerySession();
+        var events = await query.Events.FetchStreamAsync(
+            taskId,
+            long.MaxValue,
+            timestamp: null,
+            fromVersion: 0,
+            token: CancellationToken.None);
+        var current = await query.LoadAsync<TaskCurrent>(taskId);
+        var aggregate = await query.Events.AggregateStreamAsync<EngineeringTask>(taskId);
+
+        Assert.Equal(4, events.Count);
+        Assert.IsType<TaskProposed>(events[0].Data);
+        Assert.IsType<TaskLifecycleReconciled>(events[1].Data);
+        Assert.IsType<TaskVersionImported>(events[2].Data);
+        Assert.IsType<TaskEvidenceImported>(events[3].Data);
+        Assert.NotNull(current);
+        Assert.NotNull(aggregate);
+        Assert.Equal(1, aggregate!.ImportedVersionCount);
+        Assert.Equal(1, aggregate.ImportedEvidenceCount);
+        Assert.Single(current!.ImportedVersions);
+        Assert.Equal(1, current.ImportedVersions[0].Version);
+        Assert.Contains("initial import", current.ImportedVersions[0].ChangeReason, StringComparison.Ordinal);
+        Assert.Single(current.ImportedEvidence);
+        Assert.Equal("Verification", current.ImportedEvidence[0].Kind);
+        Assert.Equal("commit:def456", current.ImportedEvidence[0].SourceChangeKey);
     }
 
     private DocumentStore CreateStore()

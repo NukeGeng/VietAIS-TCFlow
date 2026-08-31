@@ -147,6 +147,49 @@ public sealed class Goal2MigrationPlannerTests
     }
 
     [Fact]
+    public void TaskHistoryUsesTheOwningTaskStreamIdentity()
+    {
+        using var payload = JsonDocument.Parse("{\"taskSourceId\":\"task-1\"}");
+        var plan = Goal2MigrationPlanner.Plan(
+            new LegacyExport(
+                1,
+                [
+                    Record("EngineeringTask", "task-1", "project-1"),
+                    new LegacyRecord(
+                        "TaskVersion",
+                        "version-1",
+                        "project-1",
+                        "sha256:version",
+                        payload.RootElement.Clone()),
+                    new LegacyRecord(
+                        "TaskEvidence",
+                        "evidence-1",
+                        "project-1",
+                        "sha256:evidence",
+                        payload.RootElement.Clone())
+                ]));
+
+        var task = plan.Operations.Single(operation => operation.Kind == "EngineeringTask");
+        var version = plan.Operations.Single(operation => operation.Kind == "TaskVersion");
+        var evidence = plan.Operations.Single(operation => operation.Kind == "TaskEvidence");
+
+        Assert.Equal(task.TargetId, version.TargetId);
+        Assert.Equal(task.TargetId, evidence.TargetId);
+        Assert.Equal("task-1", version.AggregateSourceId);
+        Assert.Equal("task-1", evidence.AggregateSourceId);
+    }
+
+    [Fact]
+    public void TaskHistoryWithoutOwningTaskFailsClosed()
+    {
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            Goal2MigrationPlanner.Plan(
+                new LegacyExport(1, [Record("TaskEvidence", "evidence-1", "project-1")])));
+
+        Assert.Contains("must identify its Task source", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ApplyingTheLedgerIsRepeatableAndDoesNotAppendDuplicateEntries()
     {
         var export = new LegacyExport(

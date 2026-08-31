@@ -28,6 +28,8 @@ internal static class MartenProjectMigrationApplier
     private const string RequirementKind = "Requirement";
     private const string MilestoneKind = "Milestone";
     private const string EngineeringTaskKind = "EngineeringTask";
+    private const string TaskVersionKind = "TaskVersion";
+    private const string TaskEvidenceKind = "TaskEvidence";
 
     public static async Task<MigrationBusinessApplyReport> ApplyAsync(
         MigrationPlan plan,
@@ -45,13 +47,14 @@ internal static class MartenProjectMigrationApplier
         var unsupported = operations
             .Where(operation => operation.Kind is not (
                 ProjectKind or ProjectStateKind or ProjectRoleKind or ProjectMembershipKind or
-                PlanKind or RequirementKind or MilestoneKind or EngineeringTaskKind))
+                PlanKind or RequirementKind or MilestoneKind or EngineeringTaskKind or
+                TaskVersionKind or TaskEvidenceKind))
             .Select(operation => $"{operation.Kind}:{operation.SourceId}")
             .ToArray();
         if (unsupported.Length > 0)
         {
             throw new InvalidOperationException(
-                "Marten apply currently supports Projects, AccessControl, Planning, and EngineeringTask records. " +
+                "Marten apply currently supports Projects, AccessControl, Planning, and TaskFlow records. " +
                 $"Create a bounded-context mapper before applying: {string.Join(", ", unsupported)}.");
         }
 
@@ -238,7 +241,7 @@ internal static class MartenProjectMigrationApplier
                 continue;
             }
 
-            if (ordered.Any(item => item.Event is TaskLifecycleReconciled))
+            if (ordered.Any(item => item.Event is TaskLifecycleReconciled or TaskVersionImported or TaskEvidenceImported))
             {
                 var first = ordered[0];
                 ApplyMetadata(session, first.Item.Operation);
@@ -323,6 +326,10 @@ internal static class MartenProjectMigrationApplier
                 PlanningMigrationMapper.ToEvents(operation, record),
             EngineeringTaskKind =>
                 TaskFlowMigrationMapper.ToEvents(operation, record),
+            TaskVersionKind =>
+                [TaskFlowMigrationMapper.ToVersionEvent(operation, record)],
+            TaskEvidenceKind =>
+                [TaskFlowMigrationMapper.ToEvidenceEvent(operation, record)],
             _ => throw new InvalidOperationException($"No typed mapper exists for migration kind '{operation.Kind}'.")
         };
 
@@ -448,7 +455,7 @@ internal static class MartenProjectMigrationApplier
                 {
                     kind = "Planning";
                 }
-                else if (events.Any(@event => @event is TaskLifecycleReconciled))
+                else if (events.Any(@event => @event is TaskLifecycleReconciled or TaskVersionImported or TaskEvidenceImported))
                 {
                     kind = "TaskFlow";
                 }
@@ -492,6 +499,8 @@ internal static class MartenProjectMigrationApplier
         RequirementAdded => 10,
         MilestoneAdded => 20,
         TaskLifecycleReconciled => 60,
+        TaskVersionImported => 70,
+        TaskEvidenceImported => 80,
         ProjectLifecycleReconciled => 60,
         _ => 100
     };

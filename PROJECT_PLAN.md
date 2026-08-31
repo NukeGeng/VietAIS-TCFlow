@@ -508,9 +508,9 @@ Deliverables:
   transaction.
 - Typed `TaskFlow` writer that maps legacy engineering-task snapshots to a
   deterministic task stream using `TaskProposed` plus a
-  `TaskLifecycleReconciled` snapshot, preserving source/evidence keys without
-  inventing transition history and updating task read projections in the same
-  transaction.
+  `TaskLifecycleReconciled` snapshot, preserves `TaskVersion` and
+  `TaskEvidence` history/source keys without inventing transition history, and
+  updates task read projections in the same transaction.
 - Dry-run, reconciliation, rollback, backup/restore, replay/rebuild, and
   cutover runbooks.
 - Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,

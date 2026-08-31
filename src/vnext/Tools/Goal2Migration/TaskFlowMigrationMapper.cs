@@ -57,6 +57,69 @@ internal static class TaskFlowMigrationMapper
         ];
     }
 
+    public static TaskVersionImported ToVersionEvent(
+        MigrationOperation operation,
+        LegacyRecord record)
+    {
+        EnsureKind(operation, record, "TaskVersion");
+        var version = RequiredPositiveInt(record.Payload, "version", "versionNumber");
+        var changedAt = RequiredDateTime(
+            record.Payload,
+            "changedAtUtc",
+            "changedAt",
+            "updatedAtUtc",
+            "updatedAt",
+            "createdAtUtc",
+            "createdAt");
+        return new TaskVersionImported(
+            operation.TargetId,
+            Goal2MigrationPlanner.CreateDeterministicId("TaskVersion", operation.SourceId),
+            version,
+            RequiredRawJson(record.Payload, "snapshot"),
+            OptionalRawJson(record.Payload, "assignment"),
+            OptionalRawJson(record.Payload, "review"),
+            OptionalRawJson(record.Payload, "evidence"),
+            OptionalString(record.Payload, "changedBy", "actorId") ?? MigrationActor,
+            OptionalString(record.Payload, "changedByType", "actorType") ?? "Legacy",
+            OptionalString(record.Payload, "changeReason", "reason") ?? "legacy task version import",
+            MigrationActor,
+            CorrelationId(operation),
+            changedAt);
+    }
+
+    public static TaskEvidenceImported ToEvidenceEvent(
+        MigrationOperation operation,
+        LegacyRecord record)
+    {
+        EnsureKind(operation, record, "TaskEvidence");
+        var confidence = OptionalDecimal(record.Payload, "confidence");
+        if (confidence is < 0 or > 1)
+        {
+            throw new InvalidOperationException("Legacy task evidence confidence must be between 0 and 1.");
+        }
+
+        return new TaskEvidenceImported(
+            operation.TargetId,
+            Goal2MigrationPlanner.CreateDeterministicId("TaskEvidence", operation.SourceId),
+            RequiredString(record.Payload, "evidenceKind", "kind"),
+            RequiredText(record.Payload, 2, 2000, "summary", "claim", "description"),
+            OptionalText(record.Payload, 2000, "location", "sourcePath"),
+            OptionalScalarString(record.Payload, "sourceChangeKey", "sourceChangeId"),
+            OptionalScalarString(record.Payload, "artifactKey", "artifactId"),
+            OptionalScalarString(record.Payload, "impactKey", "impactId"),
+            confidence,
+            OptionalString(record.Payload, "createdBy", "actorId") ?? MigrationActor,
+            OptionalString(record.Payload, "createdByType", "actorType") ?? "Legacy",
+            MigrationActor,
+            CorrelationId(operation),
+            RequiredDateTime(
+                record.Payload,
+                "createdAtUtc",
+                "createdAt",
+                "occurredAtUtc",
+                "occurredAt"));
+    }
+
     private static TaskStatus ParseStatus(JsonElement payload)
     {
         var value = RequiredString(payload, "status");
@@ -120,9 +183,15 @@ internal static class TaskFlowMigrationMapper
     }
 
     private static void EnsureKind(MigrationOperation operation, LegacyRecord record)
+        => EnsureKind(operation, record, "EngineeringTask");
+
+    private static void EnsureKind(
+        MigrationOperation operation,
+        LegacyRecord record,
+        string expectedKind)
     {
-        if (!string.Equals(operation.Kind, "EngineeringTask", StringComparison.Ordinal) ||
-            !string.Equals(record.Kind, "EngineeringTask", StringComparison.Ordinal) ||
+        if (!string.Equals(operation.Kind, expectedKind, StringComparison.Ordinal) ||
+            !string.Equals(record.Kind, expectedKind, StringComparison.Ordinal) ||
             !string.Equals(record.SourceId, operation.SourceId, StringComparison.Ordinal) ||
             !string.Equals(record.PayloadHash, operation.PayloadHash, StringComparison.Ordinal))
         {
@@ -138,7 +207,7 @@ internal static class TaskFlowMigrationMapper
         params string[] names)
     {
         var value = RequiredString(payload, names);
-        if (value.Length is < 2 or > 240)
+        if (value.Length < min || value.Length > max)
         {
             throw new InvalidOperationException(
                 $"Migration task text must contain between {min} and {max} characters.");
@@ -169,6 +238,79 @@ internal static class TaskFlowMigrationMapper
         }
 
         return value;
+    }
+
+    private static int RequiredPositiveInt(JsonElement payload, params string[] names)
+    {
+        if (!TryGetProperty(payload, out var value, names))
+        {
+            throw new InvalidOperationException(
+                $"Migration payload is missing one of the required integer properties: {string.Join(", ", names)}.");
+        }
+
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var parsed) || parsed <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Migration payload contains an invalid positive integer property: {string.Join(", ", names)}.");
+        }
+
+        return parsed;
+    }
+
+    private static string RequiredRawJson(JsonElement payload, params string[] names)
+    {
+        if (!TryGetProperty(payload, out var value, names) || value.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException(
+                $"Migration payload is missing an object property: {string.Join(", ", names)}.");
+        }
+
+        return value.GetRawText();
+    }
+
+    private static string? OptionalRawJson(JsonElement payload, params string[] names)
+    {
+        return TryGetProperty(payload, out var value, names) &&
+            (value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+            ? value.GetRawText()
+            : null;
+    }
+
+    private static string? OptionalScalarString(JsonElement payload, params string[] names)
+    {
+        if (!TryGetProperty(payload, out var value, names))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => string.IsNullOrWhiteSpace(value.GetString()) ? null : value.GetString()!.Trim(),
+            JsonValueKind.Number => value.GetRawText(),
+            _ => null
+        };
+    }
+
+    private static decimal? OptionalDecimal(JsonElement payload, params string[] names)
+    {
+        if (!TryGetProperty(payload, out var value, names))
+        {
+            return null;
+        }
+
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var number))
+        {
+            return number;
+        }
+
+        if (value.ValueKind == JsonValueKind.String &&
+            decimal.TryParse(value.GetString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        throw new InvalidOperationException(
+            $"Migration payload contains an invalid decimal property: {string.Join(", ", names)}.");
     }
 
     private static string? OptionalString(JsonElement payload, params string[] names)

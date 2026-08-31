@@ -44,6 +44,10 @@
     <Project Path="Modules/RepositoryIntelligence/Modules.RepositoryIntelligence.Contracts/Modules.RepositoryIntelligence.Contracts.csproj" />
     <Project Path="Modules/RepositoryIntelligence/Modules.RepositoryIntelligence/Modules.RepositoryIntelligence.csproj" />
   </Folder>
+  <Folder Name="/Modules/Integrations/">
+    <Project Path="Modules/Integrations/Modules.Integrations.Contracts/Modules.Integrations.Contracts.csproj" />
+    <Project Path="Modules/Integrations/Modules.Integrations/Modules.Integrations.csproj" />
+  </Folder>
   <Folder Name="/Modules/Auditing/">
     <Project Path="Modules/Auditing/Modules.Auditing.Contracts/Modules.Auditing.Contracts.csproj" />
     <Project Path="Modules/Auditing/Modules.Auditing/Modules.Auditing.csproj" Id="2764205b-8725-43a7-b499-67b98959ad50" />
@@ -104,6 +108,7 @@
     <Project Path="Tests/EventStorming.Tests/EventStorming.Tests.csproj" />
     <Project Path="Tests/ArchitectureVNext.Tests/ArchitectureVNext.Tests.csproj" />
     <Project Path="Tests/RepositoryIntelligenceVNext.Tests/RepositoryIntelligenceVNext.Tests.csproj" />
+    <Project Path="Tests/IntegrationsVNext.Tests/IntegrationsVNext.Tests.csproj" />
     <Project Path="Tests/EventSourcing.Tests/EventSourcing.Tests.csproj" />
     <Project Path="Tests/Projects.Tests/Projects.Tests.csproj" />
     <Project Path="Tests/Architecture.Tests/Architecture.Tests.csproj" />

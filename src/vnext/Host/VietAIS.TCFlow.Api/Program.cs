@@ -1,6 +1,7 @@
 using JasperFx;
 using JasperFx.Events.Daemon;
 using JasperFx.Resources;
+using FSH.Framework.Eventing;
 using Marten;
 using VietAIS.TCFlow.BuildingBlocks.Application.Identity;
 using VietAIS.TCFlow.BuildingBlocks.Application.Time;
@@ -43,6 +44,8 @@ using VietAIS.TCFlow.Modules.RepositoryIntelligence.Contracts.Commands;
 using VietAIS.TCFlow.Modules.RepositoryIntelligence.Contracts.Queries;
 using VietAIS.TCFlow.Modules.RepositoryIntelligence.Features;
 using VietAIS.TCFlow.Modules.RepositoryIntelligence.Projections;
+using VietAIS.TCFlow.Modules.Integrations.Configuration;
+using VietAIS.TCFlow.Modules.Integrations.Webhooks;
 using Wolverine;
 using Wolverine.Http;
 using Wolverine.Marten;
@@ -51,6 +54,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<IIdGenerator, UuidV7IdGenerator>();
+builder.Services.AddEventingCore(builder.Configuration);
+builder.Services.AddOptions<GitHubWebhookOptions>().BindConfiguration("Integrations:GitHub:Webhook");
+builder.Services.AddScoped<GitHubWebhookProcessor>();
 builder.Services.AddScoped<IProjectOwnerReader, MartenProjectOwnerReader>();
 builder.Services.AddScoped<IProjectPermissionEvaluator, ProjectPermissionEvaluator>();
 builder.Services.AddTcFlowProjectionAdministration(options =>
@@ -402,6 +408,19 @@ app.MapGet("/api/vnext/repository-intelligence/analyses/{analysisRunId:guid}", a
 {
     var result = await RepositoryQueries.Handle(new GetAnalysis(analysisRunId), session, cancellationToken).ConfigureAwait(false);
     return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/integrations/github/webhook", async (HttpRequest request, GitHubWebhookProcessor processor, CancellationToken cancellationToken) =>
+{
+    var deliveryId = request.Headers["X-GitHub-Delivery"].FirstOrDefault();
+    var eventType = request.Headers["X-GitHub-Event"].FirstOrDefault();
+    var signature = request.Headers["X-Hub-Signature-256"].FirstOrDefault();
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+    var correlationId = request.Headers["X-Correlation-Id"].FirstOrDefault() ?? deliveryId ?? Guid.NewGuid().ToString("N");
+    if (string.IsNullOrWhiteSpace(deliveryId) || string.IsNullOrWhiteSpace(eventType) || string.IsNullOrWhiteSpace(signature)) return Results.BadRequest(new { error = "GitHub delivery, event, and signature headers are required." });
+    var result = await processor.ProcessAsync(deliveryId, eventType, signature, body, correlationId, cancellationToken).ConfigureAwait(false);
+    return result.InvalidSignature ? Results.Unauthorized() : Results.Ok(result);
 });
 
 app.MapPost("/api/vnext/tasks/{taskId:guid}/accept", async (Guid taskId, AcceptTask command, IMessageBus bus, CancellationToken cancellationToken) =>

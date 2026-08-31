@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><RootNamespace>VietAIS.TCFlow.Modules.Integrations.Contracts</RootNamespace><AssemblyName>VietAIS.TCFlow.Modules.Integrations.Contracts</AssemblyName></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\..\BuildingBlocks\Eventing.Abstractions\Eventing.Abstractions.csproj" /></ItemGroup>
+</Project>

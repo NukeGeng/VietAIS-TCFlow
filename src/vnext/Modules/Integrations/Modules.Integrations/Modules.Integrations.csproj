@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><RootNamespace>VietAIS.TCFlow.Modules.Integrations</RootNamespace><AssemblyName>VietAIS.TCFlow.Modules.Integrations</AssemblyName><NoWarn>$(NoWarn);CA1062;CA1068;CA1510;CA1859;CA2227;S1172;S2681</NoWarn></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\Modules.Integrations.Contracts\Modules.Integrations.Contracts.csproj" /><ProjectReference Include="..\..\..\BuildingBlocks\Application\Application.csproj" /><ProjectReference Include="..\..\..\BuildingBlocks\Eventing\Eventing.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Marten" /><PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" /></ItemGroup>
+</Project>

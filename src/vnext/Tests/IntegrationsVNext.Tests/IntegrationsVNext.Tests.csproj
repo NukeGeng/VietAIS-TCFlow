@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><RootNamespace>VietAIS.TCFlow.Modules.Integrations.Tests</RootNamespace><AssemblyName>VietAIS.TCFlow.Modules.Integrations.Tests</AssemblyName><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\Modules\Integrations\Modules.Integrations\Modules.Integrations.csproj" /><ProjectReference Include="..\..\Modules\Integrations\Modules.Integrations.Contracts\Modules.Integrations.Contracts.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="Shouldly" /><PackageReference Include="xunit" /><PackageReference Include="xunit.runner.visualstudio" /></ItemGroup>
+</Project>

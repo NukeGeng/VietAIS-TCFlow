@@ -321,6 +321,10 @@ read APIs are not claimed complete until PlatformAdministration/cutover.
 
 Owner: `backend`.
 
+Status: `CONFIRMED` for the vNext Plan aggregate/reference slice. Permission
+enforcement remains composed through AccessControl and the production host as
+the remaining bounded contexts migrate.
+
 Deliverables:
 
 - Product intent, requirements, capabilities, roadmap, and planning decisions
@@ -332,6 +336,9 @@ Gate:
 - Planning history replays deterministically.
 - Requirement/capability links do not cross context boundaries through direct
   persistence access.
+
+Evidence: `docs/architecture/M5_PLANNING_EVENT_MODEL.md`, the Planning unit
+tests, and the vNext host command/query endpoints.
 
 ### M6 — TaskFlow
 

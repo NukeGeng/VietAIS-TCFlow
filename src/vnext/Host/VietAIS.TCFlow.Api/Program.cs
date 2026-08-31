@@ -14,6 +14,10 @@ using VietAIS.TCFlow.Modules.AccessControl.Contracts.Commands;
 using VietAIS.TCFlow.Modules.AccessControl.Contracts.Queries;
 using VietAIS.TCFlow.Modules.AccessControl.Features;
 using VietAIS.TCFlow.Modules.AccessControl.Projections;
+using VietAIS.TCFlow.Modules.Planning.Configuration;
+using VietAIS.TCFlow.Modules.Planning.Contracts.Commands;
+using VietAIS.TCFlow.Modules.Planning.Contracts.Queries;
+using VietAIS.TCFlow.Modules.Planning.Features;
 using VietAIS.TCFlow.Modules.Projects.Configuration;
 using VietAIS.TCFlow.Modules.Projects.Contracts.Commands;
 using VietAIS.TCFlow.Modules.Projects.Contracts.Queries;
@@ -48,6 +52,7 @@ builder.Services.AddMarten(options =>
     TcFlowEventStoreConfiguration.Configure(options);
     ProjectsMartenConfiguration.Configure(options);
     AccessControlMartenConfiguration.Configure(options);
+    PlanningMartenConfiguration.Configure(options);
 })
 .IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")
 .AddAsyncDaemon(DaemonMode.HotCold);
@@ -58,6 +63,7 @@ builder.Host.UseWolverine(options =>
 {
     options.Discovery.IncludeAssembly(typeof(ProjectCommandHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(AccessCommandHandlers).Assembly);
+    options.Discovery.IncludeAssembly(typeof(PlanningHandlers).Assembly);
     TcFlowMessagingConfiguration.Configure(options);
 });
 
@@ -180,6 +186,58 @@ app.MapGet("/api/vnext/projects/{projectId:guid}/permissions/{userId}", async (
             cancellationToken)
         .ConfigureAwait(false);
     return Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/plans", async (
+    CreatePlan command,
+    IMessageBus bus,
+    CancellationToken cancellationToken) =>
+{
+    var result = await bus.InvokeAsync<PlanningCommandResult>(command, cancellationToken)
+        .ConfigureAwait(false);
+    return Results.Created($"/api/vnext/plans/{result.PlanId}", result);
+});
+
+app.MapPost("/api/vnext/plans/{planId:guid}/requirements", async (
+    Guid planId,
+    AddRequirement command,
+    IMessageBus bus,
+    CancellationToken cancellationToken) =>
+{
+    if (planId != command.PlanId)
+    {
+        return Results.BadRequest(new { error = "The route and command plan IDs must match." });
+    }
+
+    var result = await bus.InvokeAsync<PlanningCommandResult>(command, cancellationToken)
+        .ConfigureAwait(false);
+    return Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/plans/{planId:guid}/milestones", async (
+    Guid planId,
+    AddMilestone command,
+    IMessageBus bus,
+    CancellationToken cancellationToken) =>
+{
+    if (planId != command.PlanId)
+    {
+        return Results.BadRequest(new { error = "The route and command plan IDs must match." });
+    }
+
+    var result = await bus.InvokeAsync<PlanningCommandResult>(command, cancellationToken)
+        .ConfigureAwait(false);
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/vnext/plans/{planId:guid}", async (
+    Guid planId,
+    IQuerySession session,
+    CancellationToken cancellationToken) =>
+{
+    var result = await PlanningQueries.Handle(new GetPlan(planId), session, cancellationToken)
+        .ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
 });
 
 app.MapOpenApi();

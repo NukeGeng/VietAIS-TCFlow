@@ -41,6 +41,12 @@ public sealed class ProjectAggregate
         IsSuspended = false;
     }
 
+    public void Apply(ProjectLifecycleReconciled @event)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+        IsSuspended = @event.IsSuspended;
+    }
+
     public ProjectRenamed Rename(string name, string actorId, string correlationId, DateTimeOffset now)
     {
         ValidateName(name);

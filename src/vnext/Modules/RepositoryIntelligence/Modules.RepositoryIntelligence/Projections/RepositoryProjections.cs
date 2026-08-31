@@ -23,6 +23,7 @@ public sealed class AnalysisCurrent
     public List<SourceArtifactView> Artifacts { get; set; } = [];
     public List<SourceChangeView> Changes { get; set; } = [];
     public List<EvidenceView> Evidence { get; set; } = [];
+    public List<SourceImpactView> Impacts { get; set; } = [];
     public DateTimeOffset LastChangedAtUtc { get; set; }
 }
 
@@ -33,6 +34,7 @@ public sealed class AnalysisCurrentProjection : SingleStreamProjection<AnalysisC
     public static void Apply(ArtifactObserved e, AnalysisCurrent x) { x.Artifacts.Add(new(e.Path, e.Kind, e.Symbol, e.Details)); Set(x, e.OccurredAtUtc); }
     public static void Apply(SourceChangeDetected e, AnalysisCurrent x) { x.Changes.Add(new(e.ChangeKey, e.Path, e.ChangeType, e.Summary)); Set(x, e.OccurredAtUtc); }
     public static void Apply(EvidenceRecorded e, AnalysisCurrent x) { x.Evidence.Add(new(e.EvidenceKey, e.SourcePath, e.Claim, e.Confidence)); Set(x, e.OccurredAtUtc); }
+    public static void Apply(ImpactRecorded e, AnalysisCurrent x) { x.Impacts.Add(new(e.ImpactKey, e.ChangeKey, e.AffectedArtifactKey, e.Severity, e.Reason, e.Confidence)); Set(x, e.OccurredAtUtc); }
     public static void Apply(AnalysisCompleted e, AnalysisCurrent x) { x.Completed = true; Set(x, e.OccurredAtUtc); }
     private static void Set(AnalysisCurrent x, DateTimeOffset at) { x.Version++; x.LastChangedAtUtc = at; }
 }
@@ -61,6 +63,7 @@ public sealed class ImpactGraph
     public Guid Id { get; set; }
     public Guid ProjectId { get; set; }
     public int ChangeCount { get; set; }
+    public int ImpactCount { get; set; }
     public DateTimeOffset LastChangedAtUtc { get; set; }
 }
 
@@ -71,5 +74,6 @@ public sealed class ImpactGraphProjection : SingleStreamProjection<ImpactGraph, 
     public static void Apply(SourceChangeDetected e, ImpactGraph x) { x.ChangeCount++; x.LastChangedAtUtc = e.OccurredAtUtc; }
     public static void Apply(ArtifactObserved e, ImpactGraph x) => x.LastChangedAtUtc = e.OccurredAtUtc;
     public static void Apply(EvidenceRecorded e, ImpactGraph x) => x.LastChangedAtUtc = e.OccurredAtUtc;
+    public static void Apply(ImpactRecorded e, ImpactGraph x) { x.ImpactCount++; x.LastChangedAtUtc = e.OccurredAtUtc; }
     public static void Apply(AnalysisCompleted e, ImpactGraph x) => x.LastChangedAtUtc = e.OccurredAtUtc;
 }

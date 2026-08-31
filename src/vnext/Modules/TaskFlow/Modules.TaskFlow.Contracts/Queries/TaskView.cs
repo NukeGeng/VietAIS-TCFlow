@@ -21,6 +21,7 @@ public sealed record TaskView(
     string? AssigneeId,
     bool AiVerificationPassed,
     bool HumanReviewRequested,
+    bool HumanReviewApproved,
     string? SourceChangeKey,
     long Version,
     DateTimeOffset LastChangedAtUtc);

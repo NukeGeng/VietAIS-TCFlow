@@ -11,27 +11,138 @@ internal static class Program
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public static int Main(string[] args)
+    public static int Main(string[] args) => MainAsync(args).GetAwaiter().GetResult();
+
+    private static async Task<int> MainAsync(string[] args)
     {
         try
         {
             var inputPath = ReadOption(args, "--input");
             var outputPath = ReadOption(args, "--output");
             var appliedPath = ReadOptionalOption(args, "--applied");
+            var ledgerPath = ReadOptionalOption(args, "--ledger");
+            var apply = HasFlag(args, "--apply");
+            var applyMarten = HasFlag(args, "--apply-marten");
+            var reconcileMarten = HasFlag(args, "--reconcile-marten");
+            var connectionString = ReadOptionalOption(args, "--connection");
+            if (apply && ledgerPath is null)
+            {
+                throw new ArgumentException("'--ledger' is required when '--apply' is specified.");
+            }
+
+            if (applyMarten && ledgerPath is null)
+            {
+                throw new ArgumentException("'--ledger' is required when '--apply-marten' is specified.");
+            }
+
+            if (applyMarten && string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new ArgumentException("'--connection' is required when '--apply-marten' is specified.");
+            }
+
+            if (reconcileMarten && string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new ArgumentException("'--connection' is required when '--reconcile-marten' is specified.");
+            }
+
+            if ((apply && applyMarten) || (apply && reconcileMarten) || (applyMarten && reconcileMarten))
+            {
+                throw new ArgumentException("Use only one of '--apply', '--apply-marten', or '--reconcile-marten'.");
+            }
+
+            if ((apply || applyMarten) && appliedPath is not null)
+            {
+                throw new ArgumentException("Use either '--applied' for dry-run or '--ledger --apply' for ledger application, not both.");
+            }
+
             var input = JsonSerializer.Deserialize<LegacyExport>(
-                File.ReadAllText(inputPath),
+                await File.ReadAllTextAsync(inputPath).ConfigureAwait(false),
                 JsonOptions) ?? throw new InvalidOperationException("The migration input is empty.");
-            var applied = appliedPath is null
-                ? null
-                : JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(appliedPath), JsonOptions);
+            MigrationLedger? ledger = null;
+            if (ledgerPath is not null)
+            {
+                ledger = MigrationLedgerStore.Load(
+                    ledgerPath,
+                    Goal2MigrationPlanner.CurrentToolVersion,
+                    Goal2MigrationPlanner.SupportedInputSchemaVersion,
+                    JsonOptions);
+            }
+
+            var applied = ledger?.Entries
+                .Select(entry => entry.SourceReference)
+                .ToHashSet(StringComparer.Ordinal)
+                ?? (appliedPath is null
+                    ? null
+                    : JsonSerializer.Deserialize<HashSet<string>>(
+                        await File.ReadAllTextAsync(appliedPath).ConfigureAwait(false),
+                        JsonOptions));
             var plan = Goal2MigrationPlanner.Plan(input, applied);
-            File.WriteAllText(outputPath, JsonSerializer.Serialize(plan, JsonOptions));
-            Console.WriteLine($"GOAL2 migration dry-run wrote {plan.Operations.Count} operations to '{outputPath}'.");
+
+            if (reconcileMarten)
+            {
+                var reconciliation = await MartenMigrationReconciler.ReconcileAsync(
+                    plan,
+                    connectionString!,
+                    CancellationToken.None).ConfigureAwait(false);
+                await File.WriteAllTextAsync(
+                    outputPath,
+                    JsonSerializer.Serialize(new MigrationReconciliationOutput(plan, reconciliation), JsonOptions))
+                    .ConfigureAwait(false);
+                await Console.Out.WriteLineAsync(
+                    reconciliation.Reconciled
+                        ? $"GOAL2 Marten reconciliation passed: {reconciliation.FoundSourceMarkers}/{reconciliation.ExpectedSourceMarkers} source markers found. Report: '{outputPath}'."
+                        : $"GOAL2 Marten reconciliation failed: {string.Join(" ", reconciliation.Issues)} Report: '{outputPath}'.")
+                    .ConfigureAwait(false);
+                return reconciliation.Reconciled ? 0 : 3;
+            }
+
+            if (!apply && !applyMarten)
+            {
+                await File.WriteAllTextAsync(
+                    outputPath,
+                    JsonSerializer.Serialize(plan, JsonOptions)).ConfigureAwait(false);
+                await Console.Out.WriteLineAsync(
+                    $"GOAL2 migration dry-run wrote {plan.Operations.Count} operations to '{outputPath}'.")
+                    .ConfigureAwait(false);
+                return 0;
+            }
+
+            MigrationBusinessApplyReport? businessReport = null;
+            MigrationOperationalApplyReport? operationalReport = null;
+            if (applyMarten)
+            {
+                businessReport = await MartenProjectMigrationApplier.ApplyAsync(
+                    plan,
+                    input,
+                    connectionString!,
+                    CancellationToken.None).ConfigureAwait(false);
+                operationalReport = await MartenOperationalMigrationApplier.ApplyAsync(
+                    plan,
+                    input,
+                    connectionString!,
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+
+            var (updatedLedger, report) = MigrationLedgerStore.Apply(
+                plan,
+                ledger!,
+                DateTimeOffset.UtcNow);
+            MigrationLedgerStore.SaveAtomic(ledgerPath!, updatedLedger, JsonOptions);
+            await File.WriteAllTextAsync(
+                outputPath,
+                JsonSerializer.Serialize(new MigrationApplyOutput(plan, report, businessReport, operationalReport), JsonOptions))
+                .ConfigureAwait(false);
+            await Console.Out.WriteLineAsync(
+                applyMarten
+                    ? $"GOAL2 Marten migration applied: appended {businessReport!.AppendedEventCount} business events and {operationalReport!.UpsertedDocumentCount} operational documents, skipped {businessReport.SkippedEventCount} events and {operationalReport.SkippedDocumentCount} documents; ledger appended {report.AppendCount}, skipped {report.SkipCount}. Report: '{outputPath}'."
+                    : $"GOAL2 migration ledger applied: appended {report.AppendCount}, skipped {report.SkipCount}, total ledger entries {report.LedgerEntriesAfter}. Report: '{outputPath}'.")
+                .ConfigureAwait(false);
             return 0;
         }
         catch (Exception exception) when (exception is ArgumentException or IOException or JsonException or InvalidOperationException)
         {
-            Console.Error.WriteLine($"Migration dry-run failed: {exception.Message}");
+            await Console.Error.WriteLineAsync($"GOAL2 migration failed: {exception.Message}")
+                .ConfigureAwait(false);
             return 2;
         }
     }
@@ -66,4 +177,7 @@ internal static class Program
 
         return null;
     }
+
+    private static bool HasFlag(string[] args, string name) =>
+        args.Any(argument => string.Equals(argument, name, StringComparison.Ordinal));
 }

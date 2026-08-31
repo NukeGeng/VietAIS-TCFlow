@@ -1,9 +1,9 @@
 # Self-host deployment
 
-> **v0.1 deployment only:** This bundle deploys the current .NET 9 baseline.
-> It is not the GOAL2 topology and does not yet include Wolverine durable
-> messaging, the Marten async daemon operational model, or RabbitMQ. Keep these
-> instructions for v0.1 rollback until milestone M13 verifies a vNext bundle.
+> **Default profile:** This bundle still deploys the current .NET 9 baseline.
+> It remains the v0.1 rollback path until milestone M13 is confirmed. The
+> optional `goal2` profile adds the .NET 10 vNext API, Marten async daemon, and
+> RabbitMQ integration boundary without removing the rollback service.
 
 This bundle runs VietAIS TCFlow on a single Docker host with the same service
 topology used by local development: the ASP.NET API, Vue frontend, PostgreSQL,
@@ -23,6 +23,17 @@ Replace every `replace-with-...` value in `.env` with a unique secret. For
 example, `openssl rand -base64 48 | tr -d '\n'` produces a suitable random
 value. Do not commit `.env` or paste GitHub private keys into source control.
 
+Before starting the GOAL2 profile, run the read-only secret preflight with the
+same values loaded by your secret manager. It rejects empty values and sample
+placeholders without printing the values:
+
+```bash
+set -a
+. ./.env
+set +a
+EVENTING_PROVIDER=RabbitMQ ./goal2-preflight.sh
+```
+
 For GitHub integration, set the App ID, slug, client ID, client secret, and
 the Base64-encoded PEM private key. The GitHub App OAuth callback must exactly
 match `TCFLOW_PUBLIC_URL/github/callback`; a public HTTPS URL is required when
@@ -37,6 +48,23 @@ Start the stack:
 docker compose up -d --build
 curl --fail http://localhost:${TCFLOW_HTTP_PORT:-8080}/health
 ```
+
+## GOAL2 canary profile
+
+After reviewing the migration evidence for the target environment, start the
+vNext canary alongside the rollback API:
+
+```bash
+docker compose --profile goal2 up -d --build
+curl --fail http://localhost:${TCFLOW_HTTP_PORT:-8080}/health
+curl --fail http://localhost:${TCFLOW_HTTP_PORT:-8080}/api/vnext/health
+```
+
+The profile provisions RabbitMQ with credentials from `RABBITMQ_USER` and
+`RABBITMQ_PASSWORD`, and routes `/api/vnext/` through the vNext container. It
+does not switch existing `/api/` traffic or delete the v0.1 service. Verify
+RabbitMQ publish/retry/dead-letter behavior and projection/rollback evidence
+before making vNext the primary route.
 
 The API applies the existing EF migrations and seeds the root tenant on first
 startup. Repository Intelligence uses the `repository_intelligence` Marten

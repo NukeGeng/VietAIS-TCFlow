@@ -28,6 +28,62 @@ services:
       timeout: 5s
       retries: 10
 
+  # GOAL2 canary resources. The default compose profile remains the v0.1
+  # rollback bundle; enable --profile goal2 only after migration evidence is
+  # accepted for the target environment.
+  rabbitmq:
+    profiles: ["goal2"]
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-tcflow}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set for the GOAL2 profile}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  vnext-api:
+    profiles: ["goal2"]
+    image: ${TCFLOW_IMAGE_PREFIX:-vietais-tcflow}/vnext-api:${TCFLOW_VERSION:-2.0.4-rc}
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: deploy/self-host/Dockerfile.vnext
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8081
+      ConnectionStrings__marten: Host=postgres;Port=5432;Database=${POSTGRES_DB:-vietais_tcflow};Username=${POSTGRES_USER:-tcflow};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      DatabaseOptions__Provider: postgresql
+      DatabaseOptions__ConnectionString: Host=postgres;Port=5432;Database=${POSTGRES_DB:-vietais_tcflow};Username=${POSTGRES_USER:-tcflow};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      DatabaseOptions__MigrationsAssembly: FSH.Starter.Migrations.PostgreSQL
+      EventingOptions__Provider: RabbitMQ
+      EventingOptions__RabbitMQ__Host: rabbitmq
+      EventingOptions__RabbitMQ__Port: 5672
+      EventingOptions__RabbitMQ__UserName: ${RABBITMQ_USER:-tcflow}
+      EventingOptions__RabbitMQ__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set for the GOAL2 profile}
+      EventingOptions__RabbitMQ__ExchangeName: ${RABBITMQ_EXCHANGE:-tcflow.integration.events}
+      JwtOptions__Issuer: tcflow.self-host
+      JwtOptions__Audience: tcflow.clients
+      JwtOptions__SigningKey: ${JWT_KEY:?JWT_KEY must be set in .env}
+      HangfireOptions__UserName: ${HANGFIRE_USERNAME:-admin}
+      HangfireOptions__Password: ${HANGFIRE_PASSWORD:?HANGFIRE_PASSWORD must be set in .env}
+      MailOptions__UseSendGrid: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8081/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
   api:
     image: ${TCFLOW_IMAGE_PREFIX:-vietais-tcflow}/api:${TCFLOW_VERSION:-2.0.4-rc}
     restart: unless-stopped
@@ -85,6 +141,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 5s
+      start_period: 5s
+      retries: 5
 
 volumes:
   api-images:
@@ -92,3 +154,4 @@ volumes:
   postgres-data:
   reasoning-data:
   redis-data:
+  rabbitmq-data:

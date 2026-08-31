@@ -45,4 +45,12 @@ public sealed class ProjectCurrentProjection : SingleStreamProjection<ProjectCur
         current.IsSuspended = false;
         current.LastChangedAtUtc = @event.OccurredAtUtc;
     }
+
+    public static void Apply(ProjectLifecycleReconciled @event, ProjectCurrent current)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+        ArgumentNullException.ThrowIfNull(current);
+        current.IsSuspended = @event.IsSuspended;
+        current.LastChangedAtUtc = @event.OccurredAtUtc;
+    }
 }

@@ -34,6 +34,18 @@ var redisEndpoint = redis.GetEndpoint("tcp");
 var redisConnectionString = ReferenceExpression.Create(
     $"{redisEndpoint.Property(EndpointProperty.HostAndPort)}");
 
+// RabbitMQ is reserved for integration events; Marten async projections stay
+// on the local daemon. Credentials are Aspire parameters so they are not
+// embedded in application settings or emitted in diagnostics.
+var rabbitUser = builder.AddParameter("rabbitmq-user", "tcflow");
+var rabbitPassword = builder.AddParameter("rabbitmq-password", "tcflow-dev-password", secret: true);
+var rabbitmq = builder.AddContainer("rabbitmq", "rabbitmq:4-management-alpine")
+    .WithEndpoint(targetPort: 5672, scheme: "tcp", name: "amqp")
+    .WithHttpEndpoint(port: 15672, targetPort: 15672, name: "management")
+    .WithEnvironment("RABBITMQ_DEFAULT_USER", rabbitUser)
+    .WithEnvironment("RABBITMQ_DEFAULT_PASS", rabbitPassword)
+    .WithLifetime(ContainerLifetime.Persistent);
+
 // RedisInsight cache browser (dev-only) sidecar; RI_REDIS_* pre-registers the Valkey connection via the container-network alias "redis".
 builder.AddContainer("redis-insight", "redis/redisinsight", "latest")
     .WithHttpEndpoint(port: 5540, targetPort: 5540, name: "http")
@@ -141,6 +153,7 @@ var api = builder.AddProject<Projects.FSH_Starter_Api>($"{appPrefix}-api")
 // to the historical FSH API until M13 cutover replaces the legacy composition root.
 var vnextApi = builder.AddProject<Projects.VietAIS_TCFlow_Api>($"{appPrefix}-vnext-api")
     .WithReference(postgres)
+    .WaitFor(rabbitmq)
     .WaitFor(postgres)
     .WithExternalHttpEndpoints()
     .WithEnvironment("ConnectionStrings__marten", apiPgConnection)
@@ -152,7 +165,13 @@ var vnextApi = builder.AddProject<Projects.VietAIS_TCFlow_Api>($"{appPrefix}-vne
     .WithEnvironment("JwtOptions__SigningKey", builder.AddParameter("vnext-jwt-key", secret: true))
     .WithEnvironment("HangfireOptions__UserName", "vnext-worker")
     .WithEnvironment("HangfireOptions__Password", builder.AddParameter("vnext-hangfire-password", secret: true))
-    .WithEnvironment("MailOptions__UseSendGrid", "false");
+    .WithEnvironment("MailOptions__UseSendGrid", "false")
+    .WithEnvironment("EventingOptions__Provider", "RabbitMQ")
+    .WithEnvironment("EventingOptions__RabbitMQ__Host", "rabbitmq")
+    .WithEnvironment("EventingOptions__RabbitMQ__Port", "5672")
+    .WithEnvironment("EventingOptions__RabbitMQ__UserName", rabbitUser)
+    .WithEnvironment("EventingOptions__RabbitMQ__Password", rabbitPassword)
+    .WithEnvironment("EventingOptions__RabbitMQ__ExchangeName", "tcflow.integration.events");
 
 //#if (frontend)
 // Admin console (React + Vite). Target the API's HTTPS endpoint directly — UseHttpsRedirection's 307 to https is cross-origin and strips the Authorization header.

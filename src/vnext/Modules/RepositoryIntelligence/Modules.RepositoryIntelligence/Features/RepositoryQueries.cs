@@ -9,6 +9,6 @@ public static class RepositoryQueries
     public static async Task<AnalysisView?> Handle(GetAnalysis query, IQuerySession session, CancellationToken cancellationToken)
     {
         var current = await session.LoadAsync<AnalysisCurrent>(query.AnalysisRunId, cancellationToken).ConfigureAwait(false);
-        return current is null ? null : new(current.Id, current.ProjectId, current.RepositoryId, current.CommitSha, current.Completed, current.Version, current.Artifacts, current.Changes, current.Evidence, current.LastChangedAtUtc);
+        return current is null ? null : new(current.Id, current.ProjectId, current.RepositoryId, current.CommitSha, current.Completed, current.Version, current.Artifacts, current.Changes, current.Evidence, current.Impacts, current.LastChangedAtUtc);
     }
 }

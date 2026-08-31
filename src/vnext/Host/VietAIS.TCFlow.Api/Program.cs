@@ -143,6 +143,7 @@ builder.Services.AddMarten(options =>
     StormingMartenConfiguration.Configure(options);
     ArchitectureMartenConfiguration.Configure(options);
     RepositoryMartenConfiguration.Configure(options);
+    IntegrationsMartenConfiguration.Configure(options);
     PlatformMartenConfiguration.Configure(options);
 })
 .IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")
@@ -505,6 +506,18 @@ vnext.MapPost("/api/vnext/platform/policies/{policyId:guid}/ai-provider", async 
 vnext.MapGet("/api/vnext/platform/policies/{policyId:guid}", async (Guid policyId, IQuerySession session, CancellationToken cancellationToken) =>
 {
     var result = await PlatformQueries.Handle(new GetPlatformPolicy(policyId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+vnext.MapGet("/api/vnext/platform/providers/{providerId:guid}", async (Guid providerId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await PlatformQueries.Handle(new GetGlobalAiProvider(providerId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+vnext.MapGet("/api/vnext/platform/settings/{settingsId:guid}", async (Guid settingsId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await PlatformQueries.Handle(new GetGlobalSystemSettings(settingsId), session, cancellationToken).ConfigureAwait(false);
     return result is null ? Results.NotFound() : Results.Ok(result);
 });
 

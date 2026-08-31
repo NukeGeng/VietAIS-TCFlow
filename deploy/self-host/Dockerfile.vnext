@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY src/vnext/ src/vnext/
+RUN dotnet restore src/vnext/Host/VietAIS.TCFlow.Api/VietAIS.TCFlow.Api.csproj
+RUN dotnet publish src/vnext/Host/VietAIS.TCFlow.Api/VietAIS.TCFlow.Api.csproj \
+    --configuration Release \
+    --no-restore \
+    --output /app/publish \
+    --property:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_URLS=http://+:8081 \
+    DOTNET_EnableDiagnostics=0
+
+EXPOSE 8081
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
+    CMD curl --fail --silent http://localhost:8081/health || exit 1
+
+ENTRYPOINT ["dotnet", "VietAIS.TCFlow.Api.dll"]

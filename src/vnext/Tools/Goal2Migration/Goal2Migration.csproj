@@ -5,4 +5,26 @@
     <AssemblyName>VietAIS.TCFlow.Tools.Migration</AssemblyName>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../BuildingBlocks/EventSourcing/EventSourcing.csproj" />
+    <ProjectReference Include="../../Modules/AccessControl/Modules.AccessControl.Contracts/Modules.AccessControl.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/AccessControl/Modules.AccessControl/Modules.AccessControl.csproj" />
+    <ProjectReference Include="../../Modules/Planning/Modules.Planning/Modules.Planning.csproj" />
+    <ProjectReference Include="../../Modules/TaskFlow/Modules.TaskFlow/Modules.TaskFlow.csproj" />
+    <ProjectReference Include="../../Modules/TaskFlow/Modules.TaskFlow.Contracts/Modules.TaskFlow.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/Projects/Modules.Projects/Modules.Projects.csproj" />
+    <ProjectReference Include="../../Modules/RepositoryIntelligence/Modules.RepositoryIntelligence.Contracts/Modules.RepositoryIntelligence.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/RepositoryIntelligence/Modules.RepositoryIntelligence/Modules.RepositoryIntelligence.csproj" />
+    <ProjectReference Include="../../Modules/EventStorming/Modules.EventStorming.Contracts/Modules.EventStorming.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/EventStorming/Modules.EventStorming/Modules.EventStorming.csproj" />
+    <ProjectReference Include="../../Modules/Architecture/Modules.Architecture.Contracts/Modules.Architecture.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/Architecture/Modules.Architecture/Modules.Architecture.csproj" />
+    <ProjectReference Include="../../Modules/PlatformAdministration/Modules.PlatformAdministration/Modules.PlatformAdministration.csproj" />
+    <ProjectReference Include="../../Modules/PlatformAdministration/Modules.PlatformAdministration.Contracts/Modules.PlatformAdministration.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/Integrations/Modules.Integrations/Modules.Integrations.csproj" />
+    <ProjectReference Include="../../Modules/Integrations/Modules.Integrations.Contracts/Modules.Integrations.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Marten" />
+  </ItemGroup>
 </Project>

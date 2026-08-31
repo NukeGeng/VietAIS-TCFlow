@@ -1,0 +1,36 @@
+{
+  "status": "CONFIRMED",
+  "scope": "local self-host canary only",
+  "observedAtUtc": "2026-08-31T11:48:06Z",
+  "sourceCommit": "1573381",
+  "profile": "goal2",
+  "services": {
+    "postgres": "healthy",
+    "rabbitmq": "healthy",
+    "redis": "healthy",
+    "api": "healthy",
+    "vnext-api": "healthy",
+    "frontend": "healthy"
+  },
+  "httpChecks": {
+    "GET /health": 200,
+    "GET /api/vnext/health": 200,
+    "GET /": 200,
+    "GET /api/vnext/projects (unauthenticated)": 401,
+    "GET /api/v1/projects (unauthenticated)": 401
+  },
+  "messagingChecks": {
+    "rabbitmqDiagnosticsPing": "passed"
+  },
+  "security": {
+    "ephemeralSecrets": true,
+    "secretValuesPersistedOrLogged": false,
+    "notes": "Runtime-only random JWT and Hangfire values were supplied through the shell environment and were not recorded in this artifact."
+  },
+  "limitations": [
+    "No authenticated project mutation was performed.",
+    "Backup/restore and rollback were not exercised.",
+    "RabbitMQ outage, retry, and dead-letter behavior were not exercised.",
+    "Live GitHub private-repository and UI end-to-end gates remain unverified."
+  ]
+}

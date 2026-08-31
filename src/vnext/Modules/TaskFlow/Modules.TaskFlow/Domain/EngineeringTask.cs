@@ -5,6 +5,8 @@ namespace VietAIS.TCFlow.Modules.TaskFlow.Domain;
 
 public sealed class EngineeringTask
 {
+    private readonly HashSet<Guid> _importedVersionIds = [];
+    private readonly HashSet<Guid> _importedEvidenceIds = [];
     public Guid Id { get; private set; }
     public Guid ProjectId { get; private set; }
     public string Title { get; private set; } = string.Empty;
@@ -15,6 +17,8 @@ public sealed class EngineeringTask
     public bool AiVerificationPassed { get; private set; }
     public bool HumanReviewRequested { get; private set; }
     public bool HumanReviewApproved { get; private set; }
+    public int ImportedVersionCount => _importedVersionIds.Count;
+    public int ImportedEvidenceCount => _importedEvidenceIds.Count;
 
     public void Apply(TaskProposed @event)
     {
@@ -43,6 +47,21 @@ public sealed class EngineeringTask
         Description = @event.Description;
         SourceChangeKey = @event.SourceChangeKey;
     }
+
+    public void Apply(TaskLifecycleReconciled @event)
+    {
+        Status = @event.Status;
+        AssigneeId = @event.AssigneeId;
+        AiVerificationPassed = @event.AiVerificationPassed;
+        HumanReviewRequested = @event.HumanReviewRequested;
+        HumanReviewApproved = @event.HumanReviewApproved;
+    }
+
+    // Imported versions and evidence are immutable history records. They do
+    // not alter the current snapshot; the sets make replayed identities
+    // observable without fabricating lifecycle transitions.
+    public void Apply(TaskVersionImported @event) => _importedVersionIds.Add(@event.VersionId);
+    public void Apply(TaskEvidenceImported @event) => _importedEvidenceIds.Add(@event.EvidenceId);
 
     public TaskAccepted Accept(string actorId, string correlationId, DateTimeOffset now)
     {

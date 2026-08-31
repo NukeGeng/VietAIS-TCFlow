@@ -6,11 +6,15 @@ public sealed class PlatformPolicy
     public bool AllowAiAnalysis { get; private set; }
     public bool AllowAiTaskSuggestions { get; private set; }
     public bool AllowAiTaskMutations { get; private set; }
+    public bool ProjectCreationEnabled { get; private set; } = true;
+    public bool RepositoryConnectionsEnabled { get; private set; } = true;
+    public int MaximumRepositoriesPerProject { get; private set; } = 20;
     public string? ProviderName { get; private set; }
     public bool ProviderEnabled { get; private set; }
     public string? LastAuditAction { get; private set; }
     public void Apply(PlatformPolicyCreated e) => Id = e.PolicyId;
     public void Apply(PlatformPolicyUpdated e) { AllowAiAnalysis = e.AllowAiAnalysis; AllowAiTaskSuggestions = e.AllowAiTaskSuggestions; AllowAiTaskMutations = e.AllowAiTaskMutations; }
+    public void Apply(PlatformPolicyImported e) { ProjectCreationEnabled = e.ProjectCreationEnabled; RepositoryConnectionsEnabled = e.RepositoryConnectionsEnabled; MaximumRepositoriesPerProject = e.MaximumRepositoriesPerProject; }
     public void Apply(AiProviderConfigured e) { ProviderName = e.ProviderName; ProviderEnabled = e.Enabled; }
     public void Apply(PlatformAdminActionAudited e) => LastAuditAction = e.Action;
 

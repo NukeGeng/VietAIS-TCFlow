@@ -22,7 +22,10 @@ public sealed class TaskCurrent
     public string? AssigneeId { get; set; }
     public bool AiVerificationPassed { get; set; }
     public bool HumanReviewRequested { get; set; }
+    public bool HumanReviewApproved { get; set; }
     public string? SourceChangeKey { get; set; }
+    public List<TaskVersionSnapshot> ImportedVersions { get; set; } = [];
+    public List<TaskEvidenceSnapshot> ImportedEvidence { get; set; } = [];
     public long Version { get; set; }
     public DateTimeOffset LastChangedAtUtc { get; set; }
 }
@@ -44,11 +47,31 @@ public sealed class TaskCurrentProjection : SingleStreamProjection<TaskCurrent, 
     public static void Apply(TaskBlocked e, TaskCurrent x) => Set(x, TaskStatus.Blocked, e.OccurredAtUtc);
     public static void Apply(AiVerificationCompleted e, TaskCurrent x) { x.AiVerificationPassed = e.Passed; Set(x, x.Status, e.OccurredAtUtc); }
     public static void Apply(ReviewRequested e, TaskCurrent x) { x.HumanReviewRequested = true; Set(x, x.Status, e.OccurredAtUtc); }
-    public static void Apply(ReviewApproved e, TaskCurrent x) => Set(x, TaskStatus.ReadyForReview, e.OccurredAtUtc);
-    public static void Apply(ReviewRejected e, TaskCurrent x) => Set(x, TaskStatus.InProgress, e.OccurredAtUtc);
+    public static void Apply(ReviewApproved e, TaskCurrent x) { x.HumanReviewApproved = true; Set(x, TaskStatus.ReadyForReview, e.OccurredAtUtc); }
+    public static void Apply(ReviewRejected e, TaskCurrent x) { x.HumanReviewApproved = false; Set(x, TaskStatus.InProgress, e.OccurredAtUtc); }
     public static void Apply(TaskCompleted e, TaskCurrent x) => Set(x, TaskStatus.Completed, e.OccurredAtUtc);
     public static void Apply(TaskReopened e, TaskCurrent x) => Set(x, TaskStatus.Upcoming, e.OccurredAtUtc);
     public static void Apply(TaskUpdatedFromSourceChange e, TaskCurrent x) { x.Title = e.Title; x.Description = e.Description; Set(x, x.Status, e.OccurredAtUtc); }
+    public static void Apply(TaskLifecycleReconciled e, TaskCurrent x)
+    {
+        x.AssigneeId = e.AssigneeId;
+        x.AiVerificationPassed = e.AiVerificationPassed;
+        x.HumanReviewRequested = e.HumanReviewRequested;
+        x.HumanReviewApproved = e.HumanReviewApproved;
+        Set(x, e.Status, e.OccurredAtUtc);
+    }
+
+    public static void Apply(TaskVersionImported e, TaskCurrent x)
+    {
+        x.ImportedVersions.Add(new(e.VersionId, e.Version, e.SnapshotJson, e.AssignmentJson, e.ReviewJson, e.EvidenceJson, e.ChangeReason, e.OccurredAtUtc));
+        Set(x, x.Status, e.OccurredAtUtc);
+    }
+
+    public static void Apply(TaskEvidenceImported e, TaskCurrent x)
+    {
+        x.ImportedEvidence.Add(new(e.EvidenceId, e.EvidenceKind, e.Summary, e.Location, e.SourceChangeKey, e.ArtifactKey, e.ImpactKey, e.Confidence, e.CreatedBy, e.CreatedByType, e.OccurredAtUtc));
+        Set(x, x.Status, e.OccurredAtUtc);
+    }
 
     private static void Set(TaskCurrent x, TaskStatus status, DateTimeOffset at)
     {
@@ -57,3 +80,26 @@ public sealed class TaskCurrentProjection : SingleStreamProjection<TaskCurrent, 
         x.LastChangedAtUtc = at;
     }
 }
+
+public sealed record TaskVersionSnapshot(
+    Guid Id,
+    int Version,
+    string SnapshotJson,
+    string? AssignmentJson,
+    string? ReviewJson,
+    string? EvidenceJson,
+    string ChangeReason,
+    DateTimeOffset ChangedAtUtc);
+
+public sealed record TaskEvidenceSnapshot(
+    Guid Id,
+    string Kind,
+    string Summary,
+    string? Location,
+    string? SourceChangeKey,
+    string? ArtifactKey,
+    string? ImpactKey,
+    decimal? Confidence,
+    string CreatedBy,
+    string CreatedByType,
+    DateTimeOffset CreatedAtUtc);

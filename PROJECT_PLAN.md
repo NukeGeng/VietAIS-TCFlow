@@ -446,7 +446,9 @@ Gate:
 
 Owner: `backend`.
 
-Status: `CONFIRMED` for the vNext platform policy/provider metadata slice;
+Status: `CONFIRMED` for the vNext platform policy/provider metadata slice and
+typed migration streams for global AI provider, global settings, and platform
+policy;
 FullStackHero Identity authorization composition and audit query controls
 remain M13/M14 cutover gates.
 
@@ -480,10 +482,14 @@ Gate:
 
 Owner: `backend`, with all domains verifying their data.
 
-Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, and a
-versioned deterministic dry-run planner are published, but an isolated
-backup/restore, model-level mapping, and repeatable apply/reconciliation
-execution are still required before this milestone can be marked confirmed.
+Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, a
+versioned deterministic dry-run planner, a resumable operational ledger, and
+typed `Projects`/`AccessControl`/`Planning`/`TaskFlow`/`RepositoryIntelligence`/
+`EventStorming`/`Architecture`/`PlatformAdministration` Marten apply slices
+plus the redacted `Integrations` operational writer are published and tested.
+Full-context pre/post reconciliation, isolated backup/restore, repeatable apply
+coverage for all bounded contexts, and rollback evidence are still required
+before this milestone can be marked confirmed.
 
 Deliverables:
 
@@ -491,14 +497,64 @@ Deliverables:
   retained operational documents according to the migration matrix.
 - `src/vnext/Tools/Goal2Migration` dry-run planner with schema validation,
   deterministic identities, source references, and duplicate-safe operations.
+- Resumable migration ledger with payload-hash conflict detection and atomic
+  checkpoint writes; this ledger is an operational document, not business
+  event history.
+- Typed `Projects` writer that maps `Project` and `ProjectState` records to
+  deterministic event streams, preserves source-reference/payload-hash markers,
+  and updates the inline `ProjectCurrent` projection in one Marten transaction.
+- Typed `AccessControl` writer that maps project roles and memberships to the
+  project-scoped access stream, preserves permission/resource/component scopes,
+  and updates the inline effective-permission view in the same transaction.
+- Typed `Planning` writer that maps plans and their requirements/milestones to
+  deterministic plan streams and updates the inline plan view in the same
+  transaction.
+- Typed `TaskFlow` writer that maps legacy engineering-task snapshots to a
+  deterministic task stream using `TaskProposed` plus a
+  `TaskLifecycleReconciled` snapshot, preserves `TaskVersion` and
+  `TaskEvidence` history/source keys without inventing transition history, and
+  updates task read projections in the same transaction.
+- Typed `RepositoryIntelligence` writer that maps analysis runs, source
+  artifacts, and source impacts to deterministic analysis streams, preserves
+  source/change/artifact keys and bounded confidence, and updates the inline
+  analysis view in the same transaction.
+- Typed `EventStorming` writer that maps boards, nodes, connections, hotspots,
+  and ordering records to a deterministic board stream and updates the inline
+  board canvas in the same transaction.
+- Typed `Architecture` writer that maps models, modules, module relationships,
+  entities, data relationships, and drift records to a deterministic model
+  stream and updates the inline architecture view in the same transaction.
+- Typed `PlatformAdministration` writer that maps global AI provider settings,
+  global system settings, and platform policy records to separate
+  system-scoped streams with inline projections and source/hash idempotency.
+- Typed `Integrations` operational writer that stores only whitelisted GitHub
+  installation/delivery metadata, rejects secret-bearing payloads, and applies
+  source/hash idempotency without creating business events.
+- Read-only Marten reconciliation command that verifies expected
+  source-reference and payload-hash markers, reports missing/duplicate/mismatch
+  conditions across event streams and Integrations operational documents, and
+  fails closed without changing business state.
 - Dry-run, reconciliation, rollback, backup/restore, replay/rebuild, and
   cutover runbooks.
 - Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,
   async daemon, and observability.
 
+The Aspire AppHost now declares RabbitMQ as a persistent integration resource
+and injects its endpoint/credentials into the vNext API. Marten async
+projections remain configured on the local daemon; RabbitMQ is not used as an
+internal projection transport. This is composition evidence only until an
+isolated Aspire runtime transcript is captured.
+
+The self-host bundle now provides a guarded `goal2` Compose profile with a
+.NET 10 vNext API image, RabbitMQ, and an Nginx `/api/vnext/` canary route.
+The default v0.1 services remain available for rollback until the canary passes
+the full M13 runtime checks.
+
 Gate:
 
 - Pre/post counts and business invariants reconcile.
+- Event-stream source markers, payload hashes, and retained Integrations
+  operational documents reconcile without writes.
 - Migration is repeatable and idempotent.
 - Backup restore plus projection rebuild is demonstrated in an isolated stack.
 

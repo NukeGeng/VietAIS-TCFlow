@@ -16,6 +16,25 @@ reference until the post-cutover acceptance matrix is signed off.
 4. Restore the backup into an isolated database and run the migration in dry
    mode. A dry run must be repeatable without changing source data.
 
+The versioned dry-run planner is `src/vnext/Tools/Goal2Migration`. It accepts a
+schema-versioned JSON export and writes a deterministic operation plan; it does
+not connect to PostgreSQL, append events, or print payloads/secrets. Run it
+against a redacted export before any apply step:
+
+```bash
+dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
+  --input /path/to/v0.1-export.v1.json \
+  --output /path/to/goal2-migration-plan.json \
+  --applied /path/to/already-applied-source-references.json
+```
+
+`--applied` is optional. The planner fails closed for unsupported schema
+versions or unknown record kinds, assigns a deterministic target identity, and
+marks repeated source references as `Skip` (`already-applied` or
+`duplicate-in-export`). The output plan is an input to the later, isolated
+Marten apply/reconciliation step; it is not evidence that production data has
+already been migrated.
+
 ## Migration rules
 
 | v0.1 data | vNext disposition |
@@ -30,6 +49,11 @@ reference until the post-cutover acceptance matrix is signed off.
 Every migrated record receives a deterministic identity and a source reference.
 Rerunning the migration must upsert only the same stream/projection state; it
 must never append a second business event for an already-migrated source key.
+
+The planner's v1 source-reference format is `v0.1:{Kind}:{SourceId}`. The
+operation's `TargetStream`, `TargetEventType`, and `Disposition` must be
+reviewed against the model-level inventory before an apply implementation is
+approved.
 
 ## Cutover and rollback
 

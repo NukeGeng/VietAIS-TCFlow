@@ -15,6 +15,7 @@ that the v0.1 runtime has been cut over or removed.
 | Deterministic aggregate decisions and invalid transitions | M2–M11 module test suites | `CONFIRMED` |
 | GitHub webhook signature rejection and delivery deduplication | M10 integration test and sanitized delivery contract | `CONFIRMED` |
 | Analyzer facts, evidence, and historical task reconciliation | Existing analyzer/P14 evidence and M9 source contracts | `CONFIRMED` for the retained v0.1 path; `INFERRED` for complete vNext parity |
+| Versioned migration dry-run planner and duplicate protection | `Goal2MigrationPlannerTests` (3 passing tests) and the M13 runbook command | `CONFIRMED` for deterministic planning only; database apply/reconciliation remains `PROPOSED` |
 
 ## Required runtime evidence before marking M14 complete
 

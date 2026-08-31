@@ -446,6 +446,10 @@ Gate:
 
 Owner: `backend`.
 
+Status: `CONFIRMED` for the vNext platform policy/provider metadata slice;
+FullStackHero Identity authorization composition and audit query controls
+remain M13/M14 cutover gates.
+
 Deliverables:
 
 - Platform policies, settings, AI provider availability, usage, tenant/user

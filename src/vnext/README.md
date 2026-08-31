@@ -55,6 +55,10 @@ GitHub webhook verification, sanitized delivery receipts, and the RabbitMQ
 integration boundary are recorded in
 [`docs/architecture/M10_INTEGRATIONS_RABBITMQ.md`](../../docs/architecture/M10_INTEGRATIONS_RABBITMQ.md).
 
+Platform-scoped AI policy/provider metadata and same-stream admin audit events
+are recorded in
+[`docs/architecture/M11_PLATFORM_ADMINISTRATION_EVENT_MODEL.md`](../../docs/architecture/M11_PLATFORM_ADMINISTRATION_EVENT_MODEL.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

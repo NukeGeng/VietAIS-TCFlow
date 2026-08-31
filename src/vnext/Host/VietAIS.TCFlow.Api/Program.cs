@@ -46,6 +46,11 @@ using VietAIS.TCFlow.Modules.RepositoryIntelligence.Features;
 using VietAIS.TCFlow.Modules.RepositoryIntelligence.Projections;
 using VietAIS.TCFlow.Modules.Integrations.Configuration;
 using VietAIS.TCFlow.Modules.Integrations.Webhooks;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Configuration;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Contracts.Commands;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Contracts.Queries;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Features;
+using VietAIS.TCFlow.Modules.PlatformAdministration.Projections;
 using Wolverine;
 using Wolverine.Http;
 using Wolverine.Marten;
@@ -73,6 +78,7 @@ builder.Services.AddTcFlowProjectionAdministration(options =>
     options.AllowedProjectionNames.Add(RepositoryProjectionNames.Current);
     options.AllowedProjectionNames.Add(RepositoryProjectionNames.KnowledgeGraph);
     options.AllowedProjectionNames.Add(RepositoryProjectionNames.ImpactGraph);
+    options.AllowedProjectionNames.Add(PlatformProjectionNames.Current);
 });
 
 var martenConnection = builder.Configuration.GetConnectionString("marten");
@@ -93,6 +99,7 @@ builder.Services.AddMarten(options =>
     StormingMartenConfiguration.Configure(options);
     ArchitectureMartenConfiguration.Configure(options);
     RepositoryMartenConfiguration.Configure(options);
+    PlatformMartenConfiguration.Configure(options);
 })
 .IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")
 .AddAsyncDaemon(DaemonMode.HotCold);
@@ -108,6 +115,7 @@ builder.Host.UseWolverine(options =>
     options.Discovery.IncludeAssembly(typeof(StormingHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(ArchitectureHandlers).Assembly);
     options.Discovery.IncludeAssembly(typeof(RepositoryHandlers).Assembly);
+    options.Discovery.IncludeAssembly(typeof(PlatformHandlers).Assembly);
     TcFlowMessagingConfiguration.Configure(options);
 });
 
@@ -421,6 +429,24 @@ app.MapPost("/api/vnext/integrations/github/webhook", async (HttpRequest request
     if (string.IsNullOrWhiteSpace(deliveryId) || string.IsNullOrWhiteSpace(eventType) || string.IsNullOrWhiteSpace(signature)) return Results.BadRequest(new { error = "GitHub delivery, event, and signature headers are required." });
     var result = await processor.ProcessAsync(deliveryId, eventType, signature, body, correlationId, cancellationToken).ConfigureAwait(false);
     return result.InvalidSignature ? Results.Unauthorized() : Results.Ok(result);
+});
+
+app.MapPost("/api/vnext/platform/policies/{policyId:guid}", async (Guid policyId, UpdatePlatformPolicy command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (policyId != command.PolicyId) return Results.BadRequest(new { error = "The route and command policy IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<PlatformCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapPost("/api/vnext/platform/policies/{policyId:guid}/ai-provider", async (Guid policyId, ConfigureAiProvider command, IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    if (policyId != command.PolicyId) return Results.BadRequest(new { error = "The route and command policy IDs must match." });
+    return Results.Ok(await bus.InvokeAsync<PlatformCommandResult>(command, cancellationToken).ConfigureAwait(false));
+});
+
+app.MapGet("/api/vnext/platform/policies/{policyId:guid}", async (Guid policyId, IQuerySession session, CancellationToken cancellationToken) =>
+{
+    var result = await PlatformQueries.Handle(new GetPlatformPolicy(policyId), session, cancellationToken).ConfigureAwait(false);
+    return result is null ? Results.NotFound() : Results.Ok(result);
 });
 
 app.MapPost("/api/vnext/tasks/{taskId:guid}/accept", async (Guid taskId, AcceptTask command, IMessageBus bus, CancellationToken cancellationToken) =>

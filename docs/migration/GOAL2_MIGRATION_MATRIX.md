@@ -39,6 +39,7 @@ Before migrating a bounded context, expand its row into a model-level table:
 
 | Model | Current store | Target category | Stream/projection name | Migration rule | Reconciliation evidence |
 | --- | --- | --- | --- | --- | --- |
+| GitHub installation and delivery metadata | v0.1 integration documents | Operational Document | `GitHubOperationalMigrationDocument` in Integrations | Retain only the explicit non-secret metadata whitelist; reject secret-bearing properties, require source/project identity, and make retries idempotent | Source-reference/kind/hash reconciliation plus redaction and idempotency tests |
 | EventStorming board and child records | v0.1 board documents | Event Store | `StormingBoard` + inline board canvas | Require explicit board/node source ids; append typed board events in deterministic order | Board/node/link/hotspot/order counts and replay comparison |
 | Architecture model and child records | v0.1 architecture documents | Event Store | `ArchitectureModel` + inline architecture view | Require explicit model/module/entity source ids; append typed model events in deterministic order | Model/module/entity/relationship/drift counts and replay comparison |
 
@@ -48,7 +49,7 @@ dry run, pre/post counts, invariants, and rollback path are verified.
 The first model-level apply slices are now implemented for `Project`,
 `ProjectState`, `ProjectRole`, `ProjectMembership`, `Plan`, `Requirement`,
 `Milestone`, `EngineeringTask`, `TaskVersion`, `TaskEvidence`, `AnalysisRun`,
-`SourceArtifact`, `SourceImpact`, EventStorming board records, and Architecture
+`SourceArtifact`, `SourceImpact`, EventStorming board records, Architecture
 model records: typed project, access, planning, task, repository-analysis,
 board, and architecture events are appended to deterministic streams, with
 source-reference/hash markers and inline read models updated in the same
@@ -68,10 +69,11 @@ must still document the source export field mapping, target event
 payload/upcaster, pre/post count, invariant checks, and rollback record before
 that bounded context is allowed to append to the Event Store. The tool's
 `--apply-marten --connection` mode is the approved Projects, AccessControl,
-Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture
-exception to this statement; it remains fail-closed for all other
-bounded-context kinds until their typed mappers and reconciliation evidence are
-added.
+Planning, TaskFlow, RepositoryIntelligence, EventStorming, Architecture, and
+Integrations exception to this statement. Integrations writes only whitelisted
+operational metadata and rejects secret-bearing properties; it remains
+fail-closed for all other bounded-context kinds until their typed mappers and
+reconciliation evidence are added.
 
 The same tool provides a read-only Marten marker/hash check via
 `--reconcile-marten --connection`. It verifies expected source references and

@@ -5,6 +5,7 @@ using VietAIS.TCFlow.BuildingBlocks.EventSourcing.Metadata;
 using VietAIS.TCFlow.Modules.AccessControl.Configuration;
 using VietAIS.TCFlow.Modules.Architecture.Configuration;
 using VietAIS.TCFlow.Modules.EventStorming.Configuration;
+using VietAIS.TCFlow.Modules.Integrations.Configuration;
 using VietAIS.TCFlow.Modules.Planning.Configuration;
 using VietAIS.TCFlow.Modules.Projects.Configuration;
 using VietAIS.TCFlow.Modules.RepositoryIntelligence.Configuration;
@@ -49,6 +50,7 @@ internal static class MartenMigrationReconciler
             StormingMartenConfiguration.Configure(options);
             ArchitectureMartenConfiguration.Configure(options);
             ProjectsMartenConfiguration.Configure(options);
+            IntegrationsMartenConfiguration.Configure(options);
         });
 
         var streams = new Dictionary<Guid, IReadOnlyList<IEvent>>();
@@ -105,16 +107,48 @@ internal static class MartenMigrationReconciler
             }
         }
 
-        var issues = new List<string>();
-        if (operationalOperations.Length > 0)
+        var missingOperational = new List<string>();
+        var foundOperational = 0;
+        foreach (var operation in operationalOperations
+                     .GroupBy(item => item.SourceReference, StringComparer.Ordinal)
+                     .Select(group => group.First()))
         {
-            issues.Add(
-                $"{operationalOperations.Length} operational-document operation(s) are not reconciled by the Marten Event Store check.");
+            cancellationToken.ThrowIfCancellationRequested();
+            var document = await query.LoadAsync<GitHubOperationalMigrationDocument>(
+                operation.TargetId,
+                cancellationToken).ConfigureAwait(false);
+            if (document is null)
+            {
+                missingOperational.Add(operation.SourceReference);
+                continue;
+            }
+
+            if (!string.Equals(document.SourceReference, operation.SourceReference, StringComparison.Ordinal) ||
+                !string.Equals(document.Kind, operation.Kind, StringComparison.Ordinal))
+            {
+                mismatches.Add(
+                    $"{operation.SourceReference}: operational document identity does not match the plan.");
+                continue;
+            }
+
+            foundOperational++;
+            if (!string.Equals(document.PayloadHash, operation.PayloadHash, StringComparison.Ordinal))
+            {
+                mismatches.Add(
+                    $"{operation.SourceReference}: expected '{operation.PayloadHash}', found operational document hash '{document.PayloadHash}'.");
+            }
         }
 
+        var issues = new List<string>();
         if (missing.Count > 0)
         {
             issues.Add($"Missing migration markers: {string.Join(", ", missing)}.");
+        }
+
+        if (missingOperational.Count > 0)
+        {
+            issues.Add(
+                $"Missing operational migration documents: {string.Join(", ", missingOperational)}.");
         }
 
         if (mismatches.Count > 0)
@@ -133,9 +167,14 @@ internal static class MartenMigrationReconciler
             operationalOperations.Length,
             expected.Length,
             found,
+            operationalOperations
+                .GroupBy(item => item.SourceReference, StringComparer.Ordinal)
+                .Count(),
+            foundOperational,
             duplicateReferences.Count,
             missingStreams,
             missing,
+            missingOperational,
             mismatches,
             duplicateReferences,
             issues,

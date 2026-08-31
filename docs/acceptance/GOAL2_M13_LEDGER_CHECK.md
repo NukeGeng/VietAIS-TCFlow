@@ -25,11 +25,11 @@ operator cannot accidentally treat changed legacy data as an idempotent retry.
 
 ## Remaining M13 work
 
-The ledger is only the resumable cutover checkpoint. Typed model-level writers
-and a read-only Marten source-marker/hash reconciler now cover the bounded
-contexts listed above, but the M13 gate remains open: semantic pre/post count
-and invariant reconciliation, operational-document reconciliation, isolated
-backup/restore, and rollback rehearsal are still required before the milestone
-can become `CONFIRMED`. See
+The ledger is only the resumable cutover checkpoint. Typed model-level writers,
+the redacted Integrations operational-document writer, and a read-only Marten
+source-marker/hash reconciler now cover the bounded contexts listed above, but
+the M13 gate remains open: semantic pre/post count and invariant
+reconciliation, isolated backup/restore, and rollback rehearsal are still
+required before the milestone can become `CONFIRMED`. See
 [`GOAL2_M13_RECONCILIATION_CHECK.md`](GOAL2_M13_RECONCILIATION_CHECK.md) for
 the narrower stream-level evidence.

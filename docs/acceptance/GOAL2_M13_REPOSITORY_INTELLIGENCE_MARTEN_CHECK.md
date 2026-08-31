@@ -34,8 +34,8 @@ uses Testcontainers PostgreSQL and verifies:
 `Goal2MigrationPlannerTests` also verifies that repository facts use the owning
 analysis stream and reject missing parent identity.
 
-Migration suite result: `30 passed, 0 failed` on .NET 10, including the two
-read-only Marten reconciliation checks.
+Migration suite result: `33 passed, 0 failed` on .NET 10, including the
+Integrations operational and read-only Marten reconciliation checks.
 
 ## Remaining M13 obligations
 

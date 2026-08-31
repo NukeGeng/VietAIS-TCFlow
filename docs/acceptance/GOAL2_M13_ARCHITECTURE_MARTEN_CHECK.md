@@ -28,8 +28,8 @@ dotnet test Tests/Migration.Tests/Migration.Tests.csproj \
   --configuration Release --no-restore -v:minimal
 ```
 
-Result: `30 passed, 0 failed` on .NET 10, including the two read-only Marten
-reconciliation checks. The test verifies typed event order,
+Result: `33 passed, 0 failed` on .NET 10, including the Integrations
+operational and read-only Marten reconciliation checks. The test verifies typed event order,
 model-stream identity, inline module/entity/relationship/drift state, and a
 second apply that skips all migrated records without appending duplicates.
 

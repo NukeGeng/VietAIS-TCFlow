@@ -22,25 +22,26 @@ dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
   --connection "$TCFLOW_MARTEN_CONNECTION"
 ```
 
-Exit code `0` means every expected event-stream source marker and payload hash
-was found exactly once. Exit code `3` reports a reconciliation failure. The
-tool fails closed when an operational-document operation is present because
-those records are not part of this Event Store check.
+Exit code `0` means every expected event-stream source marker and payload hash,
+and every supported Integrations operational document, was found exactly once.
+Exit code `3` reports a reconciliation failure. Unsupported operational kinds
+fail closed because they require their own owning-context mapper.
 
 ## Verification
 
 | Check | Result |
 | --- | ---: |
 | Applied typed Project stream, then reconciled source marker/hash | passed |
+| Applied redacted GitHub delivery document, then reconciled source/hash | passed |
 | Missing stream and changed payload hash reported without writes | passed |
-| `MartenMigrationReconcilerTests` | 2 passed, 0 failed |
-| Full `Migration.Tests` suite | 30 passed, 0 failed |
+| `MartenMigrationReconcilerTests` | 3 passed, 0 failed |
+| Full `Migration.Tests` suite | 33 passed, 0 failed |
 | Migration tool Release build | 0 warnings, 0 errors |
 
 ## Remaining M13 evidence
 
-This check proves stream-level marker/hash presence and duplicate detection for
-the tested typed writer. It does not prove semantic pre/post record counts,
-business invariants, GitHub operational-document reconciliation, isolated
-backup/restore, projection rebuild after restore, or rollback rehearsal. Those
-artifacts remain required before M13 can move from `PROPOSED` to `CONFIRMED`.
+This check proves stream/document-level marker/hash presence and duplicate
+detection for the tested typed writers. It does not prove semantic pre/post
+record counts, business invariants, isolated backup/restore, projection rebuild
+after restore, or rollback rehearsal. Those artifacts remain required before
+M13 can move from `PROPOSED` to `CONFIRMED`.

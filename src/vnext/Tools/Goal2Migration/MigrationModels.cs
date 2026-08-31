@@ -86,10 +86,17 @@ internal sealed record MigrationBusinessApplyReport(
     int StreamsTouched,
     IReadOnlyList<string> Conflicts);
 
+internal sealed record MigrationOperationalApplyReport(
+    int PlannedOperations,
+    int UpsertedDocumentCount,
+    int SkippedDocumentCount,
+    IReadOnlyList<string> Conflicts);
+
 internal sealed record MigrationApplyOutput(
     MigrationPlan Plan,
     MigrationApplyReport Report,
-    MigrationBusinessApplyReport? BusinessEvents = null);
+    MigrationBusinessApplyReport? BusinessEvents = null,
+    MigrationOperationalApplyReport? OperationalDocuments = null);
 
 /// <summary>
 /// Read-only reconciliation result for an exported migration plan. The
@@ -102,9 +109,12 @@ internal sealed record MigrationReconciliationReport(
     int OperationalDocumentOperations,
     int ExpectedSourceMarkers,
     int FoundSourceMarkers,
+    int ExpectedOperationalDocuments,
+    int FoundOperationalDocuments,
     int DuplicateSourceMarkers,
     int MissingStreams,
     IReadOnlyList<string> MissingSourceReferences,
+    IReadOnlyList<string> MissingOperationalReferences,
     IReadOnlyList<string> HashMismatches,
     IReadOnlyList<string> DuplicateSourceReferences,
     IReadOnlyList<string> Issues,

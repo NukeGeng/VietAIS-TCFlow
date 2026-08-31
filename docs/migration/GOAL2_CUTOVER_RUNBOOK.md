@@ -55,7 +55,9 @@ checks are approved.
 
 The first approved model-level writers are the Projects, AccessControl,
 Planning, TaskFlow, RepositoryIntelligence, EventStorming, and Architecture
-slices. In an isolated
+slices. The Integrations writer retains only whitelisted GitHub installation
+and delivery metadata as operational documents; it refuses secret-bearing
+payload properties. In an isolated
 PostgreSQL database, use `--apply-marten` with the same ledger to append typed
 project/access/planning/task/analysis/board/architecture events and update the inline
 `ProjectCurrent`/effective-permission/plan/task/analysis/board/architecture
@@ -79,7 +81,10 @@ owning analysis stream as typed repository facts. The writer
 maps EventStorming board records to a board stream and Architecture records to
 an architecture-model stream, preserving explicit parent and relationship
 identities. Both streams update their inline read models in the same
-transaction. It
+transaction. GitHub credential/delivery records are stored separately in the
+Integrations operational-document collection and are never serialized as
+domain events; their operational write is committed separately after the
+business-event transaction succeeds. It
 fails closed for unsupported bounded-context records, missing
 required project/access fields, unsupported lifecycle or permission values, an
 existing stream without a migration marker, or a ledger marker that is not
@@ -100,12 +105,13 @@ dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
 ```
 
 `--reconcile-marten` reads only migration source-reference and payload-hash
-markers from target streams. It reports missing streams, missing or duplicate
-markers, and hash mismatches; it does not provision schema, append events,
-update projections, or modify operational documents. Exit code `0` means all
-event-stream markers reconcile; exit code `3` means a mismatch was found.
-Operational records such as GitHub credentials and delivery leases are outside
-this Event Store check and still require document-level reconciliation evidence.
+markers from target event streams, plus source-reference, kind, and payload-hash
+fields from the typed Integrations operational-document collection. It reports
+missing streams/documents, missing or duplicate markers, and hash mismatches;
+it does not provision schema, append events, update projections, or modify
+operational documents. Exit code `0` means all supported event-stream and
+operational-document markers reconcile; exit code `3` means a mismatch was
+found. Unsupported operational kinds fail closed.
 
 ## Migration rules
 

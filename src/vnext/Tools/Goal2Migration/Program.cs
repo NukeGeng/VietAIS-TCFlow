@@ -45,7 +45,7 @@ internal static class Program
                 throw new ArgumentException("'--connection' is required when '--reconcile-marten' is specified.");
             }
 
-            if (apply && applyMarten || apply && reconcileMarten || applyMarten && reconcileMarten)
+            if ((apply && applyMarten) || (apply && reconcileMarten) || (applyMarten && reconcileMarten))
             {
                 throw new ArgumentException("Use only one of '--apply', '--apply-marten', or '--reconcile-marten'.");
             }
@@ -108,9 +108,15 @@ internal static class Program
             }
 
             MigrationBusinessApplyReport? businessReport = null;
+            MigrationOperationalApplyReport? operationalReport = null;
             if (applyMarten)
             {
                 businessReport = await MartenProjectMigrationApplier.ApplyAsync(
+                    plan,
+                    input,
+                    connectionString!,
+                    CancellationToken.None).ConfigureAwait(false);
+                operationalReport = await MartenOperationalMigrationApplier.ApplyAsync(
                     plan,
                     input,
                     connectionString!,
@@ -124,11 +130,11 @@ internal static class Program
             MigrationLedgerStore.SaveAtomic(ledgerPath!, updatedLedger, JsonOptions);
             await File.WriteAllTextAsync(
                 outputPath,
-                JsonSerializer.Serialize(new MigrationApplyOutput(plan, report, businessReport), JsonOptions))
+                JsonSerializer.Serialize(new MigrationApplyOutput(plan, report, businessReport, operationalReport), JsonOptions))
                 .ConfigureAwait(false);
             await Console.Out.WriteLineAsync(
                 applyMarten
-                    ? $"GOAL2 Marten migration applied: appended {businessReport!.AppendedEventCount} business events, skipped {businessReport.SkippedEventCount}; ledger appended {report.AppendCount}, skipped {report.SkipCount}. Report: '{outputPath}'."
+                    ? $"GOAL2 Marten migration applied: appended {businessReport!.AppendedEventCount} business events and {operationalReport!.UpsertedDocumentCount} operational documents, skipped {businessReport.SkippedEventCount} events and {operationalReport.SkippedDocumentCount} documents; ledger appended {report.AppendCount}, skipped {report.SkipCount}. Report: '{outputPath}'."
                     : $"GOAL2 migration ledger applied: appended {report.AppendCount}, skipped {report.SkipCount}, total ledger entries {report.LedgerEntriesAfter}. Report: '{outputPath}'.")
                 .ConfigureAwait(false);
             return 0;

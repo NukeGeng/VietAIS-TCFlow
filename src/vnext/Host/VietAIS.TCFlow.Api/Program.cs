@@ -143,6 +143,7 @@ builder.Services.AddMarten(options =>
     StormingMartenConfiguration.Configure(options);
     ArchitectureMartenConfiguration.Configure(options);
     RepositoryMartenConfiguration.Configure(options);
+    IntegrationsMartenConfiguration.Configure(options);
     PlatformMartenConfiguration.Configure(options);
 })
 .IntegrateWithWolverine(options => options.MessageStorageSchemaName = "wolverine")

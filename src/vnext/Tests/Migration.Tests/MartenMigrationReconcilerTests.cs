@@ -100,4 +100,44 @@ public sealed class MartenMigrationReconcilerTests : IAsyncLifetime
         Assert.Contains(report.Issues, item => item.Contains("hash mismatches", StringComparison.Ordinal));
         Assert.Contains(report.Issues, item => item.Contains("Missing migration markers", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public async Task ReconcilesOperationalGitHubDocumentsBySourceAndHash()
+    {
+        var export = new LegacyExport(
+            1,
+            [
+                new LegacyRecord(
+                    "GitHubDelivery",
+                    "delivery-1",
+                    "project-1",
+                    "sha256:delivery-1",
+                    JsonSerializer.SerializeToElement(new
+                    {
+                        deliveryId = "delivery-1",
+                        @event = "push",
+                        receivedAtUtc = "2026-08-31T10:00:00Z"
+                    }))
+            ]);
+        var plan = Goal2MigrationPlanner.Plan(export);
+
+        await MartenOperationalMigrationApplier.ApplyAsync(
+            plan,
+            export,
+            _postgres.GetConnectionString(),
+            CancellationToken.None);
+
+        var report = await MartenMigrationReconciler.ReconcileAsync(
+            plan,
+            _postgres.GetConnectionString(),
+            CancellationToken.None);
+
+        Assert.True(report.Reconciled);
+        Assert.Equal(0, report.EventStreamOperations);
+        Assert.Equal(1, report.OperationalDocumentOperations);
+        Assert.Equal(1, report.ExpectedOperationalDocuments);
+        Assert.Equal(1, report.FoundOperationalDocuments);
+        Assert.Empty(report.MissingOperationalReferences);
+        Assert.Empty(report.Issues);
+    }
 }

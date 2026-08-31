@@ -77,7 +77,8 @@ internal static class Goal2MigrationPlanner
                 "SourceArtifact" or "SourceImpact" or "StormingBoard" or "StormingNode" or
                 "StormingConnection" or "StormingHotspot" or "StormingNodeOrder" or
                 "ArchitectureModel" or "ArchitectureModule" or "ArchitectureModuleRelationship" or
-                "ArchitectureEntity" or "ArchitectureDataRelationship" or "ArchitectureDrift") && projectSourceId is null)
+                "ArchitectureEntity" or "ArchitectureDataRelationship" or "ArchitectureDrift" or
+                "GitHubCredential" or "GitHubDelivery") && projectSourceId is null)
             {
                 throw new InvalidOperationException(
                     $"Legacy record '{kind}:{sourceId}' must identify its Project source record.");

@@ -483,7 +483,8 @@ Owner: `backend`, with all domains verifying their data.
 Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, a
 versioned deterministic dry-run planner, a resumable operational ledger, and
 typed `Projects`/`AccessControl`/`Planning`/`TaskFlow`/`RepositoryIntelligence`/
-`EventStorming`/`Architecture` Marten apply slices are published and tested.
+`EventStorming`/`Architecture` Marten apply slices plus the redacted
+`Integrations` operational writer are published and tested.
 Full-context pre/post reconciliation, isolated backup/restore, repeatable apply
 coverage for all bounded contexts, and rollback evidence are still required
 before this milestone can be marked confirmed.
@@ -521,9 +522,13 @@ Deliverables:
 - Typed `Architecture` writer that maps models, modules, module relationships,
   entities, data relationships, and drift records to a deterministic model
   stream and updates the inline architecture view in the same transaction.
+- Typed `Integrations` operational writer that stores only whitelisted GitHub
+  installation/delivery metadata, rejects secret-bearing payloads, and applies
+  source/hash idempotency without creating business events.
 - Read-only Marten reconciliation command that verifies expected
   source-reference and payload-hash markers, reports missing/duplicate/mismatch
-  conditions, and fails closed without changing business state.
+  conditions across event streams and Integrations operational documents, and
+  fails closed without changing business state.
 - Dry-run, reconciliation, rollback, backup/restore, replay/rebuild, and
   cutover runbooks.
 - Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,
@@ -543,7 +548,8 @@ the full M13 runtime checks.
 Gate:
 
 - Pre/post counts and business invariants reconcile.
-- Event-stream source markers and payload hashes reconcile without writes.
+- Event-stream source markers, payload hashes, and retained Integrations
+  operational documents reconcile without writes.
 - Migration is repeatable and idempotent.
 - Backup restore plus projection rebuild is demonstrated in an isolated stack.
 

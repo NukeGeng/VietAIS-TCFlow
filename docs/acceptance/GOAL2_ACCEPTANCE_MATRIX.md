@@ -24,3 +24,7 @@ remaining cutover/acceptance obligation.
 
 This matrix does not claim that the v0.1 runtime has been removed or that
 production cutover has occurred.
+
+The executable smoke checks are `deploy/self-host/goal2-preflight.sh` (secret
+presence only) and `deploy/test/goal2-e2e-smoke.sh` (health plus authenticated
+project boundary). Neither script prints tokens or response bodies.

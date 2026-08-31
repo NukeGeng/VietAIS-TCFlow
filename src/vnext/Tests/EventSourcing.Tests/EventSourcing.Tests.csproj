@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.BuildingBlocks.EventSourcing.Tests</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.BuildingBlocks.EventSourcing.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Application\Application.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\EventSourcing\EventSourcing.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Messaging\Messaging.csproj" />
+    <ProjectReference Include="..\..\Modules\Projects\Modules.Projects\Modules.Projects.csproj" />
+    <ProjectReference Include="..\..\Modules\Projects\Modules.Projects.Contracts\Modules.Projects.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+</Project>

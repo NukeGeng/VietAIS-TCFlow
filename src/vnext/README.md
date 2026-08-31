@@ -20,6 +20,49 @@ finished. Access control, planning/task contexts, integrations, frontend
 cutover, replay tooling, and production deployment remain on the migration
 plan.
 
+The shared event-driven rules for this slice are recorded in
+[`docs/architecture/M2_EVENT_DRIVEN_BUILDING_BLOCKS.md`](../../docs/architecture/M2_EVENT_DRIVEN_BUILDING_BLOCKS.md).
+
+The Projects aggregate, lifecycle commands, projection ownership, and
+reconciliation boundary are recorded in
+[`docs/architecture/M3_PROJECTS_EVENT_MODEL.md`](../../docs/architecture/M3_PROJECTS_EVENT_MODEL.md).
+
+Project-scoped roles, memberships, permission scopes, and the system-admin
+boundary are recorded in
+[`docs/architecture/M4_ACCESS_CONTROL_EVENT_MODEL.md`](../../docs/architecture/M4_ACCESS_CONTROL_EVENT_MODEL.md).
+
+Plan, requirement, milestone, projection, and cross-context ownership are
+recorded in
+[`docs/architecture/M5_PLANNING_EVENT_MODEL.md`](../../docs/architecture/M5_PLANNING_EVENT_MODEL.md).
+
+Task lifecycle, AI verification/human review separation, source-change
+reconciliation, and inline/async task projections are recorded in
+[`docs/architecture/M6_TASK_FLOW_EVENT_MODEL.md`](../../docs/architecture/M6_TASK_FLOW_EVENT_MODEL.md).
+
+Interactive EventStorming boards, ordered nodes, connections, hotspots, and
+the async domain-event catalog are recorded in
+[`docs/architecture/M7_EVENT_STORMING_EVENT_MODEL.md`](../../docs/architecture/M7_EVENT_STORMING_EVENT_MODEL.md).
+
+Living architecture modules, ERD relationships, and evidence-backed drift
+records are recorded in
+[`docs/architecture/M8_ARCHITECTURE_EVENT_MODEL.md`](../../docs/architecture/M8_ARCHITECTURE_EVENT_MODEL.md).
+
+Normalized source facts, source changes, evidence, and rebuildable knowledge/
+impact graph projections are recorded in
+[`docs/architecture/M9_REPOSITORY_INTELLIGENCE_EVENT_MODEL.md`](../../docs/architecture/M9_REPOSITORY_INTELLIGENCE_EVENT_MODEL.md).
+
+GitHub webhook verification, sanitized delivery receipts, and the RabbitMQ
+integration boundary are recorded in
+[`docs/architecture/M10_INTEGRATIONS_RABBITMQ.md`](../../docs/architecture/M10_INTEGRATIONS_RABBITMQ.md).
+
+Platform-scoped AI policy/provider metadata and same-stream admin audit events
+are recorded in
+[`docs/architecture/M11_PLATFORM_ADMINISTRATION_EVENT_MODEL.md`](../../docs/architecture/M11_PLATFORM_ADMINISTRATION_EVENT_MODEL.md).
+
+Migration/cutover operations and the evidence matrix are recorded in
+[`docs/migration/GOAL2_CUTOVER_RUNBOOK.md`](../../docs/migration/GOAL2_CUTOVER_RUNBOOK.md)
+and [`docs/acceptance/GOAL2_ACCEPTANCE_MATRIX.md`](../../docs/acceptance/GOAL2_ACCEPTANCE_MATRIX.md).
+
 ## Local verification
 
 The nested `global.json` selects .NET 10. From this directory:

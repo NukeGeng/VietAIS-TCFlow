@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Modules.AccessControl.Tests</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Modules.AccessControl.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\AccessControl\Modules.AccessControl\Modules.AccessControl.csproj" />
+    <ProjectReference Include="..\..\Modules\AccessControl\Modules.AccessControl.Contracts\Modules.AccessControl.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Marten" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+</Project>

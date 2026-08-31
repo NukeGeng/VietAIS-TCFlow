@@ -11,7 +11,6 @@ public static class ProjectsMartenConfiguration
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        options.DatabaseSchemaName = "projects";
         options.Events.AddEventType<ProjectCreated>();
         options.Events.AddEventType<ProjectRenamed>();
         options.Events.AddEventType<ProjectSuspended>();

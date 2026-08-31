@@ -238,6 +238,10 @@ Gate:
 
 Owner: `backend`.
 
+Status: `CONFIRMED` for the vNext reference slice. The bounded-context
+migration remains incomplete until the later milestones and final GOAL2 matrix
+are verified.
+
 Deliverables:
 
 - Domain event, aggregate, command/query, result, metadata, clock/identity,
@@ -254,9 +258,17 @@ Gate:
   store and converge to identical results.
 - Duplicate durable messages cause no duplicate business effect.
 
+Evidence: `docs/architecture/M2_EVENT_DRIVEN_BUILDING_BLOCKS.md` and the
+PostgreSQL/Testcontainers coverage in
+`src/vnext/Tests/EventSourcing.Tests`.
+
 ### M3 — Projects
 
 Owner: `backend`.
+
+Status: `CONFIRMED` for the vNext Projects lifecycle slice. Memberships,
+project roles, authority/convention policy, and permission/resource scope are
+owned by M4; the legacy module remains in place until M12 reconciliation.
 
 Candidate aggregates/events:
 
@@ -275,9 +287,17 @@ Gate:
 - Existing project identities map deterministically to streams.
 - Authorization, audit, replay, and concurrency tests pass.
 
+Evidence: `docs/architecture/M3_PROJECTS_EVENT_MODEL.md`, the Projects unit
+tests, and the PostgreSQL/Testcontainers event-store tests. Authorization
+parity is explicitly deferred to M4 and is not claimed by this slice.
+
 ### M4 — AccessControl
 
 Owner: `backend`.
+
+Status: `CONFIRMED` for the vNext project-scoped role/membership slice. Full
+FullStackHero Identity composition and migration of all legacy permission
+surfaces remain part of the later cutover milestones.
 
 Deliverables:
 
@@ -292,9 +312,18 @@ Gate:
 - Permission changes are auditable and effective reads meet the documented
   consistency requirement.
 
+Evidence: `docs/architecture/M4_ACCESS_CONTROL_EVENT_MODEL.md` and
+`src/vnext/Tests/AccessControl.Tests`. The current slice proves project/system
+permission separation and owner invariants; token issuance and security-audit
+read APIs are not claimed complete until PlatformAdministration/cutover.
+
 ### M5 — Planning
 
 Owner: `backend`.
+
+Status: `CONFIRMED` for the vNext Plan aggregate/reference slice. Permission
+enforcement remains composed through AccessControl and the production host as
+the remaining bounded contexts migrate.
 
 Deliverables:
 
@@ -308,9 +337,15 @@ Gate:
 - Requirement/capability links do not cross context boundaries through direct
   persistence access.
 
+Evidence: `docs/architecture/M5_PLANNING_EVENT_MODEL.md`, the Planning unit
+tests, and the vNext host command/query endpoints.
+
 ### M6 — TaskFlow
 
 Owner: `backend`.
+
+Status: `CONFIRMED` for the vNext task lifecycle/reference slice. Reconciliation
+of every legacy v0.1 task/version/evidence record remains a M13 cutover gate.
 
 Deliverables:
 
@@ -328,6 +363,9 @@ Gate:
 
 Owner: `backend`, with `frontend` consumer work.
 
+Status: `CONFIRMED` for the vNext board/reference slice; traceability to every
+legacy UI surface remains part of the M12 frontend cutover.
+
 Deliverables:
 
 - Boards, domains, commands, events, policies, aggregates, actors, hotspots,
@@ -342,6 +380,9 @@ Gate:
 ### M8 — Architecture
 
 Owner: `backend`, with `frontend` visualization work.
+
+Status: `CONFIRMED` for the vNext living-architecture reference slice; source
+mapping and visualization parity remain part of M9/M12 integration gates.
 
 Deliverables:
 
@@ -359,6 +400,9 @@ Gate:
 ### M9 — RepositoryIntelligence
 
 Owner: `ai`, with backend adapters separated by contract.
+
+Status: `CONFIRMED` for the vNext normalized-analysis reference slice; full
+legacy analyzer precision/recall reconciliation remains an M13/M14 gate.
 
 Deliverables:
 
@@ -379,6 +423,10 @@ Gate:
 
 Owner: `backend` for GitHub/provider adapters; `ai` for analyzer adapters.
 
+Status: `CONFIRMED` for the normalized GitHub webhook and delivery boundary;
+production broker topology and full provider migration remain an M13/M14
+operational gate.
+
 Deliverables:
 
 - GitHub App OAuth/installation/webhook flows ported behind integration
@@ -397,6 +445,10 @@ Gate:
 ### M11 — PlatformAdministration
 
 Owner: `backend`.
+
+Status: `CONFIRMED` for the vNext platform policy/provider metadata slice;
+FullStackHero Identity authorization composition and audit query controls
+remain M13/M14 cutover gates.
 
 Deliverables:
 
@@ -428,6 +480,10 @@ Gate:
 
 Owner: `backend`, with all domains verifying their data.
 
+Status: `PROPOSED`; the migration/cutover runbook and acceptance matrix are
+published, but an isolated backup/restore and repeatable dry-run execution is
+still required before this milestone can be marked confirmed.
+
 Deliverables:
 
 - Versioned migration from v0.1 documents to event streams, projections, or
@@ -446,6 +502,9 @@ Gate:
 ### M14 — GOAL2 end-to-end acceptance
 
 Owners: `backend`, `frontend`, and `ai` through separate branches and PRs.
+
+Status: `PROPOSED`. See `docs/acceptance/GOAL2_M14_ACCEPTANCE_RECORD.md` for
+the evidence already available and the runtime artifacts still required.
 
 Required evidence:
 

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.Modules.EventStorming.Contracts</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.Modules.EventStorming.Contracts</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Application\Application.csproj" />
+  </ItemGroup>
+</Project>

@@ -122,6 +122,7 @@
   <ItemGroup Label="Messaging">
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
     <PackageVersion Include="WolverineFx" Version="6.30.3" />
+    <PackageVersion Include="WolverineFx.FluentValidation" Version="6.30.3" />
     <PackageVersion Include="WolverineFx.Marten" Version="6.30.3" />
     <PackageVersion Include="WolverineFx.Http" Version="6.30.3" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.30.3" />

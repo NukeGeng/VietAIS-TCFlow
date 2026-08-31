@@ -31,6 +31,11 @@ public sealed class TaskBoardProjection : SingleStreamProjection<TaskBoard, Guid
     public static void Apply(TaskCompleted e, TaskBoard x) => Set(x, TaskStatus.Completed, e.OccurredAtUtc);
     public static void Apply(TaskReopened e, TaskBoard x) => Set(x, TaskStatus.Upcoming, e.OccurredAtUtc);
     public static void Apply(TaskUpdatedFromSourceChange e, TaskBoard x) { x.Title = e.Title; Set(x, x.Status, e.OccurredAtUtc); }
+    public static void Apply(TaskLifecycleReconciled e, TaskBoard x)
+    {
+        x.AssigneeId = e.AssigneeId;
+        Set(x, e.Status, e.OccurredAtUtc);
+    }
     private static void Set(TaskBoard x, TaskStatus status, DateTimeOffset at) { x.Status = status; x.LastChangedAtUtc = at; }
 }
 
@@ -59,5 +64,6 @@ public sealed class TaskAnalyticsProjection : SingleStreamProjection<TaskAnalyti
     public static void Apply(TaskCompleted e, TaskAnalytics x) => Set(x, TaskStatus.Completed, e.OccurredAtUtc);
     public static void Apply(TaskReopened e, TaskAnalytics x) => Set(x, TaskStatus.Upcoming, e.OccurredAtUtc);
     public static void Apply(TaskUpdatedFromSourceChange e, TaskAnalytics x) => Set(x, x.Status, e.OccurredAtUtc);
+    public static void Apply(TaskLifecycleReconciled e, TaskAnalytics x) => Set(x, e.Status, e.OccurredAtUtc);
     private static void Set(TaskAnalytics x, TaskStatus status, DateTimeOffset at) { x.Status = status; x.TransitionCount++; x.LastChangedAtUtc = at; }
 }

@@ -23,6 +23,7 @@ public static class TaskFlowMartenConfiguration
         options.Events.AddEventType<TaskCompleted>();
         options.Events.AddEventType<TaskReopened>();
         options.Events.AddEventType<TaskUpdatedFromSourceChange>();
+        options.Events.AddEventType<TaskLifecycleReconciled>();
         options.Projections.Add<TaskCurrentProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<TaskBoardProjection>(ProjectionLifecycle.Async);
         options.Projections.Add<TaskAnalyticsProjection>(ProjectionLifecycle.Async);

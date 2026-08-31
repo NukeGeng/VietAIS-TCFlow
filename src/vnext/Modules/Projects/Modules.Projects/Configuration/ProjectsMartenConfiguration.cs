@@ -15,6 +15,7 @@ public static class ProjectsMartenConfiguration
         options.Events.AddEventType<ProjectRenamed>();
         options.Events.AddEventType<ProjectSuspended>();
         options.Events.AddEventType<ProjectActivated>();
+        options.Events.AddEventType<ProjectLifecycleReconciled>();
         options.Projections.Add<ProjectCurrentProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<ProjectPortfolioSummaryProjection>(ProjectionLifecycle.Async);
     }

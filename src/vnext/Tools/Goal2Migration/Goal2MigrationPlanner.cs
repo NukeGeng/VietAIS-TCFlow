@@ -14,8 +14,8 @@ internal static class Goal2MigrationPlanner
         {
             ["Project"] = (MigrationDisposition.EventStream, "Projects", "ProjectCreated"),
             ["ProjectState"] = (MigrationDisposition.EventStream, "Projects", "ProjectLifecycleReconciled"),
-            ["ProjectRole"] = (MigrationDisposition.EventStream, "AccessControl", "ProjectRoleImported"),
-            ["ProjectMembership"] = (MigrationDisposition.EventStream, "AccessControl", "ProjectMembershipImported"),
+            ["ProjectRole"] = (MigrationDisposition.EventStream, "AccessControl", "ProjectRoleReconciled"),
+            ["ProjectMembership"] = (MigrationDisposition.EventStream, "AccessControl", "ProjectMembershipReconciled"),
             ["Plan"] = (MigrationDisposition.EventStream, "Planning", "PlanImported"),
             ["Requirement"] = (MigrationDisposition.EventStream, "Planning", "RequirementImported"),
             ["Milestone"] = (MigrationDisposition.EventStream, "Planning", "MilestoneImported"),
@@ -43,6 +43,7 @@ internal static class Goal2MigrationPlanner
         ArgumentNullException.ThrowIfNull(export.Records);
         var applied = appliedSourceReferences ?? new HashSet<string>(StringComparer.Ordinal);
         var seen = new HashSet<string>(applied, StringComparer.Ordinal);
+        var payloadHashes = new Dictionary<string, string>(StringComparer.Ordinal);
         var operations = new List<MigrationOperation>(export.Records.Count);
 
         foreach (var record in export.Records)
@@ -60,20 +61,35 @@ internal static class Goal2MigrationPlanner
             var projectSourceId = record.ProjectSourceId is null
                 ? null
                 : Normalize(record.ProjectSourceId, nameof(record.ProjectSourceId));
+            if ((kind is "ProjectState" or "ProjectRole" or "ProjectMembership" or "Plan" or "EngineeringTask") && projectSourceId is null)
+            {
+                throw new InvalidOperationException(
+                    $"Legacy record '{kind}:{sourceId}' must identify its Project source record.");
+            }
+            var aggregateSourceId = ResolveAggregateSourceId(kind, sourceId, record.Payload, projectSourceId);
             if (!Mappings.TryGetValue(kind, out var mapping))
             {
                 throw new InvalidOperationException($"No GOAL2 migration mapping exists for legacy kind '{kind}'.");
             }
 
             var sourceReference = BuildSourceReference(kind, sourceId);
+            if (payloadHashes.TryGetValue(sourceReference, out var previousHash) &&
+                !string.Equals(previousHash, payloadHash, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Conflicting payload hashes were supplied for source reference '{sourceReference}'.");
+            }
+
+            payloadHashes[sourceReference] = payloadHash;
             var isNew = seen.Add(sourceReference);
             operations.Add(new MigrationOperation(
                 kind,
                 sourceId,
                 projectSourceId,
+                aggregateSourceId,
                 payloadHash,
                 sourceReference,
-                CreateDeterministicId(kind, sourceId),
+                CreateTargetId(kind, sourceId, projectSourceId, aggregateSourceId),
                 mapping.Stream,
                 mapping.EventType,
                 mapping.Disposition,
@@ -104,6 +120,40 @@ internal static class Goal2MigrationPlanner
         return new Guid(hash.AsSpan(0, 16));
     }
 
+    public static Guid CreateTargetId(
+        string kind,
+        string sourceId,
+        string? projectSourceId = null,
+        string? aggregateSourceId = null)
+    {
+        var normalizedKind = Normalize(kind, nameof(kind));
+        var normalizedSourceId = Normalize(sourceId, nameof(sourceId));
+        if (normalizedKind is "ProjectState" or "ProjectRole" or "ProjectMembership")
+        {
+            var projectId = CreateDeterministicId(
+                "Project",
+                Normalize(projectSourceId, nameof(projectSourceId)));
+            return normalizedKind is "ProjectRole" or "ProjectMembership"
+                ? AccessControlStreamId(projectId)
+                : projectId;
+        }
+
+        if (normalizedKind is "Requirement" or "Milestone")
+        {
+            return CreateDeterministicId(
+                "Plan",
+                Normalize(aggregateSourceId, nameof(aggregateSourceId)));
+        }
+
+        return CreateDeterministicId(normalizedKind, normalizedSourceId);
+    }
+
+    public static Guid AccessControlStreamId(Guid projectId)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(projectId, Guid.Empty);
+        return VietAIS.TCFlow.Modules.AccessControl.Domain.ProjectAccessStreamIdentity.ForProject(projectId);
+    }
+
     private static string? GetSkipReason(
         bool isNew,
         IReadOnlySet<string> applied,
@@ -115,6 +165,47 @@ internal static class Goal2MigrationPlanner
         }
 
         return applied.Contains(sourceReference) ? "already-applied" : "duplicate-in-export";
+    }
+
+    private static string? ResolveAggregateSourceId(
+        string kind,
+        string sourceId,
+        JsonElement payload,
+        string? projectSourceId)
+    {
+        return kind switch
+        {
+            "Requirement" or "Milestone" => RequiredPayloadString(
+                payload,
+                kind,
+                "planSourceId",
+                "planId"),
+            "Plan" or "EngineeringTask" => sourceId,
+            "ProjectState" or "ProjectRole" or "ProjectMembership" => projectSourceId,
+            _ => null
+        };
+    }
+
+    private static string RequiredPayloadString(
+        JsonElement payload,
+        string kind,
+        params string[] names)
+    {
+        if (payload.ValueKind == JsonValueKind.Object)
+        {
+            var value = payload.EnumerateObject()
+                .Where(property => names.Any(name =>
+                    string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase)))
+                .Select(property => property.Value)
+                .FirstOrDefault();
+            if (value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString()))
+            {
+                return value.GetString()!.Trim();
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Legacy record '{kind}' must identify its Plan source using one of: {string.Join(", ", names)}.");
     }
 
     private static string Normalize(string? value, string parameterName)

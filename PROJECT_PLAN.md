@@ -480,10 +480,13 @@ Gate:
 
 Owner: `backend`, with all domains verifying their data.
 
-Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, and a
-versioned deterministic dry-run planner are published, but an isolated
-backup/restore, model-level mapping, and repeatable apply/reconciliation
-execution are still required before this milestone can be marked confirmed.
+Status: `PROPOSED`; the migration/cutover runbook, acceptance matrix, a
+versioned deterministic dry-run planner, a resumable operational ledger, and
+typed `Projects`/`AccessControl`/`Planning`/`TaskFlow` Marten apply slices are
+published and tested.
+Full-context pre/post reconciliation, isolated backup/restore, repeatable apply
+coverage for all bounded contexts, and rollback evidence are still required
+before this milestone can be marked confirmed.
 
 Deliverables:
 
@@ -491,6 +494,23 @@ Deliverables:
   retained operational documents according to the migration matrix.
 - `src/vnext/Tools/Goal2Migration` dry-run planner with schema validation,
   deterministic identities, source references, and duplicate-safe operations.
+- Resumable migration ledger with payload-hash conflict detection and atomic
+  checkpoint writes; this ledger is an operational document, not business
+  event history.
+- Typed `Projects` writer that maps `Project` and `ProjectState` records to
+  deterministic event streams, preserves source-reference/payload-hash markers,
+  and updates the inline `ProjectCurrent` projection in one Marten transaction.
+- Typed `AccessControl` writer that maps project roles and memberships to the
+  project-scoped access stream, preserves permission/resource/component scopes,
+  and updates the inline effective-permission view in the same transaction.
+- Typed `Planning` writer that maps plans and their requirements/milestones to
+  deterministic plan streams and updates the inline plan view in the same
+  transaction.
+- Typed `TaskFlow` writer that maps legacy engineering-task snapshots to a
+  deterministic task stream using `TaskProposed` plus a
+  `TaskLifecycleReconciled` snapshot, preserving source/evidence keys without
+  inventing transition history and updating task read projections in the same
+  transaction.
 - Dry-run, reconciliation, rollback, backup/restore, replay/rebuild, and
   cutover runbooks.
 - Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,

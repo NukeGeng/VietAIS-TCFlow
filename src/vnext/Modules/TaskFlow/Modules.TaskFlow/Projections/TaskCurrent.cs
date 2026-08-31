@@ -49,6 +49,13 @@ public sealed class TaskCurrentProjection : SingleStreamProjection<TaskCurrent, 
     public static void Apply(TaskCompleted e, TaskCurrent x) => Set(x, TaskStatus.Completed, e.OccurredAtUtc);
     public static void Apply(TaskReopened e, TaskCurrent x) => Set(x, TaskStatus.Upcoming, e.OccurredAtUtc);
     public static void Apply(TaskUpdatedFromSourceChange e, TaskCurrent x) { x.Title = e.Title; x.Description = e.Description; Set(x, x.Status, e.OccurredAtUtc); }
+    public static void Apply(TaskLifecycleReconciled e, TaskCurrent x)
+    {
+        x.AssigneeId = e.AssigneeId;
+        x.AiVerificationPassed = e.AiVerificationPassed;
+        x.HumanReviewRequested = e.HumanReviewRequested;
+        Set(x, e.Status, e.OccurredAtUtc);
+    }
 
     private static void Set(TaskCurrent x, TaskStatus status, DateTimeOffset at)
     {

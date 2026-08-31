@@ -43,11 +43,28 @@ Before migrating a bounded context, expand its row into a model-level table:
 No legacy table/document may be deleted until its target row, identity mapping,
 dry run, pre/post counts, invariants, and rollback path are verified.
 
+The first model-level apply slices are now implemented for `Project`,
+`ProjectState`, `ProjectRole`, `ProjectMembership`, `Plan`, `Requirement`,
+`Milestone`, and `EngineeringTask`: typed project, access, planning, and task
+events are appended to deterministic streams, with source-reference/hash
+markers and inline project/access/plan/task views updated in the same Marten
+transaction. Task snapshots use `TaskProposed` plus
+`TaskLifecycleReconciled` so migration does not invent transition history.
+This confirms only these four mapper/writers; it does not confirm the full
+matrix or authorize deletion of any v0.1 document.
+
 The first executable inventory/planning slice is
-`src/vnext/Tools/Goal2Migration`. It is intentionally a dry-run planner: each
-model-level row must still document the source export field mapping, target
-event payload/upcaster, pre/post count, invariant checks, and rollback record
-before a writer is allowed to append to the Event Store.
+`src/vnext/Tools/Goal2Migration`. It supports a deterministic dry run and a
+versioned operational ledger (`--ledger --apply`). The ledger records source
+hashes and target identities so a cutover can be resumed without duplicating a
+source record. It is not the business Event Store writer: each model-level row
+must still document the source export field mapping, target event
+payload/upcaster, pre/post count, invariant checks, and rollback record before
+that bounded context is allowed to append to the Event Store. The tool's
+`--apply-marten --connection` mode is the approved Projects, AccessControl,
+Planning, and TaskFlow exception to this statement; it remains fail-closed for all other
+bounded-context kinds until their typed mappers and reconciliation evidence are
+added.
 
 ## Contract migration rule
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using VietAIS.TCFlow.Tools.Migration;
 
 namespace VietAIS.TCFlow.Tools.Migration.Tests;
@@ -63,6 +64,170 @@ public sealed class Goal2MigrationPlannerTests
             [new LegacyRecord("Project", "project-1", null, "", document.RootElement.Clone())]);
 
         Assert.Throws<ArgumentException>(() => Goal2MigrationPlanner.Plan(export));
+    }
+
+    [Fact]
+    public void ConflictingHashesForTheSameSourceReferenceFailClosed()
+    {
+        var export = new LegacyExport(
+            1,
+            [
+                Record("Project", "project-1"),
+                new LegacyRecord(
+                    "Project",
+                    "project-1",
+                    null,
+                    "sha256:changed",
+                    JsonDocument.Parse("{}").RootElement.Clone())
+            ]);
+
+        var failure = Assert.Throws<InvalidOperationException>(() => Goal2MigrationPlanner.Plan(export));
+        Assert.Contains("Conflicting payload hashes", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProjectStateUsesTheOwningProjectStreamIdentity()
+    {
+        var plan = Goal2MigrationPlanner.Plan(
+            new LegacyExport(
+                1,
+                [Record("Project", "project-1"), Record("ProjectState", "state-1", "project-1")]));
+
+        var project = plan.Operations.Single(operation => operation.Kind == "Project");
+        var state = plan.Operations.Single(operation => operation.Kind == "ProjectState");
+
+        Assert.Equal(project.TargetId, state.TargetId);
+        Assert.Equal(
+            Goal2MigrationPlanner.CreateDeterministicId("Project", "project-1"),
+            state.TargetId);
+    }
+
+    [Fact]
+    public void ProjectStateWithoutOwningProjectFailsClosed()
+    {
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            Goal2MigrationPlanner.Plan(
+                new LegacyExport(1, [Record("ProjectState", "state-1")])));
+
+        Assert.Contains("must identify its Project source record", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PlanningChildrenUseTheOwningPlanStreamIdentity()
+    {
+        using var payload = JsonDocument.Parse("{\"planSourceId\":\"plan-1\"}");
+        var plan = Goal2MigrationPlanner.Plan(
+            new LegacyExport(
+                1,
+                [
+                    Record("Plan", "plan-1", "project-1"),
+                    new LegacyRecord(
+                        "Requirement",
+                        "requirement-1",
+                        "project-1",
+                        "sha256:requirement",
+                        payload.RootElement.Clone())
+                ]));
+
+        var planOperation = plan.Operations.Single(operation => operation.Kind == "Plan");
+        var requirement = plan.Operations.Single(operation => operation.Kind == "Requirement");
+
+        Assert.Equal(planOperation.TargetId, requirement.TargetId);
+        Assert.Equal("plan-1", requirement.AggregateSourceId);
+    }
+
+    [Fact]
+    public void PlanningChildWithoutOwningPlanFailsClosed()
+    {
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            Goal2MigrationPlanner.Plan(
+                new LegacyExport(1, [Record("Requirement", "requirement-1", "project-1")])));
+
+        Assert.Contains("must identify its Plan source", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyingTheLedgerIsRepeatableAndDoesNotAppendDuplicateEntries()
+    {
+        var export = new LegacyExport(
+            1,
+            [
+                Record("Project", "project-1"),
+                Record("EngineeringTask", "task-1", "project-1"),
+                Record("Project", "project-1")
+            ]);
+        var path = Path.Combine(
+            AppContext.BaseDirectory,
+            $"migration-ledger-{Guid.CreateVersion7():N}.json");
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            WriteIndented = true
+        };
+        options.Converters.Add(new JsonStringEnumConverter());
+
+        try
+        {
+            var initial = MigrationLedgerStore.Load(path, 1, 1, options);
+            var firstPlan = Goal2MigrationPlanner.Plan(
+                export,
+                initial.Entries.Select(entry => entry.SourceReference).ToHashSet(StringComparer.Ordinal));
+            var (firstLedger, firstReport) = MigrationLedgerStore.Apply(
+                firstPlan,
+                initial,
+                DateTimeOffset.UtcNow);
+            MigrationLedgerStore.SaveAtomic(path, firstLedger, options);
+
+            var persisted = MigrationLedgerStore.Load(path, 1, 1, options);
+            var secondPlan = Goal2MigrationPlanner.Plan(
+                export,
+                persisted.Entries.Select(entry => entry.SourceReference).ToHashSet(StringComparer.Ordinal));
+            var (secondLedger, secondReport) = MigrationLedgerStore.Apply(
+                secondPlan,
+                persisted,
+                DateTimeOffset.UtcNow);
+
+            Assert.Equal(2, firstReport.AppendCount);
+            Assert.Equal(1, firstReport.SkipCount);
+            Assert.Equal(2, persisted.Entries.Count);
+            Assert.Equal(0, secondReport.AppendCount);
+            Assert.Equal(3, secondReport.SkipCount);
+            Assert.True(secondReport.Idempotent);
+            Assert.Equal(persisted.Entries, secondLedger.Entries);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public void LedgerVersionMustMatchThePlannerVersion()
+    {
+        var path = Path.Combine(
+            AppContext.BaseDirectory,
+            $"migration-ledger-{Guid.CreateVersion7():N}.json");
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        File.WriteAllText(
+            path,
+            JsonSerializer.Serialize(
+                new MigrationLedger(99, 1, []),
+                options));
+
+        try
+        {
+            Assert.Throws<InvalidOperationException>(
+                () => MigrationLedgerStore.Load(path, 1, 1, options));
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
     }
 
     private static LegacyRecord Record(string kind, string sourceId, string? projectSourceId = null)

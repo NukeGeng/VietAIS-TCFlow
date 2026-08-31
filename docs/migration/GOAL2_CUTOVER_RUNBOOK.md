@@ -35,6 +35,49 @@ marks repeated source references as `Skip` (`already-applied` or
 Marten apply/reconciliation step; it is not evidence that production data has
 already been migrated.
 
+The tool also supports a resumable **operational migration ledger**. This is a
+cutover checkpoint, not a replacement for the bounded-context Marten writers:
+
+```bash
+dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
+  --input /path/to/v0.1-export.v1.json \
+  --output /path/to/goal2-migration-apply-report.json \
+  --ledger /path/to/goal2-migration-ledger.v1.json \
+  --apply
+```
+
+The first run records new source references and payload hashes. Repeating the
+same command produces only skips; a changed hash for an existing source
+reference fails closed. The ledger contains no source payloads or credentials.
+The command still does **not** append business events; model-level writers must
+consume the validated plan only after their field mapping and reconciliation
+checks are approved.
+
+The first approved model-level writers are the Projects, AccessControl,
+Planning, and TaskFlow slices. In an isolated PostgreSQL database, use
+`--apply-marten` with the same ledger to append typed project/access/planning/task
+events and update the inline `ProjectCurrent`/effective-permission/plan/task
+projections in the Marten transaction:
+
+```bash
+dotnet run --project src/vnext/Tools/Goal2Migration/Goal2Migration.csproj -- \
+  --input /path/to/projects-export.v1.json \
+  --output /path/to/projects-marten-report.json \
+  --ledger /path/to/projects-migration-ledger.v1.json \
+  --apply-marten \
+  --connection "$TCFLOW_MARTEN_CONNECTION"
+```
+
+For `EngineeringTask`, the writer appends `TaskProposed` followed by
+`TaskLifecycleReconciled`; it preserves the imported snapshot without fabricating
+accept/start/review transitions. This mode fails closed for unsupported bounded-context records, missing
+required project/access fields, unsupported lifecycle or permission values, an
+existing stream without a migration marker, or a ledger marker that is not
+present in Marten. Repeating the command reads the marker/hash from the event
+stream and appends zero duplicate business events. The command is still an
+isolated model slice: the full M13 pre/post reconciliation, backup/restore, and
+rollback gate remains open.
+
 ## Migration rules
 
 | v0.1 data | vNext disposition |

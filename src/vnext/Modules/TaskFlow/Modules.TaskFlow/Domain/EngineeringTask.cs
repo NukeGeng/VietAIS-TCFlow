@@ -44,6 +44,15 @@ public sealed class EngineeringTask
         SourceChangeKey = @event.SourceChangeKey;
     }
 
+    public void Apply(TaskLifecycleReconciled @event)
+    {
+        Status = @event.Status;
+        AssigneeId = @event.AssigneeId;
+        AiVerificationPassed = @event.AiVerificationPassed;
+        HumanReviewRequested = @event.HumanReviewRequested;
+        HumanReviewApproved = @event.HumanReviewApproved;
+    }
+
     public TaskAccepted Accept(string actorId, string correlationId, DateTimeOffset now)
     {
         EnsureIdentity(actorId, correlationId);

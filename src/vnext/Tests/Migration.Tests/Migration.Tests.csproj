@@ -10,9 +10,16 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../Tools/Goal2Migration/Goal2Migration.csproj" />
+    <ProjectReference Include="../../Modules/AccessControl/Modules.AccessControl.Contracts/Modules.AccessControl.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/AccessControl/Modules.AccessControl/Modules.AccessControl.csproj" />
+    <ProjectReference Include="../../Modules/Planning/Modules.Planning/Modules.Planning.csproj" />
+    <ProjectReference Include="../../Modules/Planning/Modules.Planning.Contracts/Modules.Planning.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/TaskFlow/Modules.TaskFlow/Modules.TaskFlow.csproj" />
+    <ProjectReference Include="../../Modules/TaskFlow/Modules.TaskFlow.Contracts/Modules.TaskFlow.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>

@@ -45,4 +45,12 @@ public sealed class ProjectPortfolioSummaryProjection : SingleStreamProjection<P
         current.IsSuspended = false;
         current.LastChangedAtUtc = @event.OccurredAtUtc;
     }
+
+    public static void Apply(ProjectLifecycleReconciled @event, ProjectPortfolioSummary current)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+        ArgumentNullException.ThrowIfNull(current);
+        current.IsSuspended = @event.IsSuspended;
+        current.LastChangedAtUtc = @event.OccurredAtUtc;
+    }
 }

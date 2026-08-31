@@ -26,3 +26,15 @@ public sealed record ProjectActivated(
     string ActorId,
     string CorrelationId,
     DateTimeOffset OccurredAtUtc);
+
+/// <summary>
+/// Records a legacy lifecycle snapshot during a controlled migration. It is a
+/// business event because the lifecycle state affects project availability and
+/// authorization, while the migration metadata identifies its source record.
+/// </summary>
+public sealed record ProjectLifecycleReconciled(
+    Guid ProjectId,
+    bool IsSuspended,
+    string ActorId,
+    string CorrelationId,
+    DateTimeOffset OccurredAtUtc);

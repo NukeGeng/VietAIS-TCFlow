@@ -5,4 +5,16 @@
     <AssemblyName>VietAIS.TCFlow.Tools.Migration</AssemblyName>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../BuildingBlocks/EventSourcing/EventSourcing.csproj" />
+    <ProjectReference Include="../../Modules/AccessControl/Modules.AccessControl.Contracts/Modules.AccessControl.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/AccessControl/Modules.AccessControl/Modules.AccessControl.csproj" />
+    <ProjectReference Include="../../Modules/Planning/Modules.Planning/Modules.Planning.csproj" />
+    <ProjectReference Include="../../Modules/TaskFlow/Modules.TaskFlow/Modules.TaskFlow.csproj" />
+    <ProjectReference Include="../../Modules/TaskFlow/Modules.TaskFlow.Contracts/Modules.TaskFlow.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/Projects/Modules.Projects/Modules.Projects.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Marten" />
+  </ItemGroup>
 </Project>

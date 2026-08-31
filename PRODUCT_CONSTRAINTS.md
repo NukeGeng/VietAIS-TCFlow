@@ -685,6 +685,12 @@ Migration proceeds one bounded context and vertical slice at a time. The legacy
 path is removed only after behavioral parity or an intentional contract change,
 replay, projection rebuild, concurrency, and runtime verification pass.
 
+The target baseline is FullStackHero v10 on .NET 10. The migration order in
+`GOAL2.md` section 66 and the quality gates in section 84 are acceptance gates,
+not optional documentation. A parallel vNext module may coexist with v0.1
+while evidence is collected, but it must not be presented as a completed
+migration until every applicable gate is marked `PASS`.
+
 ## Forbidden implementation
 
 Do not perform a big-bang rewrite or treat successful compilation as proof that
@@ -715,6 +721,11 @@ Analysis and AI reasoning latency
 
 Production and self-host diagnostics must not depend solely on developer-only
 Aspire tooling.
+
+Production/LAN readiness also requires independently verifiable configuration
+validation, repeatable database migration, backup/restore, projection
+replay/rebuild, and upgrade/rollback procedures. An Aspire dashboard or local
+smoke test is not sufficient evidence for deployment readiness.
 
 ---
 

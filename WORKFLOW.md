@@ -77,6 +77,8 @@ The agent must understand:
 - Permission model.
 - Authority model.
 - Acceptance criteria.
+- The applicable GOAL2 migration order (section 66) and quality gates
+  (section 84) when the task changes a migrated or migrating bounded context.
 
 Output of this phase:
 
@@ -505,6 +507,21 @@ Verify Async Daemon health and projection lag
 Verify Wolverine durability health
 Verify RabbitMQ health where configured
 ```
+
+For production or LAN/self-host work, also verify independently of Aspire:
+
+```text
+Configuration/secret validation
+Repeatable database migration
+API and dependency health checks
+Wolverine durability and Async Daemon health
+RabbitMQ setup/retry/dead-letter recovery where enabled
+Backup/restore and projection replay/rebuild
+Upgrade and rollback procedure
+```
+
+An Aspire development run is evidence of local orchestration only; it is not
+production-readiness evidence.
 
 ---
 
@@ -1017,7 +1034,10 @@ Remove legacy path only after readback proves replacement
 ```
 
 A migrated bounded context must pass every applicable gate in `GOAL2.md`
-section 84. A clean build alone is not migration completion.
+section 84. The implementation record must mark each gate as `PASS`, `FAIL`, or
+`NOT VERIFIED`, including behavior parity, aggregate/events, invariants,
+projections, concurrency, replay/rebuild, durable messaging, and legacy-write
+model disposition. A clean build alone is not migration completion.
 
 ---
 
@@ -1514,6 +1534,9 @@ Aggregate invariants and optimistic concurrency verified where applicable
 ✓
 
 Inline/Async consistency, replay, and rebuild verified where applicable
+✓
+
+Production/self-host checks completed where applicable
 ✓
 
 Wolverine/RabbitMQ durability and idempotency verified where applicable

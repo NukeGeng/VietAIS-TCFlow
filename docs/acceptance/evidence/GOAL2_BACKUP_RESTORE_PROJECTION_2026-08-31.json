@@ -2,7 +2,7 @@
   "status": "CONFIRMED",
   "scope": "isolated PostgreSQL Testcontainer; Projects event-store slice only",
   "observedAtUtc": "2026-08-31T14:54:15Z",
-  "sourceCommit": "pending-commit",
+  "sourceCommit": "d30ad75ffbe6730328eaba9eafdb87abe6f7d543",
   "test": "VietAIS.TCFlow.BuildingBlocks.EventSourcing.Tests.EventStoreIntegrationTests.BackupRestorePreservesEventHistoryAndRebuildsAsyncProjection",
   "checks": {
     "postgresCustomFormatBackup": "passed",

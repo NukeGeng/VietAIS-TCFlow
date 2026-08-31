@@ -526,6 +526,12 @@ Deliverables:
 - Self-host topology for PostgreSQL, Redis if retained, RabbitMQ, API, Vue,
   async daemon, and observability.
 
+The Aspire AppHost now declares RabbitMQ as a persistent integration resource
+and injects its endpoint/credentials into the vNext API. Marten async
+projections remain configured on the local daemon; RabbitMQ is not used as an
+internal projection transport. This is composition evidence only until an
+isolated Aspire runtime transcript is captured.
+
 Gate:
 
 - Pre/post counts and business invariants reconcile.

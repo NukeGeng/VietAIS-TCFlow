@@ -126,6 +126,9 @@ approved.
 - Test PostgreSQL backup restore in an isolated stack before production.
 - Rebuild inline/async projections from the event store and record the daemon
   position/lag before reopening traffic.
+- In Aspire, provision the persistent RabbitMQ integration resource and inject
+  its credentials only through parameters. Keep Marten Async Daemon processing
+  on PostgreSQL; RabbitMQ is reserved for integration events.
 - Verify Wolverine durable inbox/outbox counts, retries, and dead letters;
   replay only after inspecting poison messages and preserving correlation IDs.
 - Smoke test `/health`, authentication, project selection, task board, GitHub

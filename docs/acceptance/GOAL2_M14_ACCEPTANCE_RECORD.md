@@ -19,20 +19,21 @@ that the v0.1 runtime has been cut over or removed.
 | Isolated vNext API startup and identity boundary | `docs/acceptance/GOAL2_VNEXT_AUTH_RUNTIME_CHECK.md` (fresh PostgreSQL database; redacted local transcript) | `CONFIRMED` for this isolated API check; Aspire, RabbitMQ, and production deployment remain `PROPOSED` |
 | Local GOAL2 self-host canary | [`GOAL2_SELF_HOST_CANARY_2026-08-31.json`](evidence/GOAL2_SELF_HOST_CANARY_2026-08-31.json) | `CONFIRMED` for local service health, frontend routing, RabbitMQ diagnostics ping, and unauthenticated 401 boundaries; it is not production or authenticated end-to-end evidence |
 | Aspire composition declares RabbitMQ for integration events and keeps Marten async processing local | `src/vnext/Host/FSH.Starter.AppHost/AppHost.cs` resource/environment wiring; no runtime transcript yet | `INFERRED` |
+| Isolated PostgreSQL backup/restore with projection rebuild | [`GOAL2_BACKUP_RESTORE_PROJECTION_2026-08-31.json`](evidence/GOAL2_BACKUP_RESTORE_PROJECTION_2026-08-31.json), `EventStoreIntegrationTests.BackupRestorePreservesEventHistoryAndRebuildsAsyncProjection` | `CONFIRMED` for the Projects event-store slice; full v0.1 migration restore and rollback remain `PROPOSED` |
 
 ## Required runtime evidence before marking M14 complete
 
 | Required check | Current status | Required artifact |
 | --- | --- | --- |
 | Aspire starts PostgreSQL, API, async daemon, and UI together | `PROPOSED` | Timestamped startup/health transcript from an isolated environment; the self-host canary is a separate local Compose check |
-| Event append, inline visibility, async convergence, replay, and rebuild | `INFERRED` | Test output showing empty-projection rebuild and daemon convergence |
+| Event append, inline visibility, async convergence, replay, and rebuild | `CONFIRMED` for isolated vNext event/projection integration tests; full authenticated end-to-end workflow remains `PROPOSED` | `EventStoreIntegrationTests` output, including the backup/restore rebuild artifact |
 | Optimistic concurrency and duplicate durable delivery | `INFERRED` | Concurrent command and duplicate-message test output |
 | RabbitMQ routing, retry, dead-letter, and broker outage behavior | `PROPOSED` | Broker smoke/failure transcript with queue and dead-letter counts |
 | FullStackHero Identity 401/403/success paths and project scope | `CONFIRMED` for isolated vNext API 401/403/success and inline/async project reads; project-scope matrix remains `PROPOSED` | `docs/acceptance/GOAL2_VNEXT_AUTH_RUNTIME_CHECK.md` plus a multi-tenant/project authorization artifact |
 | Platform and AI mutation audit trail | `INFERRED` | Queryable audit records with correlation/actor metadata |
 | Live GitHub App installation, private-repository ingestion, and webhook | `PROPOSED` | Redacted delivery/analysis evidence; no token or private key in logs |
 | End-to-end Vue workflows against the vNext API | `INFERRED` | Browser/API workflow artifact from the same deployed build |
-| v0.1 migration idempotency, backup restore, and rollback | `PROPOSED` | Dry-run plus read-only marker/hash report; restored database checksums/counts and rollback record are still required |
+| v0.1 migration idempotency, backup restore, and rollback | `PROPOSED` | Model-level idempotency and isolated event-store restore are confirmed separately; restored v0.1 counts/checksums and rollback record are still required |
 
 ## Execution order
 

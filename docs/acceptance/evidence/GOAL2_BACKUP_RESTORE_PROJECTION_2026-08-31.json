@@ -1,0 +1,28 @@
+{
+  "status": "CONFIRMED",
+  "scope": "isolated PostgreSQL Testcontainer; Projects event-store slice only",
+  "observedAtUtc": "2026-08-31T14:54:15Z",
+  "sourceCommit": "d30ad75ffbe6730328eaba9eafdb87abe6f7d543",
+  "test": "VietAIS.TCFlow.BuildingBlocks.EventSourcing.Tests.EventStoreIntegrationTests.BackupRestorePreservesEventHistoryAndRebuildsAsyncProjection",
+  "checks": {
+    "postgresCustomFormatBackup": "passed",
+    "schemaReplacementBeforeRestore": "passed",
+    "eventHistoryRestored": "passed",
+    "inlineProjectCurrentRestored": "passed",
+    "asyncProjectionDeletedAfterRestore": "passed",
+    "asyncProjectionRebuiltFromEventHistory": "passed"
+  },
+  "testRuns": {
+    "focused": "1 passed, 0 failed",
+    "fullEventSourcingSuite": "12 passed, 0 failed"
+  },
+  "security": {
+    "credentialsPersistedOrLogged": false,
+    "backupStayedInsideEphemeralTestContainer": true
+  },
+  "limitations": [
+    "This is not evidence for a full v0.1 export migration restore.",
+    "Cutover rollback and production backup retention remain unverified.",
+    "RabbitMQ failure handling, live GitHub, and authenticated UI workflows remain outside this test."
+  ]
+}

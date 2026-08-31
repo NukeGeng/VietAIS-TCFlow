@@ -1,4 +1,7 @@
 using Marten;
+using VietAIS.TCFlow.BuildingBlocks.Application.Identity;
+using VietAIS.TCFlow.BuildingBlocks.Application.Time;
+using VietAIS.TCFlow.BuildingBlocks.EventSourcing.Metadata;
 using VietAIS.TCFlow.Modules.Projects.Contracts.Commands;
 using VietAIS.TCFlow.Modules.Projects.Domain;
 using Wolverine.Attributes;
@@ -10,44 +13,60 @@ public sealed record ProjectCommandResult(Guid ProjectId, long ExpectedVersion);
 [WolverineHandler]
 public static class ProjectCommandHandlers
 {
-    public static async Task<ProjectCommandResult> Handle(
+    public static ProjectCommandResult Handle(
         CreateProject command,
         IDocumentSession session,
-        TimeProvider timeProvider,
-        CancellationToken cancellationToken)
+        IClock clock,
+        IIdGenerator idGenerator)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(idGenerator);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Name);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.OwnerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.CorrelationId);
 
-        var projectId = command.ProjectId == Guid.Empty ? Guid.CreateVersion7() : command.ProjectId;
+        var projectId = command.ProjectId == Guid.Empty ? idGenerator.NewId() : command.ProjectId;
+        session.ApplyEventMetadata(new EventMetadata(
+            command.OwnerId,
+            command.CorrelationId,
+            command.CausationId,
+            projectId,
+            TenantId: null,
+            Source: "projects.create"));
         var created = new ProjectCreated(
             projectId,
             command.Name.Trim(),
             command.OwnerId.Trim(),
             command.OwnerId.Trim(),
             command.CorrelationId.Trim(),
-            timeProvider.GetUtcNow());
+            clock.UtcNow);
 
         session.Events.StartStream<ProjectAggregate>(projectId, created);
-        await session.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return new ProjectCommandResult(projectId, 1);
     }
 
     public static async Task<ProjectCommandResult> Handle(
         RenameProject command,
         IDocumentSession session,
-        TimeProvider timeProvider,
+        IClock clock,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(clock);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.ActorId);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.CorrelationId);
+
+        session.ApplyEventMetadata(new EventMetadata(
+            command.ActorId,
+            command.CorrelationId,
+            command.CausationId,
+            command.ProjectId,
+            TenantId: null,
+            Source: "projects.rename"));
 
         var stream = await session.Events.FetchForWriting<ProjectAggregate>(
             command.ProjectId,
@@ -60,11 +79,10 @@ public static class ProjectCommandHandlers
 
         var renamed = stream.Aggregate.Rename(
             command.Name,
-            "system",
+            command.ActorId.Trim(),
             command.CorrelationId.Trim(),
-            timeProvider.GetUtcNow());
+            clock.UtcNow);
         stream.AppendOne(renamed);
-        await session.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return new ProjectCommandResult(command.ProjectId, command.ExpectedVersion + 1);
     }
 }

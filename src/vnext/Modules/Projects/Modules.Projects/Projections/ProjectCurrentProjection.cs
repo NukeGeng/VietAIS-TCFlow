@@ -8,6 +8,8 @@ namespace VietAIS.TCFlow.Modules.Projects.Projections;
 /// </summary>
 public sealed class ProjectCurrentProjection : SingleStreamProjection<ProjectCurrent, Guid>
 {
+    public ProjectCurrentProjection() => Name = ProjectProjectionNames.Current;
+
     public static ProjectCurrent Create(ProjectCreated @event)
     {
         ArgumentNullException.ThrowIfNull(@event);

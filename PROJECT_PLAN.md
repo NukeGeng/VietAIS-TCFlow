@@ -238,6 +238,10 @@ Gate:
 
 Owner: `backend`.
 
+Status: `CONFIRMED` for the vNext reference slice. The bounded-context
+migration remains incomplete until the later milestones and final GOAL2 matrix
+are verified.
+
 Deliverables:
 
 - Domain event, aggregate, command/query, result, metadata, clock/identity,
@@ -253,6 +257,10 @@ Gate:
 - Reference inline and async projections rebuild from an empty projection
   store and converge to identical results.
 - Duplicate durable messages cause no duplicate business effect.
+
+Evidence: `docs/architecture/M2_EVENT_DRIVEN_BUILDING_BLOCKS.md` and the
+PostgreSQL/Testcontainers coverage in
+`src/vnext/Tests/EventSourcing.Tests`.
 
 ### M3 — Projects
 

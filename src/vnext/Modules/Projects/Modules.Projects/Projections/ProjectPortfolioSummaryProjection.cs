@@ -9,6 +9,8 @@ namespace VietAIS.TCFlow.Modules.Projects.Projections;
 /// </summary>
 public sealed class ProjectPortfolioSummaryProjection : SingleStreamProjection<ProjectPortfolioSummary, Guid>
 {
+    public ProjectPortfolioSummaryProjection() => Name = ProjectProjectionNames.PortfolioSummary;
+
     public static ProjectPortfolioSummary Create(ProjectCreated @event)
     {
         ArgumentNullException.ThrowIfNull(@event);

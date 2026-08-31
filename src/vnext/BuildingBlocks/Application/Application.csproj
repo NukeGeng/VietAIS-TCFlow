@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VietAIS.TCFlow.BuildingBlocks.Application</RootNamespace>
+    <AssemblyName>VietAIS.TCFlow.BuildingBlocks.Application</AssemblyName>
+  </PropertyGroup>
+</Project>

@@ -15,7 +15,8 @@ that the v0.1 runtime has been cut over or removed.
 | Deterministic aggregate decisions and invalid transitions | M2–M11 module test suites | `CONFIRMED` |
 | GitHub webhook signature rejection and delivery deduplication | M10 integration test and sanitized delivery contract | `CONFIRMED` |
 | Analyzer facts, evidence, and historical task reconciliation | Existing analyzer/P14 evidence and M9 source contracts | `CONFIRMED` for the retained v0.1 path; `INFERRED` for complete vNext parity |
-| Versioned migration dry-run planner and duplicate protection | `Goal2MigrationPlannerTests` (3 passing tests) and the M13 runbook command | `CONFIRMED` for deterministic planning only; database apply/reconciliation remains `PROPOSED` |
+| Versioned migration dry-run planner and duplicate protection | `Goal2MigrationPlannerTests` (4 passing tests) and the M13 runbook command | `CONFIRMED` for deterministic planning only; database apply/reconciliation remains `PROPOSED` |
+| Isolated vNext API startup and identity boundary | `docs/acceptance/GOAL2_VNEXT_AUTH_RUNTIME_CHECK.md` (fresh PostgreSQL database; redacted local transcript) | `CONFIRMED` for this isolated API check; Aspire, RabbitMQ, and production deployment remain `PROPOSED` |
 
 ## Required runtime evidence before marking M14 complete
 
@@ -25,7 +26,7 @@ that the v0.1 runtime has been cut over or removed.
 | Event append, inline visibility, async convergence, replay, and rebuild | `INFERRED` | Test output showing empty-projection rebuild and daemon convergence |
 | Optimistic concurrency and duplicate durable delivery | `INFERRED` | Concurrent command and duplicate-message test output |
 | RabbitMQ routing, retry, dead-letter, and broker outage behavior | `PROPOSED` | Broker smoke/failure transcript with queue and dead-letter counts |
-| FullStackHero Identity 401/403/success paths and project scope | `PROPOSED` | Authenticated API transcript using non-production test identities |
+| FullStackHero Identity 401/403/success paths and project scope | `CONFIRMED` for isolated vNext API 401/403/success and inline/async project reads; project-scope matrix remains `PROPOSED` | `docs/acceptance/GOAL2_VNEXT_AUTH_RUNTIME_CHECK.md` plus a multi-tenant/project authorization artifact |
 | Platform and AI mutation audit trail | `INFERRED` | Queryable audit records with correlation/actor metadata |
 | Live GitHub App installation, private-repository ingestion, and webhook | `PROPOSED` | Redacted delivery/analysis evidence; no token or private key in logs |
 | End-to-end Vue workflows against the vNext API | `INFERRED` | Browser/API workflow artifact from the same deployed build |
